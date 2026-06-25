@@ -170,33 +170,40 @@ In this repo, shared policy lives in `cowrie_workflow_detect` / `cowrie_policy.p
 ### Execution model
 
 ```mermaid
-flowchart LR
-    subgraph Loop["ReAct loop (per event)"]
+flowchart TB
+    EVT[Normalized event]
+
+    subgraph Loop["ReAct loop per event"]
         direction TB
         OBS[Observe event + context]
         TH[Think — LLM reasoning]
         ACT["Act — choose tools"]
         OBS --> TH --> ACT
-        ACT -->|tool result| OBS
     end
 
+    EVT --> OBS
+
     subgraph Tools["Registered @tools"]
+        direction TB
         R[check_ip_reputation]
         B[block_ip]
         CA[counter_attack_*]
         AL[send_security_alert]
     end
 
+    ACT --> R & B & CA & AL
+    R & B & CA & AL --> MERGE[Tool results]
+    MERGE -->|next iteration| OBS
+
     subgraph Result["Structured output"]
+        direction TB
         RS[react_reasoning]
         CF[confidence + severity]
         AA[actions_taken / counter_attack_actions]
     end
 
-    EVT[Normalized event] --> OBS
-    ACT --> Tools
-    Tools --> ACT
-    ACT -->|stop condition| Result
+    ACT -->|stop condition| RS
+    RS --> CF --> AA
 ```
 
 *Source: [`docs/images/react-agent-loop.mmd`](images/react-agent-loop.mmd)*
