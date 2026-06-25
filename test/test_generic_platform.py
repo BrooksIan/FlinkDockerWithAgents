@@ -37,6 +37,13 @@ def test_generic_validate_paths() -> None:
     assert not missing, f"missing generic paths: {missing}"
 
 
+def test_api_factory() -> None:
+    from apemosyne.api.app import create_app
+
+    app = create_app()
+    assert app.title == "Apemosyne Control API"
+
+
 def main() -> int:
     print("=" * 60)
     print("Generic Flink Agents platform tests")
@@ -47,6 +54,8 @@ def main() -> int:
     print("OK  agent registry")
     test_generic_validate_paths()
     print("OK  generic validate paths")
+    test_api_factory()
+    print("OK  api factory")
     print("=" * 60)
     print("PASS")
     print("=" * 60)

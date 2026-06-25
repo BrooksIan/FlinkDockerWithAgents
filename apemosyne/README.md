@@ -1,82 +1,133 @@
 # Apemosyne — Flink Agents CLI
 
-Python package that provides the **`apemosyne`** command-line tool for this workspace.
+Python package for the **`apemosyne`** command-line tool and **Control API** — build Flink Agents images, run registered agents, and expose a dashboard-ready HTTP surface.
 
 ## Install
-
-From the repository root:
 
 ```bash
 pip install -e .
 apemosyne --help
 ```
 
-Entry point: `apemosyne.cli:app` (Typer).
+Entry point: `apemosyne.main:main` → `apemosyne.cli:app` (Typer).
 
-## What it does
+## Commands
 
-| Area | Module / command | Purpose |
-|------|------------------|---------|
-| Stack | `up`, `down`, `status`, `logs` | Docker Compose lifecycle |
-| Build | `build` | Build `agent_flink_image` from `Dockerfile` |
-| Demos | `demo` | Run Flink Agents demos in TaskManager |
-| Verify | `verify` | Tiered checks (`quick` → `nightly`) |
-| Tests | `test` | Launch smoke, phase1–3, production e2e |
-| Config | `config`, `doctor` | Env validation and pre-flight fixes |
-| Sync | `sync`, `sync-env` | Copy manifests / `.env` into containers |
-| Process | `process` | Run honeypot pipeline scripts on the host |
+### Stack & build
+
+| Command | Purpose |
+|---------|---------|
+| `apemosyne build [git-ref]` | Build `agent_flink_image` from `Dockerfile` |
+| `apemosyne up` | Start Docker Compose (default profile: `minimal`) |
+| `apemosyne up --mode platform` | Flink stack + API docs URL in startup output |
+| `apemosyne up --profile full` | Optional honeypot stack |
+| `apemosyne down` / `status` / `logs` | Compose lifecycle |
+| `apemosyne doctor` | Platform preflight (manifest, Flink REST, API) |
+
+### Agents
+
+| Command | Purpose |
+|---------|---------|
+| `apemosyne agent list` | Agents from `examples/agents/agent-manifest.yaml` |
+| `apemosyne agent describe <name>` | Metadata and entry class |
+| `apemosyne agent run <name> --local` | Local `AgentsExecutionEnvironment` runner |
+| `apemosyne agent run <name> --cluster` | Submit cluster job via JobManager |
+| `apemosyne agent submit <name>` | Same as `--cluster` |
+| `apemosyne agent status` | Flink jobs via REST |
+| `apemosyne agent cancel <job-id>` | Cancel a Flink job |
+
+### Control API
+
+| Command | Purpose |
+|---------|---------|
+| `apemosyne api start` | Run FastAPI on `:8090` (uvicorn) |
+| `apemosyne api url` | Print configured base URL |
+| `apemosyne api openapi [-o file]` | Dump OpenAPI JSON |
+| `apemosyne api check` | Probe `/v1/health` |
+
+See [../docs/PLATFORM.md](../docs/PLATFORM.md) for endpoints, auth, and dashboard integration.
+
+### Demos, verify, test
+
+| Command | Purpose |
+|---------|---------|
+| `apemosyne demo <name>` | Run demo in TaskManager (`datastream`, `workflow`, `react`, …) |
+| `apemosyne verify --tier quick\|standard\|full` | Manifest-driven checks |
+| `apemosyne test launch [--cluster]` | Flink Agents import + optional cluster submit |
+| `apemosyne test validate` | Required workspace files (generic; honeypot paths with `--profile full`) |
+
+Legacy bytecode commands (`config`, `sync`, `dashboard`, …) load when available.
 
 ## Package layout
 
 ```text
 apemosyne/
 ├── cli.py                 # Top-level Typer app
-├── docker_utils.py        # Compose helpers, container exec
-├── paths.py               # Repo root, honeypot_dir(), PYTHONPATH
-├── manifests.py           # YAML copy/sync catalogs
+├── api/                   # FastAPI control plane
+│   ├── app.py             # Application factory
+│   ├── routes.py          # /v1/* handlers
+│   ├── auth.py            # Optional X-API-Key
+│   ├── observability.py   # Prometheus + JSON logging
+│   └── config.py          # Env-based settings
+├── agents/                # Registry + submit helpers
+├── runtime/               # Flink cluster submit (no honeypot)
+├── docker_utils.py        # Compose helpers
+├── paths.py               # Repo root, honeypot_dir(), runtime paths
+├── manifests.py           # YAML catalogs
 ├── startup_modes.py       # up --mode presets
-├── config.py              # Merged .env / profile config
-├── checks/                # doctor, demo-ready
+├── copy_manifest.py       # Copy files into containers
 └── commands/
-    ├── stack.py           # up / down / ensure-kafka / ensure-flink-jobs
+    ├── stack.py
     ├── build.py
-    ├── demo.py
+    ├── agent_cmd.py
+    ├── api_cmd.py
+    ├── doctor_platform.py
     ├── test_cmd.py
-    ├── verify_cmd.py
-    ├── process.py         # log processor + sidecar scripts
-    └── …
+    └── verify_cmd.py
 ```
 
 ## Compose profiles
 
 | Profile | Compose file | Stack |
 |---------|--------------|-------|
-| `minimal` | `docker-compose.yml` | JobManager + TaskManager |
-| `full` | `honeypot/docker-compose.yml` | Cowrie honeypot + Kafka + pipeline + dashboard |
+| `minimal` (default) | `docker-compose.yml` | JobManager + TaskManager |
+| `full` | `honeypot/docker-compose.yml` | Cowrie honeypot + Kafka + pipeline |
 
-## Subproject integration
+`configure_runtime_sys_path()` loads honeypot modules only for the `full` profile.
 
-Subprojects register with the CLI via:
+## Environment
 
-1. **`apemosyne/paths.py`** — `honeypot_dir()`, `examples_dir()`, `configure_runtime_sys_path()`
-2. **`apemosyne/manifests/`** — generic verify tiers, startup modes, demo catalog
-3. **`honeypot/manifests/`** — optional honeypot file-copy manifests and extra demos
+| Variable | Default | Notes |
+|----------|---------|-------|
+| `APEMOSYNE_API_KEY` | unset | Local dev: leave unset. Set for protected routes when API is exposed. |
+| `APEMOSYNE_API_HOST` | `127.0.0.1` | API bind |
+| `APEMOSYNE_API_PORT` | `8090` | API port |
+| `FLINK_REST_ADDRESS` | `localhost` | JobManager for API/CLI |
+| `FLINK_REST_PORT` | `8081` | |
 
-To add a new subproject, create a sibling directory (e.g. `myapp/`) with its own compose file and manifests, then extend profiles or startup modes.
+See [../.env.example](../.env.example).
 
 ## Development
 
 ```bash
-# Fast local checks (no Docker)
+# No Docker
 apemosyne verify --tier quick
-pytest test/
+pytest test/test_cli_smoke.py test/test_generic_platform.py test/test_api_platform.py
 
-# With Docker image
+# Docker + doctor
 apemosyne verify --tier standard
+apemosyne build && apemosyne up && apemosyne test launch --cluster
 ```
+
+## Subproject integration
+
+1. **`apemosyne/paths.py`** — `examples_dir()`, optional `honeypot_dir()`
+2. **`apemosyne/manifests/`** — verify tiers, startup modes, demo catalog
+3. **`honeypot/manifests/`** — optional honeypot overlays
 
 ## See also
 
 - [../README.md](../README.md) — workspace overview
-- [../honeypot/README.md](../honeypot/README.md) — Cowrie honeypot subproject
-- [../test/README.md](../test/README.md) — test layout
+- [../docs/PLATFORM.md](../docs/PLATFORM.md) — Control API and agents
+- [../examples/README.md](../examples/README.md) — example agents
+- [../honeypot/README.md](../honeypot/README.md) — optional Cowrie pipeline

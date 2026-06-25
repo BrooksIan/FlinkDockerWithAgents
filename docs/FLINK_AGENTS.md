@@ -4,8 +4,9 @@ A practical review of the two agent paradigms in [Apache Flink Agents](https://g
 
 **Related docs**
 
+- [PLATFORM.md](PLATFORM.md) — generic platform: CLI, Control API, example agents
 - [honeypot/docs/PRODUCTION_ARCHITECTURE.md](../honeypot/docs/PRODUCTION_ARCHITECTURE.md) — hot path vs enrichment in production
-- [honeypot/README.md](../honeypot/README.md) — end-to-end demo
+- [honeypot/README.md](../honeypot/README.md) — optional Cowrie end-to-end demo
 - [Flink Agents 0.3 docs](https://nightlies.apache.org/flink/flink-agents-docs-release-0.3/) — upstream API reference
 
 ---

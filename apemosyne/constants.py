@@ -16,6 +16,8 @@ VALID_VERIFY_PROFILES: Final[FrozenSet[str]] = frozenset(
 VERIFY_TIERS: Final[Tuple[str, ...]] = ("quick", "standard", "full", "nightly")
 DEFAULT_STARTUP_MODE: Final[str] = "flink"
 
+DEFAULT_API_PORT: Final[int] = 8090
+
 PROFILE_HELP: Final[str] = (
     "Stack profile: 'minimal' (Flink JM/TM only) or 'full' (Cowrie honeypot + Kafka + dashboard)"
 )

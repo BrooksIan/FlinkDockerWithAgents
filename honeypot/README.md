@@ -2,7 +2,7 @@
 
 **Real-time threat detection and automated response using Apache Flink Agents with [Cowrie](https://github.com/cowrie/cowrie).**
 
-This directory is a **subproject** in the [Apemosyne](../README.md) workspace. It bundles pipeline code, Docker services, dashboards, and tests for a Cowrie honeypot streaming pipeline.
+This directory is an **optional subproject** in the [Apemosyne](../README.md) workspace. For the generic Flink Agents CLI, Control API, and example agents (no Cowrie), see [docs/PLATFORM.md](../docs/PLATFORM.md).
 
 ## Architecture
 

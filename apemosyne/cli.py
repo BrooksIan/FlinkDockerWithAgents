@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 
 from apemosyne import __version__
-from apemosyne.commands import agent_cmd, build, process, stack, test_cmd, verify_cmd
+from apemosyne.commands import agent_cmd, api_cmd, build, doctor_platform, process, stack, test_cmd, verify_cmd
 from apemosyne.commands.build import build_image
 from apemosyne.constants import DEFAULT_PROFILE, PROFILE_HELP, STARTUP_MODE_HELP
 from apemosyne.startup_modes import resolve_up_options
@@ -80,6 +80,8 @@ app.add_typer(test_cmd.app, name="test")
 app.add_typer(verify_cmd.app, name="verify")
 app.add_typer(process.app, name="process")
 app.add_typer(agent_cmd.app, name="agent")
+app.add_typer(api_cmd.app, name="api")
+app.add_typer(doctor_platform.app, name="doctor-platform")
 
 # Optional bytecode-backed commands (demo, doctor, dashboard, …)
 try:
@@ -91,7 +93,6 @@ try:
         dashboard,
         demo,
         demo_ready_cmd,
-        doctor_cmd,
         modes_cmd,
         sync,
         sync_env_cmd,
@@ -102,7 +103,6 @@ try:
     app.command("dashboard")(dashboard.dashboard)
     app.command("demo")(demo.demo)
     app.command("demo-ready")(demo_ready_cmd.demo_ready)
-    app.command("doctor")(doctor_cmd.doctor)
     app.command("modes")(modes_cmd.modes)
     app.command("sync")(sync.sync)
     app.command("sync-env")(sync_env_cmd.sync_env)
@@ -116,3 +116,4 @@ app.command("status")(stack.status)
 app.command("logs")(stack.logs)
 app.command("ensure-kafka-topics")(stack.ensure_kafka_topics_cmd)
 app.command("ensure-flink-jobs")(stack.ensure_flink_jobs_cmd)
+app.command("doctor")(doctor_platform.doctor_platform)

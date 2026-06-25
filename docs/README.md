@@ -1,28 +1,30 @@
 # Documentation
 
-Guides for the **Apemosyne** Flink Agents CLI workspace. Honeypot-specific docs live under [`honeypot/docs/`](../honeypot/docs/).
+Guides for the **Apemosyne** Flink Agents workspace. Honeypot-specific docs live under [`honeypot/docs/`](../honeypot/docs/).
 
 ## Getting started
 
 | Doc | Description |
 |-----|-------------|
 | [../README.md](../README.md) | Workspace overview and quick start |
-| [../apemosyne/README.md](../apemosyne/README.md) | CLI package |
-| [../honeypot/README.md](../honeypot/README.md) | Cowrie honeypot cybersecurity demo |
-| [../examples/README.md](../examples/README.md) | Generic Flink Agents demos |
+| [PLATFORM.md](PLATFORM.md) | **Control API, agents, observability, dashboard integration** |
+| [../apemosyne/README.md](../apemosyne/README.md) | CLI package and commands |
+| [../examples/README.md](../examples/README.md) | Example agents and demos |
 
 ## Guides in this directory
 
 | Doc | Description |
 |-----|-------------|
-| [FLINK_AGENTS.md](FLINK_AGENTS.md) | Workflow vs ReAct agents — concepts, comparison, Mermaid diagrams |
+| [PLATFORM.md](PLATFORM.md) | Platform control plane — API, agent registry, local dev, verify |
+| [FLINK_AGENTS.md](FLINK_AGENTS.md) | Workflow vs ReAct agents — concepts, comparison, diagrams |
 
-## Honeypot guides (`honeypot/docs/`)
+## Optional honeypot (`honeypot/docs/`)
 
 | Doc | Description |
 |-----|-------------|
-| [COWRIE_QUICKSTART.md](../honeypot/docs/COWRIE_QUICKSTART.md) | Cowrie honeypot setup and first demo |
-| [PRODUCTION_ARCHITECTURE.md](../honeypot/docs/PRODUCTION_ARCHITECTURE.md) | Hot path vs ReAct enrichment, Kafka topics, env vars |
+| [../honeypot/README.md](../honeypot/README.md) | Cowrie honeypot demo |
+| [COWRIE_QUICKSTART.md](../honeypot/docs/COWRIE_QUICKSTART.md) | Cowrie setup |
+| [PRODUCTION_ARCHITECTURE.md](../honeypot/docs/PRODUCTION_ARCHITECTURE.md) | Hot path vs ReAct enrichment |
 
 ## Architecture diagrams
 
@@ -35,18 +37,14 @@ Guides for the **Apemosyne** Flink Agents CLI workspace. Honeypot-specific docs 
 | [ReAct loop](FLINK_AGENTS.md#execution-model-1) | `docs/images/react-agent-loop.mmd` |
 | [Hybrid hot path + enrichment](FLINK_AGENTS.md#recommended-hybrid-pattern) | `docs/images/workflow-vs-react-hybrid.mmd` |
 
-### Honeypot production topology
+### Honeypot (optional)
 
 | Diagram | Preview |
 |---------|---------|
-| [Reference architecture](../honeypot/README.md#architecture) | ![VeryNiceRA](../honeypot/docs/images/VeryNiceRA.png) |
+| [Reference architecture](../honeypot/README.md) | ![VeryNiceRA](../honeypot/docs/images/VeryNiceRA.png) |
 | Production topology | ![topology](../honeypot/docs/images/production-topology.png) |
-| Pipeline phases | ![phases](../honeypot/docs/images/production-pipeline-phases.png) |
-| Hot path vs enrichment | ![hot path](../honeypot/docs/images/production-hot-path-vs-enrichment.png) |
 
-PNG sources: `docs/images/` and `honeypot/docs/images/` (regenerate from `*.mmd` via `scripts/render_architecture_diagrams.sh`).
-
-Dashboard screenshots: `honeypot/images/` (see [honeypot/README.md](../honeypot/README.md#screenshots)).
+PNG sources: `docs/images/` and `honeypot/docs/images/` (`scripts/render_architecture_diagrams.sh`).
 
 ## External links
 

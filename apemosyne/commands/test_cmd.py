@@ -46,6 +46,7 @@ def _generic_validate_paths(root: Path) -> list[str]:
         "apemosyne/runtime/flink_cluster_submit.py",
         "apemosyne/manifests/test-launch.yaml",
         "examples/agents/agent-manifest.yaml",
+        "apemosyne/api/app.py",
         "pyproject.toml",
     ]
 

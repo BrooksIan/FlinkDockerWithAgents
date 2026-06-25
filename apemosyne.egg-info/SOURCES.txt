@@ -21,9 +21,19 @@ apemosyne.egg-info/top_level.txt
 apemosyne/agents/__init__.py
 apemosyne/agents/registry.py
 apemosyne/agents/submit.py
+apemosyne/api/__init__.py
+apemosyne/api/app.py
+apemosyne/api/auth.py
+apemosyne/api/config.py
+apemosyne/api/flink_client.py
+apemosyne/api/observability.py
+apemosyne/api/routes.py
+apemosyne/api/services.py
 apemosyne/commands/__init__.py
 apemosyne/commands/agent_cmd.py
+apemosyne/commands/api_cmd.py
 apemosyne/commands/build.py
+apemosyne/commands/doctor_platform.py
 apemosyne/commands/process.py
 apemosyne/commands/stack.py
 apemosyne/commands/test_cmd.py
@@ -32,6 +42,7 @@ apemosyne/runtime/__init__.py
 apemosyne/runtime/cluster_launch_agent.py
 apemosyne/runtime/cluster_launch_test.py
 apemosyne/runtime/flink_cluster_submit.py
+test/test_api_platform.py
 test/test_cli_smoke.py
 test/test_generic_platform.py
 test/test_launch_flink_agents.py

@@ -1,63 +1,69 @@
 # Tests
 
-Tests for the **Flink Agents CLI** and workspace-wide behavior. Honeypot-specific tests live under [`honeypot/test/`](../honeypot/test/).
+Tests for the **Apemosyne Flink Agents platform** and workspace-wide CLI behavior. Honeypot-specific tests live under [`honeypot/test/`](../honeypot/test/).
 
 ## Layout
 
-| Directory | Scope |
-|-----------|--------|
-| `test/` (here) | CLI, config, manifests, doctor, verify tiers, launch smoke |
-| `honeypot/test/` | Cowrie pipeline, policy, traps, ReAct, cluster e2e |
+| File / directory | Scope |
+|------------------|--------|
+| `test_cli_smoke.py` | Workspace layout, manifests, demo catalog |
+| `test_generic_platform.py` | Agent registry, validate paths, API factory |
+| `test_api_platform.py` | Control API OpenAPI, health, metrics, auth |
+| `test_launch_flink_agents.py` | Flink Agents import + cluster launch smoke |
+| `honeypot/test/` | Cowrie pipeline, policy, traps, ReAct (optional) |
 
-## Run locally
+## Run locally (no Docker)
 
 ```bash
 pip install -e .
-pytest test/
-pytest honeypot/test/
+pytest test/test_cli_smoke.py test/test_generic_platform.py test/test_api_platform.py
+apemosyne verify --tier quick
 ```
-
-`conftest.py` in each tree calls `apemosyne.paths.configure_runtime_sys_path()` so `honeypot/src/*` modules import correctly.
 
 ## Verify tiers
 
 ```bash
-apemosyne verify --tier quick       # no Docker
-apemosyne verify --tier standard    # + Docker smoke
-apemosyne verify --tier full
-apemosyne verify --tier nightly     # cluster e2e (full stack up)
+apemosyne verify --tier quick       # smoke + agent registry + API unit tests
+apemosyne verify --tier standard    # + platform doctor
+apemosyne verify --tier full        # + Docker image check
+apemosyne verify --tier nightly
 ```
 
-Tiers are defined in `apemosyne/manifests/verify-tiers.yaml` (generic workspace checks). Honeypot-specific tiers may also exist under `honeypot/manifests/`.
+Tiers: `apemosyne/manifests/verify-tiers.yaml`. Honeypot overlay: `honeypot/manifests/` with `--profile honeypot`.
 
 ## Launch smoke test
 
-Confirms Flink Agents can build and execute a minimal workflow:
-
 ```bash
-apemosyne test launch
-apemosyne test launch --cluster --in-container   # visible in Flink Web UI
+apemosyne test validate             # file layout (generic paths)
+apemosyne test launch               # flink_agents import in image
+apemosyne test launch --cluster     # submit job to JobManager (needs stack up)
 ```
 
-## Docker helper scripts
+## Control API
 
-Optional shell wrappers (require running TaskManager):
+API tests use FastAPI `TestClient` — no running server required:
 
-- `test_launch_flink_agents_docker.sh`
-- `test_cloudera_llm_docker.sh`
-- `test_react_agent_docker.sh`
-- `test_react_cloudera_openai_docker.sh`
+```bash
+python test/test_api_platform.py
+```
 
-Default container name: `honeypot-taskmanager-1` (override with `FLINK_CONTAINER`).
+Live check when API is running:
 
-## Integration scripts
+```bash
+apemosyne api start    # separate terminal
+apemosyne api check
+curl http://127.0.0.1:8090/v1/health
+```
 
-Some files under `honeypot/test/` are **scripts**, not pytest unit tests. They skip collection unless run directly or via `apemosyne test`:
+## Honeypot tests (optional)
 
-- `test_cloudera_llm.py`, `test_react_simple.py` — need `flink_agents` / Cloudera JWT
-- `test_phase1_cluster.py`, `test_phase2_cluster.py` — need Kafka + Flink cluster
+```bash
+apemosyne up --profile full
+apemosyne test phase1|phase2|phase3|production [--e2e]
+pytest honeypot/test/
+```
 
 ## See also
 
-- [../apemosyne/README.md](../apemosyne/README.md)
-- [../honeypot/README.md](../honeypot/README.md)
+- [../docs/PLATFORM.md](../docs/PLATFORM.md) — platform architecture
+- [../apemosyne/README.md](../apemosyne/README.md) — CLI commands
