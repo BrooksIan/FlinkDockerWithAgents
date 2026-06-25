@@ -2,23 +2,24 @@
 
 from __future__ import annotations
 
-import sys
-from importlib.machinery import SourcelessFileLoader
-from importlib.util import module_from_spec, spec_from_loader
+import marshal
 from pathlib import Path
 
 _PYC_SUBDIRS = ("react", "core", "pipeline", "integrations", "services", "traps", "demo")
+_PYC_HEADER_SIZE = 16
 
 
 def resolve_sibling_pyc(module_file: str | Path) -> Path:
     """Find bytecode for a shim module (repo tree or flat ``/opt/flink`` mounts)."""
     path = Path(module_file).resolve()
     stem = path.stem
+    if stem.endswith(".cpython-312"):
+        stem = stem.removesuffix(".cpython-312")
     name = f"{stem}.cpython-312.pyc"
-    candidates = [
-        path.parent / "__pycache__" / name,
-        Path("/opt/flink/__pycache__") / name,
-    ]
+    candidates: list[Path] = []
+    flat_mount = path.parent == Path("/opt/flink")
+    if not flat_mount:
+        candidates.append(path.parent / "__pycache__" / name)
     for sub in _PYC_SUBDIRS:
         candidates.append(Path(f"/opt/flink/pyc/{sub}") / name)
     for pyc in candidates:
@@ -29,30 +30,29 @@ def resolve_sibling_pyc(module_file: str | Path) -> Path:
 
 
 def load_sibling_pyc(module_globals: dict) -> None:
-    """Execute bytecode for the calling shim and merge public names into ``module_globals``."""
+    """Execute bytecode for the calling shim into ``module_globals``."""
     module_file = module_globals["__file__"]
-    path = Path(module_file).resolve()
-    stem = path.stem
     pyc = resolve_sibling_pyc(module_file)
-    loader = SourcelessFileLoader(stem, str(pyc))
-    spec = spec_from_loader(stem, loader)
-    if spec is None:
-        raise ImportError(f"Cannot load {pyc}")
-    mod = module_from_spec(spec)
-    sys.modules[stem] = mod
-    loader.exec_module(mod)
-    for key, value in mod.__dict__.items():
-        if key.startswith("__"):
-            continue
-        module_globals[key] = value
+    code = marshal.loads(pyc.read_bytes()[_PYC_HEADER_SIZE:])
+    namespace = {
+        "__name__": module_globals.get("__name__"),
+        "__file__": str(Path(module_file).resolve()),
+        "__package__": module_globals.get("__package__"),
+        "__loader__": module_globals.get("__loader__"),
+        "__spec__": module_globals.get("__spec__"),
+    }
+    exec(code, namespace)
+    module_globals.clear()
+    module_globals.update(namespace)
 
 
 def run_sibling_pyc_main(module_file: str) -> None:
     """Run ``if __name__ == '__main__'`` block from sibling bytecode."""
     pyc = resolve_sibling_pyc(module_file)
-    loader = SourcelessFileLoader("__main__", str(pyc))
-    spec = spec_from_loader("__main__", loader)
-    if spec is None:
-        raise ImportError(f"Cannot load {pyc}")
-    mod = module_from_spec(spec)
-    loader.exec_module(mod)
+    code = marshal.loads(pyc.read_bytes()[_PYC_HEADER_SIZE:])
+    namespace = {
+        "__name__": "__main__",
+        "__file__": str(Path(module_file).resolve()),
+        "__package__": None,
+    }
+    exec(code, namespace)

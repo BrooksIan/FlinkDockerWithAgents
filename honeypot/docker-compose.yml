@@ -681,6 +681,13 @@ services:
       - ./cowrie-dashboard-data.json:/opt/flink/cowrie-dashboard-data.json:rw
       - ./requirements.txt:/opt/flink/requirements.txt:ro
       - ./dashboard/dashboard_cowrie.py:/opt/flink/dashboard_cowrie.py:ro
+      - ./src/_pyc_shim.py:/opt/flink/_pyc_shim.py:ro
+      - ./src/react/__pycache__:/opt/flink/pyc/react:ro
+      - ./src/core/__pycache__:/opt/flink/pyc/core:ro
+      - ./src/pipeline/__pycache__:/opt/flink/pyc/pipeline:ro
+      - ./src/integrations/__pycache__:/opt/flink/pyc/integrations:ro
+      - ./src/services/__pycache__:/opt/flink/pyc/services:ro
+      - ./demo/__pycache__:/opt/flink/pyc/demo:ro
       - ./src/services/cowrie_log_processor.py:/opt/flink/cowrie_log_processor.py:ro
       - ./demo/demo_cowrie_response.py:/opt/flink/demo_cowrie_response.py:ro
       - ./demo/demo_cloudera_react_agent.py:/opt/flink/demo_cloudera_react_agent.py:ro
