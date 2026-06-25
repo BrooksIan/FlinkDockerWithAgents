@@ -1,0 +1,29 @@
+# Apemosyne verify tiers — generic workspace checks (no honeypot required).
+tiers:
+  quick:
+    steps:
+      - type: python
+        path: test/test_cli_smoke.py
+        description: Workspace layout, manifests, and CLI catalog smoke
+
+  standard:
+    extends: quick
+    steps:
+      - type: python
+        path: scripts/verify_doctor.py
+        description: Doctor preflight (no --fix)
+
+  full:
+    extends: standard
+    steps:
+      - type: docker
+        description: Docker image present
+        check: image
+        image: agent_flink_image:latest
+
+  nightly:
+    extends: full
+    steps:
+      - type: python
+        path: test/test_cli_smoke.py
+        description: Repeat workspace smoke after image check

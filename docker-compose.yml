@@ -1,0 +1,44 @@
+# Minimal Flink Agents stack — JobManager + TaskManager only.
+# Image: apemosyne build  (or set FLINK_AGENT_IMAGE in .env)
+x-flink-agent-image: &flink-agent-image
+  image: ${FLINK_AGENT_IMAGE:-agent_flink_image:latest}
+
+services:
+  jobmanager:
+    <<: *flink-agent-image
+    ports:
+      - "8081:8081"
+    command: jobmanager
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8081/overview >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 20s
+    environment:
+      - PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:/opt/flink/opt/python/pyflink.zip:/opt/flink/opt/python/py4j-src.zip
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+    networks:
+      - flink-network
+
+  taskmanager:
+    <<: *flink-agent-image
+    depends_on:
+      - jobmanager
+    command: taskmanager
+    scale: 1
+    environment:
+      - PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:/opt/flink/opt/python/pyflink.zip:/opt/flink/opt/python/py4j-src.zip
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        taskmanager.numberOfTaskSlots: 4
+        taskmanager.memory.process.size: 4096m
+    networks:
+      - flink-network
+
+networks:
+  flink-network:
+    driver: bridge

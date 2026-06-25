@@ -1,0 +1,112 @@
+Metadata-Version: 2.4
+Name: apemosyne
+Version: 0.1.0
+Summary: CLI for Apache Flink Agents workspaces
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: typer>=0.12.0
+Requires-Dist: rich>=13.0.0
+Requires-Dist: python-dotenv>=1.0.0
+Requires-Dist: pyyaml>=6.0
+Requires-Dist: streamlit>=1.28.0
+Requires-Dist: pandas>=2.0.0
+Requires-Dist: plotly>=5.17.0
+Requires-Dist: kafka-python>=2.0.2
+Requires-Dist: ipwhois>=1.2.0
+Requires-Dist: openai>=1.0.0
+Requires-Dist: requests>=2.28.0
+
+# Apemosyne
+
+**Build, run, and verify [Apache Flink Agents](https://github.com/apache/flink-agents) workflows on Docker — with pluggable subprojects.**
+
+This repository is a **multi-project workspace** centered on the **Apemosyne** CLI:
+
+| Path | Description |
+|------|-------------|
+| [`apemosyne/`](apemosyne/README.md) | Shared CLI (`apemosyne`) — build, compose, demos, verify |
+| [`examples/`](examples/README.md) | Generic Flink Agents demos (no honeypot deps) |
+| [`honeypot/`](honeypot/README.md) | Cowrie honeypot cybersecurity pipeline (reference subproject) |
+| [`test/`](test/README.md) | CLI and cross-cutting tests |
+| [`docs/`](docs/README.md) | Flink Agents guides |
+
+Future subprojects can add their own directory with `docker-compose.yml`, `manifests/`, `src/`, and `docs/` while reusing the same CLI.
+
+## Quick start (Flink only)
+
+```bash
+pip install -e .
+apemosyne build
+apemosyne up                    # minimal: JobManager + TaskManager
+apemosyne demo datastream
+apemosyne test launch
+```
+
+Flink Web UI: http://localhost:8081
+
+## Quick start (honeypot)
+
+```bash
+pip install -e .
+apemosyne build
+apemosyne up --profile full    # Cowrie + Kafka + dashboard + pipeline
+apemosyne dashboard
+```
+
+See [honeypot/README.md](honeypot/README.md).
+
+![Honeypot reference architecture](honeypot/docs/images/VeryNiceRA.png)
+
+## Repository layout
+
+```text
+.
+├── apemosyne/                 # CLI package
+├── examples/                  # Generic demos
+├── honeypot/                  # Honeypot subproject bundle
+│   ├── docker-compose.yml     # Full Cowrie + Kafka + dashboard stack
+│   ├── src/                   # Pipeline modules (core, pipeline, traps, react, …)
+│   ├── demo/                  # Cowrie-specific demos
+│   ├── dashboard/             # Streamlit UI
+│   ├── simulate_attack/       # Synthetic attack injection
+│   └── test/                  # Honeypot tests
+├── test/                      # CLI / shared tests
+├── scripts/                   # Shell helpers
+├── docker-compose.yml         # Minimal Flink stack (when present)
+└── README.md
+```
+
+## CLI overview
+
+```bash
+apemosyne build [git-ref]     # Build agent_flink_image:latest
+apemosyne up [--profile full|minimal]
+apemosyne down
+apemosyne doctor [--fix]
+apemosyne demo <name>
+apemosyne verify --tier quick|standard|full|nightly
+apemosyne test launch [--cluster]
+apemosyne test phase1|phase2|phase3|production [--e2e]
+```
+
+Full command reference: [apemosyne/README.md](apemosyne/README.md)
+
+## Prerequisites
+
+- Docker and Docker Compose v2
+- Python 3.10+
+- Git (image build clones `apache/flink-agents`)
+
+Copy `.env.example` to `.env` for optional Cloudera LLM (honeypot Phase 3 ReAct).
+
+## Documentation
+
+- [apemosyne/README.md](apemosyne/README.md) — CLI development
+- [honeypot/README.md](honeypot/README.md) — Cowrie cybersecurity demo
+- [examples/README.md](examples/README.md) — generic demos
+- [docs/README.md](docs/README.md) — Flink Agents guides
+- [docs/FLINK_AGENTS.md](docs/FLINK_AGENTS.md) — workflow vs ReAct agents
+
+## License
+
+Apache License 2.0

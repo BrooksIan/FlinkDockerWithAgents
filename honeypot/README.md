@@ -2,7 +2,7 @@
 
 **Real-time threat detection and automated response using Apache Flink Agents with [Cowrie](https://github.com/cowrie/cowrie).**
 
-This directory is a **subproject** in the [Flink Agents CLI](../README.md) workspace. It bundles pipeline code, Docker services, dashboards, and tests for a honeypot streaming pipeline.
+This directory is a **subproject** in the [Apemosyne](../README.md) workspace. It bundles pipeline code, Docker services, dashboards, and tests for a Cowrie honeypot streaming pipeline.
 
 ## Architecture
 
@@ -12,7 +12,7 @@ This directory is a **subproject** in the [Flink Agents CLI](../README.md) works
 
 ![Simplified pipeline diagram](docs/images/PrettyRASlide.png)
 
-More diagrams: [../docs/PRODUCTION_ARCHITECTURE.md](../docs/PRODUCTION_ARCHITECTURE.md)
+More diagrams: [docs/PRODUCTION_ARCHITECTURE.md](docs/PRODUCTION_ARCHITECTURE.md)
 
 ## What this demo shows
 
@@ -28,12 +28,12 @@ From the **repository root**:
 
 ```bash
 pip install -e .
-flink-cowrie build
-flink-cowrie up --profile full
-flink-cowrie dashboard
+apemosyne build
+apemosyne up --profile full
+apemosyne dashboard
 ```
 
-Compose file: `honeypot/docker-compose.yml` when present, otherwise root `docker-compose-cowrie.yml`.
+Compose file: `honeypot/docker-compose.yml`.
 
 - Dashboard: http://localhost:8501
 - Flink UI: http://localhost:8081
@@ -69,17 +69,17 @@ Compose file: `honeypot/docker-compose.yml` when present, otherwise root `docker
 ## CLI commands
 
 ```bash
-flink-cowrie up --profile full
-flink-cowrie test phase1 [--e2e]
-flink-cowrie test phase2 [--e2e]
-flink-cowrie test actor-classify [--e2e]
-flink-cowrie test phase3 [--e2e]
-flink-cowrie test production [--e2e]
-flink-cowrie utils simulate-attacks --e2e
-flink-cowrie verify --tier nightly
+apemosyne up --profile full
+apemosyne test phase1 [--e2e]
+apemosyne test phase2 [--e2e]
+apemosyne test actor-classify [--e2e]
+apemosyne test phase3 [--e2e]
+apemosyne test production [--e2e]
+apemosyne utils simulate-attacks --e2e
+apemosyne verify --tier nightly
 ```
 
-Phase 3 e2e needs `CLOUDERA_AI_BASE_URL` and `CLOUDERA_JWT_TOKEN` in repo `.env` (then `flink-cowrie sync-env`).
+Phase 3 e2e needs `CLOUDERA_AI_BASE_URL` and `CLOUDERA_JWT_TOKEN` in repo `.env` (then `apemosyne sync-env`).
 
 ## Screenshots
 
@@ -96,15 +96,15 @@ Phase 3 e2e needs `CLOUDERA_AI_BASE_URL` and `CLOUDERA_JWT_TOKEN` in repo `.env`
 
 ```bash
 cp .env.example .env          # repo root
-flink-cowrie sync-env --recreate
+apemosyne sync-env --recreate
 ```
 
 ## Documentation
 
-- [../docs/COWRIE_QUICKSTART.md](../docs/COWRIE_QUICKSTART.md)
-- [../docs/PRODUCTION_ARCHITECTURE.md](../docs/PRODUCTION_ARCHITECTURE.md)
+- [docs/COWRIE_QUICKSTART.md](docs/COWRIE_QUICKSTART.md)
+- [docs/PRODUCTION_ARCHITECTURE.md](docs/PRODUCTION_ARCHITECTURE.md)
 - [test/README.md](test/README.md) — honeypot test guide (when present)
 
 ## Parent project
 
-Shared CLI and generic demos: **[../README.md](../README.md)**
+Shared CLI and generic demos: **[../README.md](../README.md)** (Apemosyne)

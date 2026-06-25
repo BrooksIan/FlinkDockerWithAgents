@@ -27,14 +27,14 @@ python3 honeypot/test/test_cowrie_policy.py
 Require a running full stack:
 
 ```bash
-flink-cowrie up --profile full
-flink-cowrie test phase1 --e2e
+apemosyne up --profile full
+apemosyne test phase1 --e2e
 ```
 
 Or via verify:
 
 ```bash
-flink-cowrie verify --tier nightly
+apemosyne verify --tier nightly
 ```
 
 ## Script-style tests

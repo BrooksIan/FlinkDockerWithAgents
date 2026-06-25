@@ -1,10 +1,10 @@
 # Apache Flink Agents — Workflow vs ReAct
 
-A practical review of the two agent paradigms in [Apache Flink Agents](https://github.com/apache/flink-agents) (release 0.3), with diagrams and guidance drawn from this workspace’s Cowrie honeypot pipeline.
+A practical review of the two agent paradigms in [Apache Flink Agents](https://github.com/apache/flink-agents) (release 0.3), with diagrams and guidance from the **Apemosyne** workspace (including the [honeypot](../honeypot/README.md) reference pipeline).
 
 **Related docs**
 
-- [PRODUCTION_ARCHITECTURE.md](PRODUCTION_ARCHITECTURE.md) — hot path vs enrichment in production
+- [honeypot/docs/PRODUCTION_ARCHITECTURE.md](../honeypot/docs/PRODUCTION_ARCHITECTURE.md) — hot path vs enrichment in production
 - [honeypot/README.md](../honeypot/README.md) — end-to-end demo
 - [Flink Agents 0.3 docs](https://nightlies.apache.org/flink/flink-agents-docs-release-0.3/) — upstream API reference
 
@@ -74,7 +74,7 @@ Typical building blocks:
 - **Deterministic** — same input → same output (auditable for SOC and compliance)
 - **Fast** — no model latency; suitable for per-event hot paths
 - **Predictable cost** — no tokens per record
-- **Easy to test** — unit tests against `cowrie_policy.py`-style rules
+- **Easy to test** — unit tests against deterministic policy modules
 
 ### Weaknesses
 
@@ -321,18 +321,18 @@ Policy code is shared; alerts should match on core fields. See [PRODUCTION_ARCHI
 
 ```bash
 pip install -e .
-flink-cowrie build
-flink-cowrie up --profile full
+apemosyne build
+apemosyne up --profile full
 
 # Workflow path (Phase 2)
-flink-cowrie test phase2 --e2e
+apemosyne test phase2 --e2e
 
 # ReAct enrichment (Phase 3; needs Cloudera creds in .env)
-flink-cowrie test phase3 --e2e
-flink-cowrie test react --compare
+apemosyne test phase3 --e2e
+apemosyne test react --compare
 
 # Full production routing
-flink-cowrie test production --e2e
+apemosyne test production --e2e
 ```
 
 Demos (when present under `honeypot/demo/` or `examples/`):

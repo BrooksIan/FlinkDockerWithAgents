@@ -1,0 +1,2 @@
+[console_scripts]
+apemosyne = apemosyne.main:main

@@ -14,7 +14,7 @@ UI captures referenced from [honeypot/README.md](../README.md#screenshots).
 | `RepeatIPattackers.png` | Repeat attacker chart (optional) |
 | `CounterAttackStats.png` / `CounterAttackStats1.png` | Counter-attack stats (optional) |
 
-Generate fresh captures after `flink-cowrie dashboard` and simulated attacks, or run:
+Generate fresh captures after `apemosyne dashboard` and simulated attacks, or run:
 
 ```bash
 .venv/bin/python scripts/generate_dashboard_images.py

@@ -2,7 +2,7 @@
 	"folders": [
 		{
 			"path": ".",
-			"name": "FlinkDockerWithAgents"
+			"name": "Apemosyne"
 		}
 	],
 	"settings": {
@@ -139,9 +139,9 @@
 				"problemMatcher": []
 			},
 			{
-				"label": "Start Flink + Cowrie Services",
+				"label": "Start honeypot stack",
 				"type": "shell",
-				"command": "docker-compose -f docker-compose-cowrie.yml up -d",
+				"command": "apemosyne up --profile full",
 				"group": "build",
 				"presentation": {
 					"reveal": "always",
@@ -152,7 +152,7 @@
 			{
 				"label": "Stop All Services",
 				"type": "shell",
-				"command": "docker-compose -f docker-compose-cowrie.yml down",
+				"command": "apemosyne down",
 				"group": "build",
 				"presentation": {
 					"reveal": "always",
@@ -163,7 +163,7 @@
 			{
 				"label": "View Service Logs",
 				"type": "shell",
-				"command": "docker-compose -f docker-compose-cowrie.yml logs -f",
+				"command": "apemosyne logs -f",
 				"group": "test",
 				"presentation": {
 					"reveal": "always",
@@ -229,7 +229,7 @@
 			{
 				"label": "Check Docker Containers",
 				"type": "shell",
-				"command": "docker-compose -f docker-compose-cowrie.yml ps",
+				"command": "apemosyne status",
 				"group": "test",
 				"presentation": {
 					"reveal": "always",

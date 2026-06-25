@@ -6,10 +6,10 @@ sequenceDiagram
     participant T2 as Tool: block_ip
     participant Out as Output alert
 
-    Src->>Agent: InputEvent (Cowrie log)
+    Src->>Agent: InputEvent (security event)
     Agent->>T1: always call (fixed order)
     T1-->>Agent: reputation score
-    Note over Agent: Rule engine: eventid, severity floors
+    Note over Agent: Rule engine: event type, severity floors
     alt severity >= HIGH
         Agent->>T2: invoke response tool
         T2-->>Agent: block status

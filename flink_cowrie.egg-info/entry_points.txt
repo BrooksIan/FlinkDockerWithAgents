@@ -1,2 +1,0 @@
-[console_scripts]
-flink-cowrie = flink_cowrie.cli:app

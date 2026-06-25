@@ -24,9 +24,23 @@ def _bootstrap_paths() -> None:
     root = "/opt/flink"
     if root not in sys.path:
         sys.path.insert(0, root)
+    if os.path.isdir(root):
+        return
     repo = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     if repo not in sys.path:
         sys.path.insert(0, repo)
+    try:
+        from apemosyne._bootstrap import install_aliases
+        from apemosyne.paths import configure_runtime_sys_path
+
+        install_aliases()
+        configure_runtime_sys_path()
+    except ImportError:
+        hp_src = os.path.join(repo, "honeypot", "src")
+        for sub in ("core", "pipeline", "traps", "react", "integrations", "cluster", "services"):
+            path = os.path.join(hp_src, sub)
+            if os.path.isdir(path) and path not in sys.path:
+                sys.path.insert(0, path)
 
 
 _bootstrap_paths()

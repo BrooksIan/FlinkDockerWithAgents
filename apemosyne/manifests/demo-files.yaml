@@ -1,0 +1,16 @@
+# Generic Flink Agents demos (no honeypot dependencies).
+name: demo-files-examples
+choices:
+  - datastream
+  - table
+demos:
+  datastream:
+    script: demo_datastream.py
+    files:
+      - local: examples/demo_datastream.py
+        remote: /opt/flink/demo_datastream.py
+  table:
+    script: demo_table.py
+    files:
+      - local: examples/demo_table.py
+        remote: /opt/flink/demo_table.py

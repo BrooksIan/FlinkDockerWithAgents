@@ -1,0 +1,17 @@
+README.md
+pyproject.toml
+apemosyne/__init__.py
+apemosyne/__main__.py
+apemosyne/_bootstrap.py
+apemosyne/_entry.py
+apemosyne/main.py
+apemosyne.egg-info/PKG-INFO
+apemosyne.egg-info/SOURCES.txt
+apemosyne.egg-info/dependency_links.txt
+apemosyne.egg-info/entry_points.txt
+apemosyne.egg-info/requires.txt
+apemosyne.egg-info/top_level.txt
+apemosyne/commands/__init__.py
+apemosyne/commands/process.py
+apemosyne/commands/stack.py
+test/test_production_pipeline.py

@@ -17,26 +17,26 @@ pytest test/
 pytest honeypot/test/
 ```
 
-`conftest.py` in each tree calls `flink_cowrie.paths.configure_runtime_sys_path()` so `honeypot/src/*` modules import correctly.
+`conftest.py` in each tree calls `apemosyne.paths.configure_runtime_sys_path()` so `honeypot/src/*` modules import correctly.
 
 ## Verify tiers
 
 ```bash
-flink-cowrie verify --tier quick       # no Docker
-flink-cowrie verify --tier standard    # + Docker smoke
-flink-cowrie verify --tier full
-flink-cowrie verify --tier nightly     # cluster e2e (full stack up)
+apemosyne verify --tier quick       # no Docker
+apemosyne verify --tier standard    # + Docker smoke
+apemosyne verify --tier full
+apemosyne verify --tier nightly     # cluster e2e (full stack up)
 ```
 
-Tiers are defined in `honeypot/manifests/verify-tiers.yaml` when that manifest exists.
+Tiers are defined in `apemosyne/manifests/verify-tiers.yaml` (generic workspace checks). Honeypot-specific tiers may also exist under `honeypot/manifests/`.
 
 ## Launch smoke test
 
 Confirms Flink Agents can build and execute a minimal workflow:
 
 ```bash
-flink-cowrie test launch
-flink-cowrie test launch --cluster --in-container   # visible in Flink Web UI
+apemosyne test launch
+apemosyne test launch --cluster --in-container   # visible in Flink Web UI
 ```
 
 ## Docker helper scripts
@@ -52,12 +52,12 @@ Default container name: `honeypot-taskmanager-1` (override with `FLINK_CONTAINER
 
 ## Integration scripts
 
-Some files under `honeypot/test/` are **scripts**, not pytest unit tests. They skip collection unless run directly or via `flink-cowrie test`:
+Some files under `honeypot/test/` are **scripts**, not pytest unit tests. They skip collection unless run directly or via `apemosyne test`:
 
 - `test_cloudera_llm.py`, `test_react_simple.py` — need `flink_agents` / Cloudera JWT
 - `test_phase1_cluster.py`, `test_phase2_cluster.py` — need Kafka + Flink cluster
 
 ## See also
 
-- [../flink_cowrie/README.md](../flink_cowrie/README.md)
+- [../apemosyne/README.md](../apemosyne/README.md)
 - [../honeypot/README.md](../honeypot/README.md)
