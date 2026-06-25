@@ -69,6 +69,48 @@ def test_agent_describe_route() -> None:
     assert detail.json()["name"] == "workflow_counter"
 
 
+def test_agent_definition_route() -> None:
+    from fastapi.testclient import TestClient
+
+    from apemosyne.api.app import create_app
+    from apemosyne.api.config import ApiSettings
+
+    client = TestClient(create_app(ApiSettings(api_key=None)))
+    detail = client.get("/v1/agents/workflow_counter/definition")
+    assert detail.status_code == 200
+    body = detail.json()
+    assert body["name"] == "workflow_counter"
+    assert "flink_yaml" in body
+    assert "workflow_counter_actions" in (body.get("flink_yaml") or "")
+
+
+def test_events_sse() -> None:
+    import asyncio
+
+    from apemosyne.api.config import ApiSettings
+    from apemosyne.api.events import event_stream
+
+    async def first_event() -> str:
+        settings = ApiSettings(api_key=None, flink_rest_host="127.0.0.1", flink_rest_port=1)
+        gen = event_stream(settings, interval_sec=0.01)
+        return await gen.__anext__()
+
+    chunk = asyncio.run(first_event())
+    assert chunk.startswith("data: ")
+    assert "snapshot" in chunk
+
+
+def test_events_sse_route_registered() -> None:
+    from fastapi.testclient import TestClient
+
+    from apemosyne.api.app import create_app
+    from apemosyne.api.config import ApiSettings
+
+    client = TestClient(create_app(ApiSettings(api_key=None)))
+    spec = client.get("/openapi.json").json()
+    assert "/v1/events" in spec["paths"]
+
+
 def main() -> int:
     print("=" * 60)
     print("Control API platform tests")
@@ -79,6 +121,12 @@ def main() -> int:
     print("OK  api key auth")
     test_agent_describe_route()
     print("OK  agent routes")
+    test_agent_definition_route()
+    print("OK  agent definition + flink yaml")
+    test_events_sse()
+    print("OK  SSE event_stream generator")
+    test_events_sse_route_registered()
+    print("OK  SSE /v1/events route")
     print("=" * 60)
     print("PASS")
     print("=" * 60)

@@ -5,6 +5,7 @@ agents:
     entry: examples.agents.workflow_counter:CounterAgent
     runner: examples/agents/run_workflow_local.py
     cluster_script: examples/agents/run_workflow_cluster.py
+    flink_yaml: examples/agents/workflow_counter/agent.yaml
 
   react_echo:
     type: react

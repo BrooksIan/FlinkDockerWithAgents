@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
-from apemosyne.agents.registry import AgentRegistryError, list_agent_names, load_agent_registry
+from apemosyne.agents.registry import (
+    AgentRegistryError,
+    get_agent_spec,
+    list_agent_names,
+    load_agent_registry,
+)
 from apemosyne.agents.submit import describe_agent, submit_agent_cluster
 from apemosyne.api import flink_client
 from apemosyne.api.config import ApiSettings
@@ -20,6 +26,7 @@ def list_agents() -> list[dict[str, Any]]:
             "entry": spec.entry,
             "runner": spec.runner,
             "cluster_script": spec.cluster_script,
+            "flink_yaml": spec.flink_yaml or None,
         }
         for spec in registry.agents.values()
     ]
@@ -29,6 +36,25 @@ def get_agent(name: str) -> dict[str, Any]:
     if name not in list_agent_names():
         raise AgentRegistryError(f"Unknown agent {name!r}")
     return describe_agent(name)
+
+
+def get_agent_definition(name: str) -> dict[str, Any]:
+    spec = get_agent_spec(name)
+    detail = describe_agent(name)
+    flink_yaml_text: str | None = None
+    if spec.flink_yaml:
+        path = Path(spec.flink_yaml)
+        if not path.is_absolute():
+            from apemosyne.paths import project_root
+
+            path = project_root() / spec.flink_yaml
+        if path.is_file():
+            flink_yaml_text = path.read_text(encoding="utf-8")
+    return {
+        **detail,
+        "flink_yaml_path": spec.flink_yaml or None,
+        "flink_yaml": flink_yaml_text,
+    }
 
 
 def submit_agent(name: str, *, settings: ApiSettings) -> dict[str, Any]:

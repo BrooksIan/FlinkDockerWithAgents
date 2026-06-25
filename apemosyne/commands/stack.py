@@ -16,6 +16,7 @@ from apemosyne.docker_utils import (
     project_root,
     run_compose,
 )
+from apemosyne.flink_rest import flink_web_ui_url
 
 app = typer.Typer(help="Manage the Docker Compose stack.")
 
@@ -90,7 +91,7 @@ def ensure_flink_jobs(profile: str = "full") -> None:
             err=True,
         )
         raise typer.Exit(rc)
-    typer.echo("Flink jobs OK — see http://localhost:8081")
+    typer.echo("Flink jobs OK — see " + flink_web_ui_url("full"))
 
 
 @app.command("ensure-kafka-topics")
@@ -172,9 +173,11 @@ def up(
     typer.echo("Stack started.")
     if profile == "full":
         typer.echo("  Dashboard:  http://localhost:8501")
-        typer.echo("  Flink UI:   http://localhost:8081")
+        typer.echo(f"  Flink UI:   {flink_web_ui_url('full')}")
         typer.echo("  Cowrie SSH: localhost:2222")
         typer.echo("  Cowrie Tel: localhost:2223")
+    else:
+        typer.echo(f"  Flink UI:   {flink_web_ui_url('minimal')}")
 
 
 @app.command("down")

@@ -10,6 +10,7 @@ This repository is a **multi-project workspace** centered on the **Apemosyne** C
 | [`examples/`](examples/README.md) | Generic Flink Agents demos and agent registry |
 | [`docs/`](docs/README.md) | Guides (workflow vs ReAct, platform API) |
 | [`honeypot/`](honeypot/README.md) | Optional Cowrie honeypot reference pipeline |
+| [`dashboard/`](dashboard/README.md) | Web UI for Control API (Overview, Agents, Jobs) |
 | [`test/`](test/README.md) | CLI and platform tests |
 
 ## Quick start (Flink Agents platform)
@@ -38,13 +39,27 @@ apemosyne doctor
 apemosyne verify --tier quick
 ```
 
+## Dashboard (web UI)
+
+```bash
+./scripts/dev-start.sh
+```
+
+Stop: `./scripts/dev-stop.sh`
+
+Or manually:
+
+Dashboard: http://localhost:3000
+
+See [dashboard/README.md](dashboard/README.md) and [docs/PLATFORM.md](docs/PLATFORM.md).
+
 | URL | Service |
 |-----|---------|
-| http://localhost:8081 | Flink Web UI |
+| http://localhost:3000 | Dashboard (dev) |
+| http://localhost:8082 | Flink Web UI (minimal stack) |
+| http://localhost:8081 | Flink Web UI (honeypot / full profile) |
 | http://127.0.0.1:8090/docs | Control API (Swagger) |
 | http://127.0.0.1:8090/v1/health | Pipeline health |
-
-Full platform guide: [docs/PLATFORM.md](docs/PLATFORM.md)
 
 ## Quick start (optional honeypot)
 

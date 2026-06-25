@@ -1,0 +1,16 @@
+# Flink Agents YAML definition (pilot) — requires flink-agents 0.3+ load_yaml.
+# Catalog entry: examples/agents/agent-manifest.yaml (flink_yaml field).
+agents:
+  - name: workflow_counter
+    description: Deterministic counter — doubles integer inputs via a tool.
+
+    actions:
+      - name: process
+        function: examples.agents.workflow_counter_actions:process
+        listen_to: [input]
+        type: python
+
+    tools:
+      - name: double
+        function: examples.agents.workflow_counter_actions:double
+        type: python

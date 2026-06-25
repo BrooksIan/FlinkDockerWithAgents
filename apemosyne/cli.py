@@ -35,6 +35,9 @@ def main(
     ),
 ) -> None:
     """Apemosyne — Flink Agents control plane."""
+    from apemosyne.env import load_workspace_env
+
+    load_workspace_env()
 
 
 @app.command("build")

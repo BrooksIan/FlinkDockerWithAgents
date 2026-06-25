@@ -9,7 +9,7 @@ modes:
     ensure_kafka_topics: false
     ensure_flink_jobs: false
     endpoints:
-      - "Flink Web UI: http://localhost:8081"
+      - "Flink Web UI: http://localhost:8082"
 
   platform:
     description: Minimal Flink stack + control API for dashboards
@@ -20,8 +20,21 @@ modes:
     ensure_kafka_topics: false
     ensure_flink_jobs: false
     endpoints:
-      - "Flink Web UI: http://localhost:8081"
+      - "Flink Web UI: http://localhost:8082"
       - "Control API: http://127.0.0.1:8090/docs"
+
+  platform-ui:
+    description: Minimal Flink stack + control API + React dashboard (dev)
+    profile: minimal
+    wait: 15
+    run_doctor: true
+    build_image_if_missing: true
+    ensure_kafka_topics: false
+    ensure_flink_jobs: false
+    endpoints:
+      - "Flink Web UI: http://localhost:8082"
+      - "Control API: http://127.0.0.1:8090/docs"
+      - "Dashboard: http://localhost:3000 (npm run dev in dashboard/)"
 
   honeypot:
     description: Full Cowrie honeypot + Kafka + dashboard pipeline

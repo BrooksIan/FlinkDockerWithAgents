@@ -1,0 +1,5 @@
+node_modules
+dist
+.env.local
+src/api/openapi.json
+src/api/schema.d.ts

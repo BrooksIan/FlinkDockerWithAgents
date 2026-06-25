@@ -5,6 +5,9 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
+from apemosyne.constants import DEFAULT_PROFILE
+from apemosyne.flink_rest import default_flink_rest_port
+
 
 @dataclass(frozen=True)
 class ApiSettings:
@@ -32,7 +35,9 @@ def load_settings() -> ApiSettings:
         port=int(os.environ.get("APEMOSYNE_API_PORT", "8090").strip()),
         api_key=key,
         flink_rest_host=os.environ.get("FLINK_REST_ADDRESS", "localhost").strip(),
-        flink_rest_port=int(os.environ.get("FLINK_REST_PORT", "8081").strip()),
+        flink_rest_port=default_flink_rest_port(
+            os.environ.get("APEMOSYNE_PROFILE", DEFAULT_PROFILE)
+        ),
         default_profile=os.environ.get("APEMOSYNE_PROFILE", "minimal").strip(),
         log_json=os.environ.get("APEMOSYNE_LOG_JSON", "0").strip().lower()
         in ("1", "true", "yes"),

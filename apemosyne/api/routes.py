@@ -5,12 +5,14 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from apemosyne.agents.registry import AgentRegistryError
 from apemosyne.api import flink_client, services
 from apemosyne.api.auth import require_api_key
 from apemosyne.api.config import ApiSettings
+from apemosyne.api.events import event_stream
 from apemosyne.api.observability import refresh_flink_gauges
 
 router = APIRouter(prefix="/v1")
@@ -27,8 +29,10 @@ def _settings(request: Request) -> ApiSettings:
 
 
 @router.get("/health", tags=["health"])
-def health(settings: ApiSettings = Depends(_settings)) -> dict[str, Any]:
-    body = services.pipeline_health(settings)
+async def health(settings: ApiSettings = Depends(_settings)) -> dict[str, Any]:
+    import asyncio
+
+    body = await asyncio.to_thread(services.pipeline_health, settings)
     flink = body.get("flink") or {}
     agents = body.get("agents") or {}
     refresh_flink_gauges(
@@ -88,6 +92,24 @@ def agent_detail(name: str) -> dict[str, Any]:
         return services.get_agent(name)
     except AgentRegistryError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/agents/{name}/definition", tags=["agents"], dependencies=[Depends(require_api_key)])
+def agent_definition(name: str) -> dict[str, Any]:
+    try:
+        return services.get_agent_definition(name)
+    except AgentRegistryError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/events", tags=["events"])
+async def events_sse(settings: ApiSettings = Depends(_settings)) -> StreamingResponse:
+    """SSE stream of health + job snapshots (for dashboard live view)."""
+    return StreamingResponse(
+        event_stream(settings),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.post(

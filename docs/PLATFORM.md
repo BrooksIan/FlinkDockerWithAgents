@@ -16,7 +16,7 @@ Developer / Dashboard
         ▼                     │
   Docker Compose              │ reads
   JobManager + TaskManager    ▼
-        │              Flink REST :8081
+        │              Flink REST :8082 (minimal) / :8081 (honeypot)
         ▼
   Flink Agents jobs
   (workflow / ReAct examples)
@@ -62,7 +62,7 @@ apemosyne agent submit workflow_counter
 apemosyne agent status
 ```
 
-Flink Web UI: http://localhost:8081
+Flink Web UI (minimal): http://localhost:8082
 
 ### Startup modes
 
@@ -88,7 +88,9 @@ Presets in `apemosyne/manifests/startup-modes.yaml`:
 | `DELETE` | `/v1/jobs/{id}` | Yes | Cancel job |
 | `GET` | `/v1/agents` | Yes | List registered agents |
 | `GET` | `/v1/agents/{name}` | Yes | Agent metadata |
+| `GET` | `/v1/agents/{name}/definition` | Yes | Catalog + Flink YAML content |
 | `POST` | `/v1/agents/{name}/submit` | Yes | Submit agent to cluster |
+| `GET` | `/v1/events` | No | SSE health + job snapshots |
 | `GET` | `/metrics` | No | Prometheus metrics |
 | `GET` | `/openapi.json` | No | OpenAPI schema (codegen for dashboard) |
 | `GET` | `/docs` | No | Swagger UI |
@@ -110,7 +112,7 @@ apemosyne api check              # probe /v1/health
 | `APEMOSYNE_API_PORT` | `8090` | API port |
 | `APEMOSYNE_API_KEY` | *(unset)* | Shared secret; when set, protected routes need `X-API-Key` header |
 | `FLINK_REST_ADDRESS` | `localhost` | Flink JobManager host for API/CLI |
-| `FLINK_REST_PORT` | `8081` | Flink REST port |
+| `FLINK_REST_PORT` | `8082` (minimal) / `8081` (full) | Host Flink REST / Web UI port |
 | `APEMOSYNE_PROFILE` | `minimal` | Compose profile for agent submit |
 | `APEMOSYNE_LOG_JSON` | `0` | `1` = structured JSON logs from API |
 
@@ -149,7 +151,7 @@ To add an agent:
 
 1. Add `examples/agents/my_agent.py` (Flink Agents `Agent` subclass).
 2. Add local/cluster runner scripts.
-3. Register in `agent-manifest.yaml`.
+3. Register in `agent-manifest.yaml` (optional `flink_yaml:` for Flink Agents YAML definition).
 4. Optionally add a demo entry in `apemosyne/manifests/demo-files.yaml`.
 
 ## Observability
@@ -158,7 +160,8 @@ To add an agent:
 |--------|-----|
 | Health | `GET /v1/health` or `apemosyne doctor` |
 | Prometheus | `GET /metrics` (`apemosyne_flink_reachable`, request counters, …) |
-| Flink UI | http://localhost:8081 |
+| Flink UI (minimal) | http://localhost:8082 |
+| Flink UI (honeypot) | http://localhost:8081 |
 | Verify | `apemosyne verify --tier quick\|standard\|full` |
 
 `apemosyne doctor` checks agent manifest, Docker (warn), Flink REST, and API settings. Warnings for missing image/containers/API key are normal in local dev.
@@ -197,7 +200,39 @@ apemosyne test launch --cluster
 
 Honeypot tests (`phase1`, `phase2`, `production`, …) require `honeypot/` and `--profile full`.
 
-## Dashboard integration
+## Dashboard
+
+Web UI in [`dashboard/`](../dashboard/) — React + Vite, talks to Control API only.
+
+```bash
+apemosyne up
+apemosyne api start
+```
+
+Control API: http://127.0.0.1:8090
+
+```bash
+cd dashboard && npm install && npm run dev
+```
+
+Dashboard: http://localhost:3000
+
+| Route | Description |
+|-------|-------------|
+| `/` | Overview (live via `GET /v1/events` SSE) |
+| `/agents` | Agent catalog |
+| `/agents/:name` | Detail, Flink YAML, submit |
+| `/jobs` | Flink jobs, cancel |
+
+**OpenAPI client codegen:**
+
+```bash
+./scripts/generate_api_client.sh
+```
+
+**Flink YAML pilot:** `workflow_counter` includes `flink_yaml: examples/agents/workflow_counter/agent.yaml` ([upstream YAML API](https://nightlies.apache.org/flink/flink-agents-docs-main/docs/development/yaml/)). Cluster submit via `load_yaml` requires Flink Agents 0.3+; catalog + definition API work today.
+
+## Dashboard integration (API consumers)
 
 1. Run `apemosyne api start` (and `apemosyne up` for Flink).
 2. Export OpenAPI: `apemosyne api openapi -o openapi.json`.

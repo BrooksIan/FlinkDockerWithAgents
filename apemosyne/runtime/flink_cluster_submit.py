@@ -91,8 +91,10 @@ def bootstrap_cluster_runtime(
 
 
 def rest_base() -> str:
+    from apemosyne.flink_rest import default_flink_rest_port
+
     host = os.environ.get("FLINK_REST_ADDRESS", "localhost").strip()
-    port = int(os.environ.get("FLINK_REST_PORT", "8081").strip())
+    port = default_flink_rest_port()
     return f"http://{host}:{port}"
 
 

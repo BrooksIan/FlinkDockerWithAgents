@@ -25,6 +25,7 @@ class AgentSpec:
     runner: str
     cluster_script: str
     description: str = ""
+    flink_yaml: str = ""
 
 
 @dataclass(frozen=True)
@@ -53,6 +54,7 @@ def _parse_agent(name: str, raw: Mapping[str, Any]) -> AgentSpec:
         runner=str(raw.get("runner", "")).strip(),
         cluster_script=str(raw.get("cluster_script", "")).strip(),
         description=str(raw.get("description", "")).strip(),
+        flink_yaml=str(raw.get("flink_yaml", "")).strip(),
     )
 
 
@@ -87,11 +89,16 @@ def load_agent_registry(
         if validate:
             runner = repo / spec.runner if spec.runner else None
             cluster = repo / spec.cluster_script if spec.cluster_script else None
+            flink_yaml = repo / spec.flink_yaml if spec.flink_yaml else None
             if spec.runner and (runner is None or not runner.is_file()):
                 raise AgentRegistryError(f"Agent {name!r} runner missing: {spec.runner}")
             if spec.cluster_script and (cluster is None or not cluster.is_file()):
                 raise AgentRegistryError(
                     f"Agent {name!r} cluster script missing: {spec.cluster_script}"
+                )
+            if spec.flink_yaml and (flink_yaml is None or not flink_yaml.is_file()):
+                raise AgentRegistryError(
+                    f"Agent {name!r} flink_yaml missing: {spec.flink_yaml}"
                 )
         agents[str(name)] = spec
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -12,7 +14,14 @@ from apemosyne.api.routes import router
 
 
 def create_app(settings: ApiSettings | None = None) -> FastAPI:
+    from apemosyne.env import load_workspace_env
+
+    load_workspace_env()
     cfg = settings or load_settings()
+    # Keep Flink REST helpers aligned with API settings.
+    os.environ.setdefault("FLINK_REST_ADDRESS", cfg.flink_rest_host)
+    os.environ.setdefault("FLINK_REST_PORT", str(cfg.flink_rest_port))
+    os.environ.setdefault("APEMOSYNE_PROFILE", cfg.default_profile)
     configure_logging(json_logs=cfg.log_json)
 
     app = FastAPI(

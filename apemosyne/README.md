@@ -103,7 +103,7 @@ apemosyne/
 | `APEMOSYNE_API_HOST` | `127.0.0.1` | API bind |
 | `APEMOSYNE_API_PORT` | `8090` | API port |
 | `FLINK_REST_ADDRESS` | `localhost` | JobManager for API/CLI |
-| `FLINK_REST_PORT` | `8081` | |
+| `FLINK_REST_PORT` | `8082` (minimal) / `8081` (full) | Host Flink REST port |
 
 See [../.env.example](../.env.example).
 
