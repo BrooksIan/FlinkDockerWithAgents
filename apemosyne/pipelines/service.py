@@ -136,6 +136,7 @@ class PipelineService:
         pipeline_id: str,
         *,
         input_override: list[dict[str, Any]] | None = None,
+        profile: str | None = None,
     ) -> dict[str, Any]:
         from apemosyne.runs.service import default_run_service
 
@@ -146,6 +147,7 @@ class PipelineService:
             pipeline,
             run_service=default_run_service(),
             input_override=input_override,
+            profile=profile,
         )
 
 

@@ -4,11 +4,13 @@ import { api } from "../api/client";
 import type { RunDetail } from "../api/types";
 import { ExecutionPlan } from "../components/ExecutionPlan";
 import { RunStatusBadge } from "../components/RunStatusBadge";
+import { isPipelineRun, pipelineRunName } from "../utils/runUtils";
 
 export function RunDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [run, setRun] = useState<RunDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [studioHref, setStudioHref] = useState("/studio");
 
   useEffect(() => {
     if (!id) return;
@@ -17,6 +19,18 @@ export function RunDetailPage() {
       .then(setRun)
       .catch((e) => setError(String(e)));
   }, [id]);
+
+  useEffect(() => {
+    if (!run || !isPipelineRun(run.agent)) return;
+    const name = pipelineRunName(run.agent);
+    api
+      .pipelines()
+      .then((pipelines) => {
+        const match = pipelines.find((p) => p.name === name);
+        setStudioHref(match ? `/studio/${match.id}` : "/studio");
+      })
+      .catch(() => setStudioHref("/studio"));
+  }, [run]);
 
   if (!id) return null;
 
@@ -35,9 +49,13 @@ export function RunDetailPage() {
         <>
           <div className="grid">
             <div className="card stat">
-              <div className="label">Agent</div>
+              <div className="label">{isPipelineRun(run.agent) ? "Pipeline" : "Agent"}</div>
               <div className="value">
-                <Link to={`/agents/${run.agent}`}>{run.agent}</Link>
+                {isPipelineRun(run.agent) ? (
+                  <Link to={studioHref}>Pipeline: {pipelineRunName(run.agent)}</Link>
+                ) : (
+                  <Link to={`/agents/${run.agent}`}>{run.agent}</Link>
+                )}
               </div>
             </div>
             <div className="card stat">
@@ -58,6 +76,10 @@ export function RunDetailPage() {
           {run.error && <p className="error">{run.error}</p>}
 
           <ExecutionPlan plan={run.plan} />
+
+          {isPipelineRun(run.agent) && run.spans.length > 0 && (
+            <p className="muted">Per-agent steps from the Studio pipeline run.</p>
+          )}
 
           {run.spans.length > 0 ? (
             <div className="card">

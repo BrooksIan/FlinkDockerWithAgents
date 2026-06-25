@@ -43,6 +43,14 @@ def validate_pipeline(pipeline: Pipeline) -> dict[str, Any]:
     known_agents = set(list_agent_names())
     node_ids = {n.id for n in pipeline.nodes}
     for node in pipeline.nodes:
+        if node.kind == "source":
+            source_type = str(node.config.get("source_type") or "records").strip().lower()
+            if source_type == "kafka":
+                topic = str(node.config.get("topic") or "").strip()
+                if not topic:
+                    errors.append("Kafka source node missing topic")
+            elif not node.config.get("records"):
+                errors.append("Source node has no input records")
         if node.kind == "agent":
             if not node.agent:
                 errors.append(f"Agent node {node.id!r} missing agent name")
@@ -77,8 +85,31 @@ def validate_pipeline(pipeline: Pipeline) -> dict[str, Any]:
         )
 
     _check_edge_mappings(pipeline, warnings)
+    _check_kafka_sources(pipeline, warnings)
 
     return {"valid": len(errors) == 0, "errors": errors, "warnings": warnings}
+
+
+def _check_kafka_sources(pipeline: Pipeline, warnings: list[str]) -> None:
+    from apemosyne.kafka_sources import kafka_reachable, known_pipeline_topics
+
+    for node in pipeline.nodes:
+        if node.kind != "source":
+            continue
+        source_type = str(node.config.get("source_type") or "records").strip().lower()
+        if source_type != "kafka":
+            continue
+        topic = str(node.config.get("topic") or "").strip()
+        known = set(known_pipeline_topics())
+        if known and topic not in known:
+            warnings.append(
+                f"Kafka topic {topic!r} is not a standard pipeline topic; ensure it exists on the broker"
+            )
+        if not kafka_reachable():
+            warnings.append(
+                "Kafka broker unreachable from the host — pipeline runs will use the Docker "
+                "Kafka container when available, or start the full stack: apemosyne up --profile full"
+            )
 
 
 def _has_cycle(adjacency: dict[str, list[str]], nodes: list[str]) -> bool:

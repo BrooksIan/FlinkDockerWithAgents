@@ -15,12 +15,20 @@ export function pipelineToFlow(
   const nodes: Node[] = pipeline.nodes.map((n) => {
     const pos = pipeline.layout[n.id] || { x: 0, y: 0 };
     if (n.kind === "source") {
-      const records = (n.config?.records as unknown[]) || [];
+      const config = n.config || {};
+      const sourceType = config.source_type === "kafka" ? "kafka" : "records";
+      const records = (config.records as unknown[]) || [];
       return {
         id: n.id,
         type: "source",
         position: pos,
-        data: { label: "Source", recordCount: records.length, config: n.config },
+        data: {
+          label: sourceType === "kafka" ? "Kafka source" : "Source",
+          sourceType,
+          kafkaTopic: sourceType === "kafka" ? (config.topic as string) : undefined,
+          recordCount: sourceType === "records" ? records.length : undefined,
+          config,
+        },
       };
     }
     if (n.kind === "sink") {
@@ -59,9 +67,13 @@ export function flowToPipeline(
 ): PipelineSummary {
   const pipelineNodes: PipelineNodeDef[] = nodes.map((n) => {
     if (n.type === "source") {
-      const config = (n.data as { config?: Record<string, unknown> }).config || {
-        records: [{ key: "1", value: 3 }],
-      };
+      const existing = (n.data as { config?: Record<string, unknown> }).config;
+      const config =
+        existing ||
+        ({
+          source_type: "records",
+          records: [{ key: "1", value: 3 }],
+        } as Record<string, unknown>);
       return { id: n.id, kind: "source", config };
     }
     if (n.type === "sink") {

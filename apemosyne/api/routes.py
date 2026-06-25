@@ -116,6 +116,14 @@ def agents_list() -> list[dict[str, Any]]:
     return services.list_agents()
 
 
+@router.get("/kafka/topics", tags=["kafka"], dependencies=[Depends(require_api_key)])
+def kafka_topics_list(bootstrap: str | None = None) -> dict[str, Any]:
+    try:
+        return services.list_kafka_topics(bootstrap=bootstrap)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
 @router.get("/agents/{name}", tags=["agents"], dependencies=[Depends(require_api_key)])
 def agent_detail(name: str) -> dict[str, Any]:
     try:
@@ -262,13 +270,18 @@ def pipelines_validate(pipeline_id: str) -> dict[str, Any]:
 def pipelines_run(
     pipeline_id: str,
     run_request: PipelineRunRequest | None = None,
+    settings: ApiSettings = Depends(_settings),
 ) -> dict[str, Any]:
     try:
         records = run_request.records if run_request else None
-        return services.run_pipeline_local(pipeline_id, input_override=records)
+        return services.run_pipeline_local(
+            pipeline_id,
+            input_override=records,
+            profile=settings.default_profile,
+        )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=f"Pipeline not found: {pipeline_id}") from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except RuntimeError as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=503, detail=str(exc)) from exc

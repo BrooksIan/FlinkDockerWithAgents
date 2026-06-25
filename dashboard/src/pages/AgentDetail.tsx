@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import type { AgentDetail } from "../api/types";
 import { TypeBadge } from "../components/StatusBadge";
+import { isPipelineRun, pipelineRunName } from "../utils/runUtils";
 
 export function AgentDetailPage() {
   const { name } = useParams<{ name: string }>();
@@ -13,7 +14,7 @@ export function AgentDetailPage() {
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!name) return;
+    if (!name || isPipelineRun(name)) return;
     api
       .agentDefinition(name)
       .then(setAgent)
@@ -38,6 +39,25 @@ export function AgentDetailPage() {
   }
 
   if (!name) return null;
+
+  if (isPipelineRun(name)) {
+    return (
+      <>
+        <p>
+          <Link to="/runs">← Runs</Link>
+        </p>
+        <h2>Pipeline: {pipelineRunName(name)}</h2>
+        <p className="muted">
+          Studio pipeline runs are not registered agents. Open the pipeline in Agentic Studio or view
+          the run history.
+        </p>
+        <p>
+          <Link to="/studio">Open Studio →</Link>
+        </p>
+      </>
+    );
+  }
+
   if (error && !agent) return <p className="error">{error}</p>;
   if (!agent) return <p className="muted">Loading…</p>;
 

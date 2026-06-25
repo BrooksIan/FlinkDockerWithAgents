@@ -33,8 +33,13 @@ def cluster_job_name(agent: str) -> str | None:
 
 def agent_execution_plan(agent: str) -> list[dict[str, Any]]:
     """Expected steps for an agent (static until runtime tracing lands)."""
+    if agent.startswith("pipeline:"):
+        return []
     if agent not in _AGENT_PLANS:
-        get_agent_spec(agent)
+        try:
+            get_agent_spec(agent)
+        except AgentRegistryError:
+            return []
         return []
     return [dict(step) for step in _AGENT_PLANS[agent]]
 

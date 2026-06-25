@@ -29,6 +29,8 @@ export type DroppedNodeSpec = {
   agent?: string;
   agentType?: string;
   description?: string;
+  kafkaTopic?: string;
+  kafkaDescription?: string;
 };
 
 interface InnerProps {

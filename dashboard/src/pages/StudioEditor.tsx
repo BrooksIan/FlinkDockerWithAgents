@@ -9,7 +9,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api/client";
-import type { AgentSummary, PipelineSummary, PipelineValidation } from "../api/types";
+import type { AgentSummary, KafkaTopicSummary, PipelineSummary, PipelineValidation } from "../api/types";
 import { AgentGraphPanel } from "../studio/AgentGraphPanel";
 import { NodePalette } from "../studio/NodePalette";
 import { PipelineInspector } from "../studio/PipelineInspector";
@@ -22,6 +22,8 @@ export function StudioEditorPage() {
   const navigate = useNavigate();
   const [pipeline, setPipeline] = useState<PipelineSummary | null>(null);
   const [agents, setAgents] = useState<AgentSummary[]>([]);
+  const [kafkaTopics, setKafkaTopics] = useState<KafkaTopicSummary[]>([]);
+  const [kafkaReachable, setKafkaReachable] = useState<boolean | undefined>(undefined);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges] = useEdgesState<Edge>([]);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
@@ -41,10 +43,12 @@ export function StudioEditorPage() {
 
   useEffect(() => {
     if (!id) return;
-    Promise.all([api.pipeline(id), api.agents()])
-      .then(([p, a]) => {
+    Promise.all([api.pipeline(id), api.agents(), api.kafkaTopics()])
+      .then(([p, a, kafka]) => {
         setPipeline(p);
         setAgents(a);
+        setKafkaTopics(kafka.topics);
+        setKafkaReachable(kafka.reachable);
         const flow = pipelineToFlow(p, a);
         setNodes(flow.nodes);
         setEdges(flow.edges);
@@ -113,11 +117,36 @@ export function StudioEditorPage() {
 
   function createNode(spec: DroppedNodeSpec, position: { x: number; y: number }): Node {
     if (spec.kind === "source") {
+      if (spec.kafkaTopic) {
+        return {
+          id: nextId("src"),
+          type: "source",
+          position,
+          data: {
+            label: "Kafka source",
+            sourceType: "kafka",
+            kafkaTopic: spec.kafkaTopic,
+            config: {
+              source_type: "kafka",
+              topic: spec.kafkaTopic,
+              max_records: 10,
+            },
+          },
+        };
+      }
       return {
         id: nextId("src"),
         type: "source",
         position,
-        data: { label: "Source", recordCount: 2, config: { records: [{ key: "1", value: 3 }] } },
+        data: {
+          label: "Source",
+          sourceType: "records",
+          recordCount: 2,
+          config: {
+            source_type: "records",
+            records: [{ key: "1", value: 3 }],
+          },
+        },
       };
     }
     if (spec.kind === "sink") {
@@ -151,6 +180,13 @@ export function StudioEditorPage() {
     addNodeAt({ kind: "source" }, { x: 80, y: 120 + nodes.length * 40 });
   }
 
+  function addKafkaSource(topic: KafkaTopicSummary) {
+    addNodeAt(
+      { kind: "source", kafkaTopic: topic.name, kafkaDescription: topic.description },
+      { x: 80, y: 120 + nodes.length * 40 },
+    );
+  }
+
   function addSink() {
     addNodeAt({ kind: "sink" }, { x: 600, y: 120 + nodes.length * 40 });
   }
@@ -165,9 +201,22 @@ export function StudioEditorPage() {
   function handleUpdateNode(nodeId: string, patch: { config?: Record<string, unknown> }) {
     const next = nodes.map((n) => {
       if (n.id !== nodeId) return n;
-      const data = { ...n.data, config: patch.config ?? (n.data as { config?: Record<string, unknown> }).config };
-      if (patch.config?.records) {
-        (data as { recordCount?: number }).recordCount = (patch.config.records as unknown[]).length;
+      const prev = n.data as {
+        config?: Record<string, unknown>;
+        sourceType?: string;
+        kafkaTopic?: string;
+        recordCount?: number;
+      };
+      const config = patch.config ?? prev.config;
+      const data: typeof prev & Record<string, unknown> = { ...n.data, config };
+      if (config?.source_type === "kafka") {
+        data.sourceType = "kafka";
+        data.kafkaTopic = config.topic;
+        data.recordCount = undefined;
+      } else if (config?.records) {
+        data.sourceType = "records";
+        data.kafkaTopic = undefined;
+        data.recordCount = (config.records as unknown[]).length;
       }
       return { ...n, data };
     });
@@ -266,7 +315,15 @@ export function StudioEditorPage() {
       />
 
       <div className="studio-layout">
-        <NodePalette agents={agents} onAddSource={addSource} onAddSink={addSink} onAddAgent={addAgent} />
+        <NodePalette
+          agents={agents}
+          kafkaTopics={kafkaTopics}
+          kafkaReachable={kafkaReachable}
+          onAddSource={addSource}
+          onAddKafkaSource={addKafkaSource}
+          onAddSink={addSink}
+          onAddAgent={addAgent}
+        />
         <StudioCanvas
           nodes={nodes}
           edges={edges}
@@ -284,6 +341,7 @@ export function StudioEditorPage() {
         <PipelineInspector
           selectedNode={selectedNode}
           selectedEdge={selectedEdge}
+          kafkaTopics={kafkaTopics}
           onUpdateNode={handleUpdateNode}
           onUpdateEdge={handleUpdateEdge}
         />

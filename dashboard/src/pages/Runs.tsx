@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import type { RunSummary } from "../api/types";
 import { RunStatusBadge } from "../components/RunStatusBadge";
+import { isPipelineRun, pipelineRunName } from "../utils/runUtils";
 
 export function RunsPage() {
   const [runs, setRuns] = useState<RunSummary[]>([]);
@@ -49,7 +50,13 @@ export function RunsPage() {
             {runs.map((r) => (
               <tr key={r.id}>
                 <td>
-                  <Link to={`/agents/${r.agent}`}>{r.agent}</Link>
+                  {isPipelineRun(r.agent) ? (
+                    <>
+                      <Link to={`/runs/${r.id}`}>Pipeline: {pipelineRunName(r.agent)}</Link>
+                    </>
+                  ) : (
+                    <Link to={`/agents/${r.agent}`}>{r.agent}</Link>
+                  )}
                 </td>
                 <td>{r.kind}</td>
                 <td>

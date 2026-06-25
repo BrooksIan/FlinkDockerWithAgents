@@ -3,6 +3,7 @@ import type {
   AgentGraph,
   AgentSummary,
   JobSummary,
+  KafkaTopicsResponse,
   PipelineHealth,
   PipelineRunResult,
   PipelineSummary,
@@ -103,6 +104,13 @@ export const api = {
 
   agentGraph: (name: string) =>
     request<AgentGraph>(`/v1/agents/${encodeURIComponent(name)}/graph`),
+
+  kafkaTopics: (bootstrap?: string) =>
+    request<KafkaTopicsResponse>(
+      bootstrap
+        ? `/v1/kafka/topics?bootstrap=${encodeURIComponent(bootstrap)}`
+        : "/v1/kafka/topics",
+    ),
 
   eventsUrl: () => `${API_BASE}/v1/events`,
 };

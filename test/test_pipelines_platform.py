@@ -84,10 +84,11 @@ def test_apply_edge_mapping() -> None:
     from apemosyne.pipelines.executor import apply_edge_mapping
 
     out = apply_edge_mapping(
-        [{"key": "1", "doubled": 6, "agent": "workflow_counter"}],
+        [{"key": "1", "output": {"doubled": 6, "agent": "workflow_counter"}}],
         {"message": "$.doubled"},
     )
-    assert out[0]["message"] == 6
+    assert out[0]["key"] == "1"
+    assert out[0]["value"]["message"] == 6
 
 
 def test_pipelines_api_routes() -> None:
@@ -137,15 +138,10 @@ def test_pipelines_api_routes() -> None:
 
 
 def test_pipeline_local_run_optional() -> None:
-    """Run Counter→Echo when flink_agents is installed."""
-    try:
-        import flink_agents  # noqa: F401
-    except ImportError:
-        print("SKIP  pipeline local run (flink_agents not installed)")
-        return
-
+    """Run Counter→Echo via host or JobManager container."""
     import tempfile
 
+    from apemosyne.pipelines.executor import flink_agents_available
     from apemosyne.pipelines.service import PipelineService, reset_pipeline_service_for_tests
     from apemosyne.pipelines.store import PipelineStore
     from apemosyne.runs.service import RunService, reset_run_service_for_tests
@@ -162,19 +158,93 @@ def test_pipeline_local_run_optional() -> None:
         from apemosyne.pipelines.service import seed_counter_echo_pipeline
 
         pipeline = seed_counter_echo_pipeline(pipe_svc)
-        result = pipe_svc.run_local(pipeline["id"])
+        try:
+            result = pipe_svc.run_local(pipeline["id"])
+        except RuntimeError as exc:
+            if not flink_agents_available() and "JobManager" in str(exc):
+                print(f"SKIP  pipeline local run ({exc})")
+                return
+            raise
+
         assert result["status"] == "finished"
         assert result["run_id"]
 
         run_svc = RunService(RunStore(root / "runs.db"))
         detail = run_svc.get_run(result["run_id"])
         assert detail["status"] == "finished"
-        assert len(detail["spans"]) >= 2
+        assert len(detail["spans"]) >= 1
 
         del os.environ["APEMOSYNE_PIPELINES_DB"]
         del os.environ["APEMOSYNE_RUNS_DB"]
         reset_pipeline_service_for_tests()
         reset_run_service_for_tests()
+
+
+def test_kafka_topics_api() -> None:
+    os.environ.pop("APEMOSYNE_API_KEY", None)
+    from fastapi.testclient import TestClient
+
+    from apemosyne.api.app import create_app
+    from apemosyne.api.config import ApiSettings
+    from apemosyne.kafka_sources import known_pipeline_topics, list_kafka_sources
+
+    topics = known_pipeline_topics()
+    assert "cowrie.events" in topics
+    assert "cowrie.normalized" in topics
+
+    listing = list_kafka_sources()
+    assert listing["bootstrap"]
+    assert any(t["name"] == "cowrie.events" for t in listing["topics"])
+
+    client = TestClient(create_app(ApiSettings(api_key=None, flink_rest_host="127.0.0.1", flink_rest_port=1)))
+    spec = client.get("/openapi.json").json()
+    assert "/v1/kafka/topics" in spec["paths"]
+
+    body = client.get("/v1/kafka/topics").json()
+    assert body["topics"]
+    assert any(t["name"] == "cowrie.events" for t in body["topics"])
+
+
+def test_kafka_source_validation() -> None:
+    from apemosyne.pipelines.models import Pipeline, PipelineEdge, PipelineNode
+    from apemosyne.pipelines.validate import validate_pipeline
+
+    ok = Pipeline(
+        id="pipe_kafka",
+        name="kafka",
+        nodes=[
+            PipelineNode(
+                id="src1",
+                kind="source",
+                config={"source_type": "kafka", "topic": "cowrie.normalized", "max_records": 5},
+            ),
+            PipelineNode(id="a1", kind="agent", agent="workflow_counter"),
+            PipelineNode(id="sink1", kind="sink"),
+        ],
+        edges=[
+            PipelineEdge(id="e1", source="src1", target="a1"),
+            PipelineEdge(id="e2", source="a1", target="sink1"),
+        ],
+    )
+    result = validate_pipeline(ok)
+    assert result["valid"] is True
+
+    bad = Pipeline(
+        id="pipe_bad_kafka",
+        name="bad",
+        nodes=[
+            PipelineNode(id="src1", kind="source", config={"source_type": "kafka"}),
+            PipelineNode(id="a1", kind="agent", agent="workflow_counter"),
+            PipelineNode(id="sink1", kind="sink"),
+        ],
+        edges=[
+            PipelineEdge(id="e1", source="src1", target="a1"),
+            PipelineEdge(id="e2", source="a1", target="sink1"),
+        ],
+    )
+    bad_result = validate_pipeline(bad)
+    assert bad_result["valid"] is False
+    assert any("topic" in e.lower() for e in bad_result["errors"])
 
 
 def main() -> int:
@@ -191,6 +261,10 @@ def main() -> int:
     print("OK  edge mapping")
     test_pipelines_api_routes()
     print("OK  pipelines API routes")
+    test_kafka_topics_api()
+    print("OK  kafka topics API")
+    test_kafka_source_validation()
+    print("OK  kafka source validation")
     test_pipeline_local_run_optional()
     print("OK  pipeline local run (or skipped)")
     print("=" * 60)

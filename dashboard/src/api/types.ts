@@ -83,6 +83,18 @@ export interface RunDetail extends RunSummary {
   plan: PlanStep[];
 }
 
+export interface KafkaTopicSummary {
+  name: string;
+  description: string;
+  present?: boolean | null;
+}
+
+export interface KafkaTopicsResponse {
+  bootstrap: string;
+  reachable: boolean;
+  topics: KafkaTopicSummary[];
+}
+
 export interface PipelineNodeDef {
   id: string;
   kind: "source" | "agent" | "sink";

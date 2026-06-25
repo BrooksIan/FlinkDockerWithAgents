@@ -382,6 +382,22 @@ pre.yaml {
   resize: vertical;
 }
 
+.studio-input,
+.studio-select {
+  width: 100%;
+  font-size: 0.85rem;
+  background: #0a0e14;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.45rem 0.5rem;
+}
+
+.studio-palette-kafka .studio-palette-item-label {
+  font-family: ui-monospace, monospace;
+  font-size: 0.82rem;
+}
+
 .studio-run-bar {
   margin-bottom: 1rem;
 }
