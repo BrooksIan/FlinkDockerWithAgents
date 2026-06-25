@@ -88,6 +88,7 @@ Copy `.env.example` to `.env` for optional Cloudera LLM (Phase 3 ReAct).
 - [honeypot/README.md](honeypot/README.md) — cybersecurity demo
 - [examples/README.md](examples/README.md) — generic demos
 - [docs/README.md](docs/README.md) — guides index
+- [docs/FLINK_AGENTS.md](docs/FLINK_AGENTS.md) — workflow vs ReAct agents
 
 ## License
 

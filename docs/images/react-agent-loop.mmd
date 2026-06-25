@@ -1,0 +1,31 @@
+%% ReAct agent — Reason + Act loop
+flowchart LR
+    subgraph Loop["ReAct loop (per event)"]
+        direction TB
+        OBS[Observe event + context]
+        TH[Think — LLM reasoning]
+        ACT["Act — choose tools"]
+        OBS --> TH --> ACT
+        ACT -->|tool result| OBS
+    end
+
+    subgraph Tools["Registered @tools"]
+        R[check_ip_reputation]
+        B[block_ip]
+        CA[counter_attack_*]
+        AL[send_security_alert]
+    end
+
+    subgraph Result["Structured output"]
+        RS[react_reasoning]
+        CF[confidence + severity]
+        AA[actions_taken / counter_attack_actions]
+    end
+
+    EVT[Normalized event] --> OBS
+    ACT --> Tools
+    Tools --> ACT
+    ACT -->|stop condition| Result
+
+    classDef llm fill:#e0e8ff,stroke:#3366cc,stroke-width:2px
+    class TH llm

@@ -1,0 +1,19 @@
+%% Workflow agent — deterministic event flow
+sequenceDiagram
+    participant Src as Input event
+    participant Agent as Workflow Agent
+    participant T1 as Tool: check_ip_reputation
+    participant T2 as Tool: block_ip
+    participant Out as Output alert
+
+    Src->>Agent: InputEvent (Cowrie log)
+    Agent->>T1: always call (fixed order)
+    T1-->>Agent: reputation score
+    Note over Agent: Rule engine: eventid, severity floors
+    alt severity >= HIGH
+        Agent->>T2: invoke response tool
+        T2-->>Agent: block status
+        Agent->>Out: OutputEvent + response_actions
+    else below threshold
+        Agent->>Out: pass-through / no alert
+    end

@@ -15,10 +15,22 @@ Guides for the Flink Agents CLI workspace. Subproject-specific docs may also liv
 
 | Doc | Description |
 |-----|-------------|
+| [FLINK_AGENTS.md](FLINK_AGENTS.md) | Workflow vs ReAct agents — concepts, comparison, Mermaid diagrams |
 | [COWRIE_QUICKSTART.md](COWRIE_QUICKSTART.md) | Cowrie honeypot setup and first demo |
 | [PRODUCTION_ARCHITECTURE.md](PRODUCTION_ARCHITECTURE.md) | Hot path vs ReAct enrichment, Kafka topics, env vars |
 
 ## Architecture diagrams
+
+### Flink Agents (workflow vs ReAct)
+
+| Diagram | Source |
+|---------|--------|
+| [Overview stack](FLINK_AGENTS.md#what-flink-agents-adds-to-flink) | `docs/images/flink-agents-overview.mmd` |
+| [Workflow sequence](FLINK_AGENTS.md#execution-model) | `docs/images/workflow-agent-flow.mmd` |
+| [ReAct loop](FLINK_AGENTS.md#execution-model-1) | `docs/images/react-agent-loop.mmd` |
+| [Hybrid Phase 2 + 3](FLINK_AGENTS.md#recommended-hybrid-pattern) | `docs/images/workflow-vs-react-hybrid.mmd` |
+
+### Honeypot production topology
 
 | Diagram | Preview |
 |---------|---------|
@@ -27,7 +39,7 @@ Guides for the Flink Agents CLI workspace. Subproject-specific docs may also liv
 | Pipeline phases | ![phases](../honeypot/docs/images/production-pipeline-phases.png) |
 | Hot path vs enrichment | ![hot path](../honeypot/docs/images/production-hot-path-vs-enrichment.png) |
 
-PNG sources: `honeypot/docs/images/` (regenerate from `*.mmd` via `scripts/render_architecture_diagrams.sh` when present).
+PNG sources: `docs/images/` and `honeypot/docs/images/` (regenerate from `*.mmd` via `scripts/render_architecture_diagrams.sh`).
 
 Dashboard screenshots: `honeypot/images/` (see [honeypot/README.md](../honeypot/README.md#screenshots)).
 

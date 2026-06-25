@@ -1,0 +1,31 @@
+%% Hybrid pattern — workflow hot path + ReAct enrichment (Cowrie demo)
+flowchart TB
+    C[Cowrie JSON log] --> K[cowrie.normalized]
+
+  subgraph Phase2["Phase 2 — Workflow (hot path)"]
+        W[cowrie_workflow_detect]
+        BL[Auto-block IP]
+        TA[cowrie.alerts]
+    end
+
+    subgraph Phase3["Phase 3 — ReAct (async sidecar)"]
+        F{Filter: severity / sample}
+        R[kafka-react-augmentor]
+        LLM[Cloudera LLM]
+        TR[cowrie.react_alerts]
+    end
+
+    K --> W
+    W --> BL
+    W --> TA
+    K --> F
+    F -->|qualifying events| R --> LLM --> TR
+    F -->|skip| X[No LLM call]
+
+    TA --> D[Dashboard / SIEM]
+    TR --> D
+
+    classDef hot fill:#ffe0e0,stroke:#c00,stroke-width:2px
+    classDef cold fill:#e0e8ff,stroke:#36c,stroke-width:2px
+    class W,BL,TA hot
+    class R,LLM,TR cold

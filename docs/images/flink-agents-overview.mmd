@@ -1,0 +1,36 @@
+%% Apache Flink Agents — conceptual stack
+flowchart TB
+    subgraph Sources["Event sources"]
+        K[Kafka topics]
+        DS[PyFlink DataStream]
+        F[Files / APIs]
+    end
+
+    subgraph FlinkAgents["Apache Flink Agents"]
+        A[Agent class]
+        ACT["@action handlers"]
+        TL["@tool methods"]
+        EVT[Event graph]
+    end
+
+    subgraph Runners["Execution"]
+        LR[Local runner]
+        FE[Flink cluster operator]
+    end
+
+    subgraph Outputs["Outputs"]
+        AL[Alerts / decisions]
+        K2[Downstream Kafka]
+        DB[Dashboard / SIEM]
+    end
+
+    K & DS & F --> A
+    A --> ACT
+    A --> TL
+    ACT --> EVT
+    TL --> EVT
+    EVT --> LR & FE
+    LR & FE --> AL & K2 & DB
+
+    classDef core fill:#e8f4ea,stroke:#2d6a3f,stroke-width:2px
+    class A,ACT,TL,EVT core
