@@ -4,6 +4,14 @@
 
 This directory is a **subproject** in the [Flink Agents CLI](../README.md) workspace. It bundles pipeline code, Docker services, dashboards, and tests for a honeypot streaming pipeline.
 
+## Architecture
+
+![Flink Agent powered honeypot — reference architecture](docs/images/PrettyRASlide.png)
+
+*Cowrie → Kafka → Phase 2 workflow (`cowrie.alerts`) vs Phase 3 ReAct enrichment (`cowrie.react_alerts`).*
+
+More diagrams: [../docs/PRODUCTION_ARCHITECTURE.md](../docs/PRODUCTION_ARCHITECTURE.md)
+
 ## What this demo shows
 
 1. Live SSH/Telnet honeypot (ports 2222/2223)
@@ -27,6 +35,8 @@ Compose file: `honeypot/docker-compose.yml` when present, otherwise root `docker
 
 - Dashboard: http://localhost:8501
 - Flink UI: http://localhost:8081
+
+![Threat detection dashboard](images/HoneypotDashboard.png)
 
 ## Layout
 
@@ -68,6 +78,17 @@ flink-cowrie verify --tier nightly
 ```
 
 Phase 3 e2e needs `CLOUDERA_AI_BASE_URL` and `CLOUDERA_JWT_TOKEN` in repo `.env` (then `flink-cowrie sync-env`).
+
+## Screenshots
+
+| | |
+|---|---|
+| Attack timeline | ![Attack timeline](images/AttackTimeline.png) |
+| Threat alerts | ![Threat alerts](images/ThreatAlertsDetails.png) |
+| Response actions | ![Response actions](images/ReponseActions.png) |
+| Blocked IPs | ![Blocked IPs](images/BlockedIps.png) |
+| Counter-attack actions | ![Counter-attack](images/CounterAttackActions.png) |
+| Counter-attack timeline | ![Counter-attack timeline](images/CounterAttackTimeline.png) |
 
 ## Environment
 

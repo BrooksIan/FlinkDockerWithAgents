@@ -2,6 +2,8 @@
 
 This document explains three deliberate choices for a production Cowrie + Flink Agents deployment.
 
+![Production topology](../honeypot/docs/images/production-topology.png)
+
 ## Target topology
 
 ```text
@@ -42,6 +44,8 @@ Internet → Cowrie
 
 ## 2. Do not run LLM (ReAct) on every event
 
+![Hot path vs enrichment](../honeypot/docs/images/production-hot-path-vs-enrichment.png)
+
 **Why workflow on the hot path**
 
 | | Workflow (Phase 2) | ReAct (Phase 3) |
@@ -71,6 +75,8 @@ COWRIE_ALLOW_REACT_ON_HOT_PATH=1
 ---
 
 ## 3. Do not run ReAct inside the synchronous Flink hot path
+
+![Production components](../honeypot/docs/images/production-components.png)
 
 **Anti-pattern**: `cowrie_log_processor` or Phase 2 Flink `map()` calling Cloudera ReAct per record.
 
@@ -145,6 +151,8 @@ API failures fall back to mock (`source=mock`, `fallback_reason` set). External 
 Verify: `python3 test/test_mcp_threat_intel.py`.
 
 ## Phase 2 engine spike (`COWRIE_PHASE2_ENGINE`)
+
+![Pipeline phases and Kafka topics](../honeypot/docs/images/production-pipeline-phases.png)
 
 Phase 2 selects its Flink graph via `cowrie_pipeline.resolve_phase2_engine()`:
 

@@ -37,6 +37,8 @@ flink-cowrie dashboard
 
 See [honeypot/README.md](honeypot/README.md).
 
+![Honeypot reference architecture](honeypot/docs/images/PrettyRASlide.png)
+
 ## Repository layout
 
 ```text
