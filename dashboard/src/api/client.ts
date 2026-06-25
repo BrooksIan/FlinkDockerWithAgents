@@ -1,4 +1,9 @@
 import type {
+  AgentCatalog,
+  AgentDefinition,
+  AgentDefinitionCompileResult,
+  AgentDefinitionCreate,
+  AgentDefinitionValidation,
   AgentDetail,
   AgentGraph,
   AgentSummary,
@@ -8,6 +13,10 @@ import type {
   PipelineRunResult,
   PipelineSummary,
   PipelineValidation,
+  ReactLlmSettings,
+  ReactLlmSettingsTestRequest,
+  ReactLlmSettingsTestResult,
+  ReactLlmSettingsUpdate,
   RunDetail,
   RunSummary,
 } from "./types";
@@ -39,9 +48,58 @@ export const api = {
 
   agents: () => request<AgentSummary[]>("/v1/agents"),
 
+  agentCatalog: () => request<AgentCatalog>("/v1/agents/catalog"),
+
+  reactLlmSettings: () => request<ReactLlmSettings>("/v1/designer/llm-settings"),
+
+  updateReactLlmSettings: (body: ReactLlmSettingsUpdate) =>
+    request<ReactLlmSettings>("/v1/designer/llm-settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+
+  testReactLlmSettings: (body?: ReactLlmSettingsTestRequest) =>
+    request<ReactLlmSettingsTestResult>("/v1/designer/llm-settings/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body ?? {}),
+    }),
+
+  agentDefinitions: () => request<AgentDefinition[]>("/v1/agent-definitions"),
+
+  getDesignerDefinition: (id: string) =>
+    request<AgentDefinition>(`/v1/agent-definitions/${encodeURIComponent(id)}`),
+
+  updateDesignerDefinition: (id: string, body: Partial<AgentDefinition>) =>
+    request<AgentDefinition>(`/v1/agent-definitions/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+
+  createAgentDefinition: (body: AgentDefinitionCreate) =>
+    request<AgentDefinition>("/v1/agent-definitions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+
+  validateAgentDefinition: (id: string) =>
+    request<AgentDefinitionValidation>(
+      `/v1/agent-definitions/${encodeURIComponent(id)}/validate`,
+      { method: "POST" },
+    ),
+
+  compileAgentDefinition: (id: string) =>
+    request<AgentDefinitionCompileResult>(
+      `/v1/agent-definitions/${encodeURIComponent(id)}/compile`,
+      { method: "POST" },
+    ),
+
   agent: (name: string) => request<AgentDetail>(`/v1/agents/${encodeURIComponent(name)}`),
 
-  agentDefinition: (name: string) =>
+  agentRuntimeDefinition: (name: string) =>
     request<AgentDetail>(`/v1/agents/${encodeURIComponent(name)}/definition`),
 
   jobs: () => request<JobSummary[]>("/v1/jobs"),

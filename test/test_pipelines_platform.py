@@ -247,6 +247,47 @@ def test_kafka_source_validation() -> None:
     assert any("topic" in e.lower() for e in bad_result["errors"])
 
 
+def test_kafka_sink_validation() -> None:
+    from apemosyne.pipelines.models import Pipeline, PipelineEdge, PipelineNode
+    from apemosyne.pipelines.validate import validate_pipeline
+
+    ok = Pipeline(
+        id="pipe_kafka_sink",
+        name="kafka sink",
+        nodes=[
+            PipelineNode(id="src1", kind="source", config={"records": [{"key": "1", "value": 1}]}),
+            PipelineNode(id="a1", kind="agent", agent="workflow_counter"),
+            PipelineNode(
+                id="sink1",
+                kind="sink",
+                config={"sink_type": "kafka", "topic": "cowrie.alerts"},
+            ),
+        ],
+        edges=[
+            PipelineEdge(id="e1", source="src1", target="a1"),
+            PipelineEdge(id="e2", source="a1", target="sink1"),
+        ],
+    )
+    assert validate_pipeline(ok)["valid"] is True
+
+    bad = Pipeline(
+        id="pipe_bad_kafka_sink",
+        name="bad sink",
+        nodes=[
+            PipelineNode(id="src1", kind="source", config={"records": [{"key": "1", "value": 1}]}),
+            PipelineNode(id="a1", kind="agent", agent="workflow_counter"),
+            PipelineNode(id="sink1", kind="sink", config={"sink_type": "kafka"}),
+        ],
+        edges=[
+            PipelineEdge(id="e1", source="src1", target="a1"),
+            PipelineEdge(id="e2", source="a1", target="sink1"),
+        ],
+    )
+    bad_result = validate_pipeline(bad)
+    assert bad_result["valid"] is False
+    assert any("topic" in e.lower() for e in bad_result["errors"])
+
+
 def main() -> int:
     print("=" * 60)
     print("Pipeline / Agentic Studio platform tests")
@@ -265,6 +306,8 @@ def main() -> int:
     print("OK  kafka topics API")
     test_kafka_source_validation()
     print("OK  kafka source validation")
+    test_kafka_sink_validation()
+    print("OK  kafka sink validation")
     test_pipeline_local_run_optional()
     print("OK  pipeline local run (or skipped)")
     print("=" * 60)

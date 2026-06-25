@@ -11,6 +11,7 @@ from typing import Any
 
 from apemosyne.constants import DEFAULT_PROFILE
 from apemosyne.copy_manifest import copy_pairs_to_cluster
+from apemosyne.designer.runtime_env import react_llm_shell_prefix, sync_designer_db_to_cluster
 from apemosyne.docker_utils import PYFLINK_PYTHONPATH, container_id, docker_cp, project_root
 from apemosyne.pipelines.models import AgentStepResult, Pipeline
 
@@ -37,6 +38,12 @@ def _pipeline_copy_pairs(root: Path, pipeline: Pipeline) -> list[tuple[str, str]
         "apemosyne/pipelines/validate.py",
         "apemosyne/pipelines/executor.py",
         "apemosyne/pipelines/container_run.py",
+        "apemosyne/designer/__init__.py",
+        "apemosyne/designer/models.py",
+        "apemosyne/designer/store.py",
+        "apemosyne/designer/llm_settings.py",
+        "apemosyne/designer/llm_client.py",
+        "apemosyne/designer/runtime_env.py",
         "examples/agents/__init__.py",
     ):
         local = root / rel
@@ -82,6 +89,30 @@ def _pipeline_copy_pairs(root: Path, pipeline: Pipeline) -> list[tuple[str, str]
     return unique
 
 
+def _container_run_error(stderr: str, stdout: str) -> str:
+    """Prefer traceback error line over Flink INFO log noise."""
+    for block in (stderr, stdout):
+        lines = [ln.strip() for ln in block.splitlines() if ln.strip()]
+        for line in reversed(lines):
+            if line.startswith(("Traceback", "  File ", "During handling")):
+                continue
+            if any(
+                token in line
+                for token in (
+                    "Error:",
+                    "Exception:",
+                    "ModuleNotFoundError",
+                    "RuntimeError",
+                    "ValueError",
+                    "ImportError",
+                )
+            ):
+                return line
+        if lines:
+            return lines[-1]
+    return ""
+
+
 def run_pipeline_in_container(
     pipeline: Pipeline,
     *,
@@ -123,7 +154,11 @@ def run_pipeline_in_container(
         if not docker_cp(local_payload, cid, remote_payload):
             raise RuntimeError("Failed to copy pipeline payload to JobManager")
 
+        remote_designer_db = sync_designer_db_to_cluster(root=root, profile=profile)
+        llm_env = react_llm_shell_prefix(root=root, remote_designer_db=remote_designer_db)
+
         command = (
+            f"{llm_env}"
             f"export PYTHONPATH={PYFLINK_PYTHONPATH} && "
             "python3 /opt/flink/apemosyne/pipelines/container_run.py "
             f"{remote_payload}"
@@ -135,7 +170,7 @@ def run_pipeline_in_container(
             text=True,
         )
         if result.returncode != 0:
-            detail = (result.stderr or result.stdout or "").strip()
+            detail = _container_run_error(result.stderr or "", result.stdout or "")
             raise RuntimeError(
                 detail or f"Pipeline container run failed with exit code {result.returncode}"
             )

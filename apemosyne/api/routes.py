@@ -54,6 +54,50 @@ class PipelineRunRequest(BaseModel):
     records: list[dict[str, Any]] | None = None
 
 
+class ReactLlmSettingsUpdate(BaseModel):
+    endpoint_url: str
+    model_id: str
+    api_key: str | None = None
+
+
+class ReactLlmSettingsTest(BaseModel):
+    endpoint_url: str | None = None
+    model_id: str | None = None
+    api_key: str | None = None
+
+
+class AgentDefinitionCreate(BaseModel):
+    name: str = "Untitled agent"
+    type: str = "workflow"
+    description: str = ""
+    nodes: list[dict[str, Any]] = Field(default_factory=list)
+    edges: list[dict[str, Any]] = Field(default_factory=list)
+    layout: dict[str, dict[str, float]] = Field(default_factory=dict)
+    input_schema: dict[str, Any] = Field(default_factory=dict)
+    output_schema: dict[str, Any] = Field(default_factory=dict)
+    manifest_name: str | None = None
+    catalog_category_id: str | None = None
+    catalog_subcategory_id: str | None = None
+    catalog_tags: list[str] = Field(default_factory=list)
+
+
+class AgentDefinitionUpdate(BaseModel):
+    name: str | None = None
+    type: str | None = None
+    description: str | None = None
+    version: int | None = None
+    status: str | None = None
+    nodes: list[dict[str, Any]] | None = None
+    edges: list[dict[str, Any]] | None = None
+    layout: dict[str, dict[str, float]] | None = None
+    input_schema: dict[str, Any] | None = None
+    output_schema: dict[str, Any] | None = None
+    manifest_name: str | None = None
+    catalog_category_id: str | None = None
+    catalog_subcategory_id: str | None = None
+    catalog_tags: list[str] | None = None
+
+
 def _settings(request: Request) -> ApiSettings:
     return request.app.state.settings
 
@@ -116,6 +160,133 @@ def agents_list() -> list[dict[str, Any]]:
     return services.list_agents()
 
 
+@router.get("/agents/catalog", tags=["agents"], dependencies=[Depends(require_api_key)])
+def agents_catalog() -> dict[str, Any]:
+    try:
+        return services.agent_catalog()
+    except AgentRegistryError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/designer/llm-settings", tags=["designer"], dependencies=[Depends(require_api_key)])
+def designer_llm_settings_get() -> dict[str, Any]:
+    return services.get_react_llm_settings_api()
+
+
+@router.put("/designer/llm-settings", tags=["designer"], dependencies=[Depends(require_api_key)])
+def designer_llm_settings_put(body: ReactLlmSettingsUpdate) -> dict[str, Any]:
+    try:
+        return services.update_react_llm_settings_api(body.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/designer/llm-settings/test", tags=["designer"], dependencies=[Depends(require_api_key)])
+def designer_llm_settings_test(body: ReactLlmSettingsTest | None = None) -> dict[str, Any]:
+    try:
+        payload = body.model_dump() if body else None
+        return services.test_react_llm_settings_api(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@router.get(
+    "/agent-definitions",
+    tags=["designer"],
+    dependencies=[Depends(require_api_key)],
+)
+def agent_definitions_list(limit: int = 100) -> list[dict[str, Any]]:
+    return services.list_agent_definitions(limit=limit)
+
+
+@router.post(
+    "/agent-definitions",
+    tags=["designer"],
+    dependencies=[Depends(require_api_key)],
+)
+def agent_definitions_create(payload: AgentDefinitionCreate) -> dict[str, Any]:
+    return services.create_agent_definition(payload.model_dump())
+
+
+@router.get(
+    "/agent-definitions/{definition_id}",
+    tags=["designer"],
+    dependencies=[Depends(require_api_key)],
+)
+def agent_definitions_get(definition_id: str) -> dict[str, Any]:
+    try:
+        return services.get_designer_definition(definition_id)
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=404, detail=f"Agent definition not found: {definition_id}"
+        ) from exc
+
+
+@router.put(
+    "/agent-definitions/{definition_id}",
+    tags=["designer"],
+    dependencies=[Depends(require_api_key)],
+)
+def agent_definitions_update(
+    definition_id: str, payload: AgentDefinitionUpdate
+) -> dict[str, Any]:
+    try:
+        return services.update_agent_definition(
+            definition_id, payload.model_dump(exclude_unset=True)
+        )
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=404, detail=f"Agent definition not found: {definition_id}"
+        ) from exc
+
+
+@router.delete(
+    "/agent-definitions/{definition_id}",
+    tags=["designer"],
+    dependencies=[Depends(require_api_key)],
+)
+def agent_definitions_delete(definition_id: str) -> dict[str, str]:
+    try:
+        services.delete_agent_definition(definition_id)
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=404, detail=f"Agent definition not found: {definition_id}"
+        ) from exc
+    return {"id": definition_id, "status": "deleted"}
+
+
+@router.post(
+    "/agent-definitions/{definition_id}/validate",
+    tags=["designer"],
+    dependencies=[Depends(require_api_key)],
+)
+def agent_definitions_validate(definition_id: str) -> dict[str, Any]:
+    try:
+        return services.validate_agent_definition_by_id(definition_id)
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=404, detail=f"Agent definition not found: {definition_id}"
+        ) from exc
+
+
+@router.post(
+    "/agent-definitions/{definition_id}/compile",
+    tags=["designer"],
+    dependencies=[Depends(require_api_key)],
+)
+def agent_definitions_compile(definition_id: str) -> dict[str, Any]:
+    try:
+        return services.compile_agent_definition_by_id(definition_id)
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=404, detail=f"Agent definition not found: {definition_id}"
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
 @router.get("/kafka/topics", tags=["kafka"], dependencies=[Depends(require_api_key)])
 def kafka_topics_list(bootstrap: str | None = None) -> dict[str, Any]:
     try:
@@ -135,7 +306,7 @@ def agent_detail(name: str) -> dict[str, Any]:
 @router.get("/agents/{name}/definition", tags=["agents"], dependencies=[Depends(require_api_key)])
 def agent_definition(name: str) -> dict[str, Any]:
     try:
-        return services.get_agent_definition(name)
+        return services.get_agent_runtime_definition(name)
     except AgentRegistryError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 

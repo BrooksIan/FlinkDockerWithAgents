@@ -10,6 +10,7 @@ from apemosyne.agents.registry import AgentRegistryError, get_agent_spec
 CLUSTER_JOB_NAMES: dict[str, str] = {
     "workflow_counter": "Apemosyne Workflow Counter",
     "react_echo": "Apemosyne React Echo",
+    "react_double_value": "Apemosyne React Double Value",
 }
 
 _AGENT_PLANS: dict[str, list[dict[str, Any]]] = {
@@ -23,6 +24,11 @@ _AGENT_PLANS: dict[str, list[dict[str, Any]]] = {
         {"kind": "tool", "name": "classify", "description": "Severity from text", "parent": "process"},
         {"kind": "tool", "name": "summarize", "description": "Format summary", "parent": "process"},
         {"kind": "output", "name": "OutputEvent", "description": "Emit classification result", "parent": "process"},
+    ],
+    "react_double_value": [
+        {"kind": "action", "name": "process", "description": "LLM prompt doubles numeric input"},
+        {"kind": "tool", "name": "double", "description": "Verify doubled integer", "parent": "process"},
+        {"kind": "output", "name": "OutputEvent", "description": "Emit doubled result", "parent": "process"},
     ],
 }
 

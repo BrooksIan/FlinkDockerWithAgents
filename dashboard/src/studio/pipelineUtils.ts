@@ -32,7 +32,19 @@ export function pipelineToFlow(
       };
     }
     if (n.kind === "sink") {
-      return { id: n.id, type: "sink", position: pos, data: { label: "Sink" } };
+      const config = n.config || {};
+      const sinkType = config.sink_type === "kafka" ? "kafka" : "capture";
+      return {
+        id: n.id,
+        type: "sink",
+        position: pos,
+        data: {
+          label: sinkType === "kafka" ? "Kafka sink" : "Sink",
+          sinkType,
+          kafkaTopic: sinkType === "kafka" ? (config.topic as string) : undefined,
+          config,
+        },
+      };
     }
     const meta = n.agent ? agentMap[n.agent] : undefined;
     return {
@@ -77,7 +89,13 @@ export function flowToPipeline(
       return { id: n.id, kind: "source", config };
     }
     if (n.type === "sink") {
-      return { id: n.id, kind: "sink" };
+      const existing = (n.data as { config?: Record<string, unknown> }).config;
+      const config =
+        existing ||
+        ({
+          sink_type: "capture",
+        } as Record<string, unknown>);
+      return { id: n.id, kind: "sink", config };
     }
     return {
       id: n.id,

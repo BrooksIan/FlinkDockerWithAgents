@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { Edge, Node } from "@xyflow/react";
 import type { KafkaTopicSummary } from "../api/types";
 
@@ -9,13 +10,66 @@ interface Props {
   onUpdateEdge: (edgeId: string, mapping: Record<string, string>) => void;
 }
 
-type SourceConfig = {
-  source_type?: string;
+type KafkaConfig = {
   topic?: string;
-  max_records?: number;
   bootstrap?: string;
-  records?: unknown[];
 };
+
+function KafkaTopicFields({
+  nodeId,
+  config,
+  kafkaTopics,
+  onUpdate,
+  extraFields,
+}: {
+  nodeId: string;
+  config: KafkaConfig;
+  kafkaTopics: KafkaTopicSummary[];
+  onUpdate: (config: Record<string, unknown>) => void;
+  extraFields?: ReactNode;
+}) {
+  const topic = config.topic || "";
+  return (
+    <>
+      <label className="studio-label">Topic</label>
+      <select
+        className="studio-select"
+        value={topic}
+        onChange={(e) => onUpdate({ ...config, topic: e.target.value })}
+      >
+        <option value="">Select topic…</option>
+        {kafkaTopics.map((t) => (
+          <option key={t.name} value={t.name}>
+            {t.name}
+          </option>
+        ))}
+        {topic && !kafkaTopics.some((t) => t.name === topic) && (
+          <option value={topic}>{topic}</option>
+        )}
+      </select>
+      {topic && (
+        <p className="muted" style={{ fontSize: "0.8rem" }}>
+          {kafkaTopics.find((t) => t.name === topic)?.description || "Custom Kafka topic"}
+        </p>
+      )}
+      {extraFields}
+      <label className="studio-label">Bootstrap servers (optional)</label>
+      <input
+        className="studio-input"
+        type="text"
+        placeholder="localhost:9093"
+        defaultValue={config.bootstrap || ""}
+        key={`${nodeId}-bootstrap`}
+        onBlur={(e) =>
+          onUpdate({
+            ...config,
+            bootstrap: e.target.value.trim() || undefined,
+          })
+        }
+      />
+    </>
+  );
+}
 
 export function PipelineInspector({
   selectedNode,
@@ -71,73 +125,47 @@ export function PipelineInspector({
   const kind = selectedNode.type;
 
   if (kind === "source") {
-    const config = ((selectedNode.data as { config?: SourceConfig }).config || {}) as SourceConfig;
+    const config = ((selectedNode.data as { config?: Record<string, unknown> }).config || {}) as Record<
+      string,
+      unknown
+    >;
     const sourceType = config.source_type === "kafka" ? "kafka" : "records";
 
     if (sourceType === "kafka") {
-      const topic = config.topic || "";
-      const maxRecords = config.max_records ?? 10;
+      const maxRecords = (config.max_records as number | undefined) ?? 10;
       return (
         <div className="studio-inspector card">
           <h3 style={{ marginTop: 0 }}>Kafka source</h3>
           <p className="muted">Sample recent messages from the topic when running locally.</p>
-          <label className="studio-label">Topic</label>
-          <select
-            className="studio-select"
-            value={topic}
-            onChange={(e) =>
+          <KafkaTopicFields
+            nodeId={selectedNode.id}
+            config={config as KafkaConfig}
+            kafkaTopics={kafkaTopics}
+            onUpdate={(next) =>
               onUpdateNode(selectedNode.id, {
-                config: { ...config, source_type: "kafka", topic: e.target.value },
+                config: { ...next, source_type: "kafka", max_records: config.max_records ?? 10 },
               })
             }
-          >
-            <option value="">Select topic…</option>
-            {kafkaTopics.map((t) => (
-              <option key={t.name} value={t.name}>
-                {t.name}
-              </option>
-            ))}
-            {topic && !kafkaTopics.some((t) => t.name === topic) && (
-              <option value={topic}>{topic}</option>
-            )}
-          </select>
-          {topic && (
-            <p className="muted" style={{ fontSize: "0.8rem" }}>
-              {kafkaTopics.find((t) => t.name === topic)?.description || "Custom Kafka topic"}
-            </p>
-          )}
-          <label className="studio-label">Max records to sample</label>
-          <input
-            className="studio-input"
-            type="number"
-            min={1}
-            max={100}
-            defaultValue={maxRecords}
-            key={`${selectedNode.id}-max`}
-            onBlur={(e) => {
-              const n = parseInt(e.target.value, 10);
-              if (!Number.isNaN(n) && n > 0) {
-                onUpdateNode(selectedNode.id, {
-                  config: { ...config, source_type: "kafka", max_records: n },
-                });
-              }
-            }}
-          />
-          <label className="studio-label">Bootstrap servers (optional)</label>
-          <input
-            className="studio-input"
-            type="text"
-            placeholder="localhost:9092"
-            defaultValue={config.bootstrap || ""}
-            key={`${selectedNode.id}-bootstrap`}
-            onBlur={(e) =>
-              onUpdateNode(selectedNode.id, {
-                config: {
-                  ...config,
-                  source_type: "kafka",
-                  bootstrap: e.target.value.trim() || undefined,
-                },
-              })
+            extraFields={
+              <>
+                <label className="studio-label">Max records to sample</label>
+                <input
+                  className="studio-input"
+                  type="number"
+                  min={1}
+                  max={100}
+                  defaultValue={maxRecords}
+                  key={`${selectedNode.id}-max`}
+                  onBlur={(e) => {
+                    const n = parseInt(e.target.value, 10);
+                    if (!Number.isNaN(n) && n > 0) {
+                      onUpdateNode(selectedNode.id, {
+                        config: { ...config, source_type: "kafka", max_records: n },
+                      });
+                    }
+                  }}
+                />
+              </>
             }
           />
         </div>
@@ -179,10 +207,39 @@ export function PipelineInspector({
     );
   }
 
-  return (
-    <div className="studio-inspector card">
-      <h3 style={{ marginTop: 0 }}>Sink</h3>
-      <p className="muted">Final pipeline output is captured here after the last agent runs.</p>
-    </div>
-  );
+  if (kind === "sink") {
+    const config = ((selectedNode.data as { config?: Record<string, unknown> }).config || {}) as Record<
+      string,
+      unknown
+    >;
+    const sinkType = config.sink_type === "kafka" ? "kafka" : "capture";
+
+    if (sinkType === "kafka") {
+      return (
+        <div className="studio-inspector card">
+          <h3 style={{ marginTop: 0 }}>Kafka sink</h3>
+          <p className="muted">Publish pipeline output records to the topic when running locally.</p>
+          <KafkaTopicFields
+            nodeId={selectedNode.id}
+            config={config as KafkaConfig}
+            kafkaTopics={kafkaTopics}
+            onUpdate={(next) =>
+              onUpdateNode(selectedNode.id, {
+                config: { ...next, sink_type: "kafka" },
+              })
+            }
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className="studio-inspector card">
+        <h3 style={{ marginTop: 0 }}>Capture sink</h3>
+        <p className="muted">Final pipeline output is returned in the run result.</p>
+      </div>
+    );
+  }
+
+  return null;
 }

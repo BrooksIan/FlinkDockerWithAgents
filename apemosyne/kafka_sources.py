@@ -20,6 +20,8 @@ _STATIC_TOPICS: dict[str, str] = {
     "cowrie.alerts": "Phase 2 workflow alerts (deterministic)",
     "cowrie.react_alerts": "Phase 3 ReAct enrichment alerts",
     "cowrie.disinfo_requests": "Counter-attack / disinfo request stream",
+    "workflow.test.input": "Studio test input — integer value records for workflow_counter",
+    "workflow.test.output": "Studio test sink — workflow_counter doubled output",
 }
 
 _HOST_BOOTSTRAP_CANDIDATES = ("localhost:9093", "localhost:9092", "127.0.0.1:9093", "127.0.0.1:9092")
@@ -340,3 +342,114 @@ def sample_topic_records(
             "Start the full stack: apemosyne up --profile full"
         )
     return records[:limit]
+
+
+def _record_key(record: dict[str, Any]) -> str:
+    if "key" in record:
+        return str(record["key"])
+    if "k" in record:
+        return str(record["k"])
+    if len(record) == 1:
+        only = next(iter(record))
+        if only not in ("value", "v", "output"):
+            return str(only)
+    return "1"
+
+
+def _record_to_kafka_message(record: dict[str, Any]) -> tuple[str | None, Any]:
+    key = _record_key(record)
+    if "output" in record:
+        return key, record["output"]
+    if "value" in record:
+        return key, record["value"]
+    if len(record) == 1:
+        only_key, payload = next(iter(record.items()))
+        if only_key not in ("key", "k", "value", "v", "output"):
+            return str(only_key), payload
+    return key, record
+
+
+def _publish_topic_records_host(
+    topic: str,
+    records: list[dict[str, Any]],
+    *,
+    bootstrap: str,
+) -> None:
+    from kafka import KafkaProducer
+
+    producer = KafkaProducer(
+        bootstrap_servers=bootstrap,
+        value_serializer=lambda v: json.dumps(v, default=str).encode("utf-8"),
+        key_serializer=lambda k: k.encode("utf-8") if k else None,
+        acks="all",
+    )
+    try:
+        for record in records:
+            key, payload = _record_to_kafka_message(record)
+            producer.send(topic, key=key, value=payload)
+        producer.flush()
+    finally:
+        producer.close()
+
+
+def _publish_topic_records_docker(topic: str, records: list[dict[str, Any]]) -> None:
+    cid = _kafka_container_id()
+    if not cid:
+        raise RuntimeError("Kafka container not running (apemosyne up --profile full)")
+
+    lines: list[str] = []
+    for record in records:
+        _, payload = _record_to_kafka_message(record)
+        lines.append(json.dumps(payload, default=str))
+
+    if not lines:
+        return
+
+    safe_topic = shlex.quote(topic)
+    command = f"kafka-console-producer --bootstrap-server localhost:9092 --topic {safe_topic}"
+    result = subprocess.run(
+        ["docker", "exec", "-i", cid, "bash", "-c", command],
+        cwd=project_root(),
+        input="\n".join(lines).encode("utf-8"),
+        capture_output=True,
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or b"").decode("utf-8", errors="replace").strip()
+        raise RuntimeError(detail or f"Failed to publish to Kafka topic {topic!r}")
+
+
+def publish_topic_records(
+    topic: str,
+    records: list[dict[str, Any]],
+    *,
+    bootstrap: str | None = None,
+) -> int:
+    """Publish pipeline output records to a Kafka topic. Returns message count."""
+    if not topic.strip():
+        raise ValueError("Kafka sink missing topic")
+    if not records:
+        return 0
+
+    if bootstrap:
+        try:
+            _publish_topic_records_host(topic, records, bootstrap=bootstrap)
+            return len(records)
+        except Exception:
+            pass
+
+    host = resolve_host_bootstrap()
+    if host:
+        try:
+            _publish_topic_records_host(topic, records, bootstrap=host)
+            return len(records)
+        except Exception:
+            pass
+
+    if docker_kafka_reachable():
+        _publish_topic_records_docker(topic, records)
+        return len(records)
+
+    servers = bootstrap or kafka_bootstrap_servers()
+    raise RuntimeError(
+        f"Kafka broker unreachable at {servers}. Start the full stack: apemosyne up --profile full"
+    )

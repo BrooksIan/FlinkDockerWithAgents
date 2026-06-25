@@ -2,11 +2,14 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 
 export type SinkNodeData = {
   label: string;
+  sinkType?: "capture" | "kafka";
+  kafkaTopic?: string;
   runStatus?: string;
 };
 
 export function SinkNode({ data, selected }: NodeProps) {
   const d = data as SinkNodeData;
+  const isKafka = d.sinkType === "kafka" || Boolean(d.kafkaTopic);
   return (
     <div className={`studio-node sink ${selected ? "selected" : ""} ${d.runStatus || ""}`}>
       <Handle
@@ -17,8 +20,10 @@ export function SinkNode({ data, selected }: NodeProps) {
         isConnectable
       />
       <div className="studio-node-body">
-        <div className="studio-node-title">Sink</div>
-        <div className="studio-node-sub muted">Pipeline output</div>
+        <div className="studio-node-title">{isKafka ? "Kafka sink" : "Sink"}</div>
+        <div className="studio-node-sub muted">
+          {isKafka ? d.kafkaTopic || "Select topic" : "Pipeline output"}
+        </div>
       </div>
     </div>
   );

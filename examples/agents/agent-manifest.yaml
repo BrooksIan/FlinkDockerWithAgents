@@ -13,3 +13,10 @@ agents:
     entry: examples.agents.react_echo:ReactEchoAgent
     runner: examples/agents/run_react_local.py
     cluster_script: examples/agents/run_react_cluster.py
+
+  react_double_value:
+    type: react
+    description: ReAct agent — LLM prompt doubles numeric input from a message
+    entry: examples.agents.react_double_value:ReactDoubleValueAgent
+    runner: examples/agents/run_react_double_local.py
+    cluster_script: examples/agents/run_react_double_cluster.py

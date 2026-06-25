@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from apemosyne.agents.catalog import catalog_entry_for_manifest
 from apemosyne.agents.registry import (
     AgentRegistryError,
     get_agent_spec,
@@ -74,8 +75,10 @@ def submit_agent(name: str, *, settings: ApiSettings) -> dict[str, Any]:
 
 def list_agents() -> list[dict[str, Any]]:
     registry = load_agent_registry(validate=False)
-    return [
-        {
+    result: list[dict[str, Any]] = []
+    for spec in registry.agents.values():
+        entry = catalog_entry_for_manifest(spec.name)
+        item: dict[str, Any] = {
             "name": spec.name,
             "type": spec.type,
             "description": spec.description,
@@ -84,8 +87,18 @@ def list_agents() -> list[dict[str, Any]]:
             "cluster_script": spec.cluster_script,
             "flink_yaml": spec.flink_yaml or None,
         }
-        for spec in registry.agents.values()
-    ]
+        if entry is not None:
+            item["catalog_id"] = entry.id
+            item["display_name"] = entry.display_name
+            item["tags"] = list(entry.tags)
+        result.append(item)
+    return result
+
+
+def agent_catalog() -> dict[str, Any]:
+    from apemosyne.agents.catalog import agent_catalog_response
+
+    return agent_catalog_response()
 
 
 def get_agent(name: str) -> dict[str, Any]:
@@ -94,7 +107,7 @@ def get_agent(name: str) -> dict[str, Any]:
     return describe_agent(name)
 
 
-def get_agent_definition(name: str) -> dict[str, Any]:
+def get_agent_runtime_definition(name: str) -> dict[str, Any]:
     spec = get_agent_spec(name)
     detail = describe_agent(name)
     flink_yaml_text: str | None = None
@@ -195,3 +208,92 @@ def list_kafka_topics(*, bootstrap: str | None = None) -> dict[str, Any]:
     from apemosyne.kafka_sources import list_kafka_sources
 
     return list_kafka_sources(bootstrap=bootstrap)
+
+
+def get_react_llm_settings_api() -> dict[str, Any]:
+    from apemosyne.designer.llm_settings import llm_settings_for_api
+
+    return llm_settings_for_api()
+
+
+def update_react_llm_settings_api(body: dict[str, Any]) -> dict[str, Any]:
+    from apemosyne.designer.llm_settings import update_react_llm_settings
+
+    endpoint_url = str(body.get("endpoint_url") or "").strip()
+    model_id = str(body.get("model_id") or "").strip()
+    if not endpoint_url:
+        raise ValueError("endpoint_url is required")
+    if not model_id:
+        raise ValueError("model_id is required")
+    api_key_raw = body.get("api_key")
+    api_key = None if api_key_raw is None else str(api_key_raw)
+    return update_react_llm_settings(
+        endpoint_url=endpoint_url,
+        model_id=model_id,
+        api_key=api_key,
+    )
+
+
+def test_react_llm_settings_api(body: dict[str, Any] | None = None) -> dict[str, Any]:
+    from apemosyne.designer.llm_client import LlmNotConfiguredError
+    from apemosyne.designer.llm_settings import test_react_llm_settings
+
+    try:
+        return test_react_llm_settings(body=body)
+    except LlmNotConfiguredError as exc:
+        raise ValueError(str(exc)) from exc
+
+
+def list_agent_definitions(*, limit: int = 100) -> list[dict[str, Any]]:
+    from apemosyne.designer.definitions.service import default_agent_definition_service
+
+    return default_agent_definition_service().list_definitions(limit=limit)
+
+
+def get_designer_definition(definition_id: str) -> dict[str, Any]:
+    from apemosyne.designer.definitions.service import default_agent_definition_service
+
+    return default_agent_definition_service().get(definition_id)
+
+
+def create_agent_definition(body: dict[str, Any]) -> dict[str, Any]:
+    from apemosyne.designer.definitions.service import default_agent_definition_service
+
+    return default_agent_definition_service().create(
+        body.get("name") or "Untitled agent",
+        agent_type=body.get("type") or "workflow",
+        description=body.get("description") or "",
+        nodes=body.get("nodes"),
+        edges=body.get("edges"),
+        layout=body.get("layout"),
+        input_schema=body.get("input_schema"),
+        output_schema=body.get("output_schema"),
+        manifest_name=body.get("manifest_name"),
+        catalog_category_id=body.get("catalog_category_id"),
+        catalog_subcategory_id=body.get("catalog_subcategory_id"),
+        catalog_tags=body.get("catalog_tags"),
+    )
+
+
+def update_agent_definition(definition_id: str, body: dict[str, Any]) -> dict[str, Any]:
+    from apemosyne.designer.definitions.service import default_agent_definition_service
+
+    return default_agent_definition_service().update(definition_id, body)
+
+
+def delete_agent_definition(definition_id: str) -> None:
+    from apemosyne.designer.definitions.service import default_agent_definition_service
+
+    default_agent_definition_service().delete(definition_id)
+
+
+def validate_agent_definition_by_id(definition_id: str) -> dict[str, Any]:
+    from apemosyne.designer.definitions.service import default_agent_definition_service
+
+    return default_agent_definition_service().validate(definition_id)
+
+
+def compile_agent_definition_by_id(definition_id: str) -> dict[str, Any]:
+    from apemosyne.designer.definitions.service import default_agent_definition_service
+
+    return default_agent_definition_service().compile(definition_id)

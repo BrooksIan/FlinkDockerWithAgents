@@ -16,9 +16,9 @@ export function AgentDetailPage() {
   useEffect(() => {
     if (!name || isPipelineRun(name)) return;
     api
-      .agentDefinition(name)
+      .agentRuntimeDefinition(name)
       .then(setAgent)
-      .catch((e) => setError(String(e)));
+      .catch((e: unknown) => setError(String(e)));
   }, [name]);
 
   async function handleSubmit() {

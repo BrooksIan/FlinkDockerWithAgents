@@ -137,10 +137,29 @@ def _resolve_source_records(
     return records
 
 
+def _deliver_sink_output(config: dict[str, Any], records: list[dict[str, Any]]) -> None:
+    sink_type = str(config.get("sink_type") or "capture").strip().lower()
+    if sink_type != "kafka":
+        return
+
+    from apemosyne.kafka_sources import publish_topic_records
+
+    topic = str(config.get("topic") or "").strip()
+    if not topic:
+        raise ValueError("Kafka sink missing topic")
+    bootstrap = config.get("bootstrap")
+    publish_topic_records(
+        topic,
+        records,
+        bootstrap=str(bootstrap) if bootstrap else None,
+    )
+
+
 def execute_pipeline_agents(
     pipeline: Pipeline,
     *,
     input_override: list[dict[str, Any]] | None = None,
+    deliver_sinks: bool = True,
 ) -> tuple[list[dict[str, Any]], list[AgentStepResult]]:
     """Run agent steps in-process. Requires flink_agents on PYTHONPATH."""
     from flink_agents.api.execution_environment import AgentsExecutionEnvironment
@@ -162,6 +181,8 @@ def execute_pipeline_agents(
 
         if node.kind == "sink":
             sink_output = list(records)
+            if deliver_sinks:
+                _deliver_sink_output(node.config, sink_output)
             continue
 
         if node.kind != "agent" or not node.agent:
@@ -232,6 +253,9 @@ def run_pipeline_local(
                 input_override=effective_input,
                 profile=profile,
             )
+            sink_node = next((n for n in pipeline.nodes if n.kind == "sink"), None)
+            if sink_node is not None:
+                _deliver_sink_output(sink_node.config, output)
 
         for step in steps:
             run_service.append_span(
@@ -241,6 +265,22 @@ def run_pipeline_local(
                 duration_ms=step.duration_ms,
                 input_data=step.input_data,
                 output_data=step.output_data,
+            )
+
+        sink_node = next((n for n in pipeline.nodes if n.kind == "sink"), None)
+        if sink_node is not None and output:
+            sink_type = str(sink_node.config.get("sink_type") or "capture").strip().lower()
+            sink_name = (
+                str(sink_node.config.get("topic") or "").strip()
+                if sink_type == "kafka"
+                else "capture"
+            )
+            run_service.append_span(
+                run_id,
+                kind="sink",
+                name=sink_name or "capture",
+                output_data=output,
+                input_data={"sink_type": sink_type, "topic": sink_node.config.get("topic")},
             )
 
         run_service.finish_run(

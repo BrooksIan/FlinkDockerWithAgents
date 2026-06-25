@@ -1,0 +1,88 @@
+# Agent catalog — display grouping for dashboard & Studio palette.
+# Runtime agents remain in agent-manifest.yaml; catalog entries reference manifest names.
+
+categories:
+  - id: workflow
+    label: Workflow Agents
+    description: Deterministic @action / @tool agents for stream processing pipelines.
+    subcategories:
+      - id: transform
+        label: Transform
+        description: Map or reshape record fields without LLM calls.
+        agents:
+          - id: double_value
+            manifest: workflow_counter
+            display_name: Double Value
+            description: Doubles numeric input values using a @tool. Ideal for Studio smoke tests with workflow.test.input.
+            tags: [demo, transform, numeric]
+            input_schema:
+              type: object
+              required: [value]
+              properties:
+                value:
+                  type: integer
+                  description: Number to double
+            output_schema:
+              type: object
+              properties:
+                input:
+                  type: integer
+                doubled:
+                  type: integer
+                agent:
+                  type: string
+
+  - id: react
+    label: ReAct Agents
+    description: Tool-chaining agents with planning loops (lab / enrichment paths).
+    llm_required: true
+    subcategories:
+      - id: text
+        label: Text Processing
+        description: Classify and summarize text payloads.
+        agents:
+          - id: react_echo
+            manifest: react_echo
+            display_name: Echo & Classify
+            description: Tool-chaining lab agent (no LLM) — classify and summarize text.
+            tags: [demo, text, react]
+            input_schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  description: Text to classify and summarize
+
+      - id: numeric
+        label: Numeric (LLM)
+        description: Extract and transform numbers using ReAct + LLM prompts.
+        agents:
+          - id: react_double_value
+            manifest: react_double_value
+            display_name: ReAct Double Value
+            description: Takes an incoming message, prompts the LLM to identify the numeric input, doubles it, and outputs the result. Uses Designer LLM settings.
+            tags: [demo, react, numeric, llm]
+            input_schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  description: Message describing or containing the value to double
+                value:
+                  type: integer
+                  description: Optional explicit numeric hint for the LLM
+            output_schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                input:
+                  type: integer
+                doubled:
+                  type: integer
+                reasoning:
+                  type: string
+                mode:
+                  type: string
+                agent:
+                  type: string

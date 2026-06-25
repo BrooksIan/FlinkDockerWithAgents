@@ -26,6 +26,7 @@ def main() -> int:
     output, steps = execute_pipeline_agents(
         pipeline,
         input_override=payload.get("input_override"),
+        deliver_sinks=False,
     )
     print(
         json.dumps(

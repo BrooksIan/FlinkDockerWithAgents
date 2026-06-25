@@ -51,6 +51,12 @@ def validate_pipeline(pipeline: Pipeline) -> dict[str, Any]:
                     errors.append("Kafka source node missing topic")
             elif not node.config.get("records"):
                 errors.append("Source node has no input records")
+        if node.kind == "sink":
+            sink_type = str(node.config.get("sink_type") or "capture").strip().lower()
+            if sink_type == "kafka":
+                topic = str(node.config.get("topic") or "").strip()
+                if not topic:
+                    errors.append("Kafka sink node missing topic")
         if node.kind == "agent":
             if not node.agent:
                 errors.append(f"Agent node {node.id!r} missing agent name")
@@ -85,31 +91,50 @@ def validate_pipeline(pipeline: Pipeline) -> dict[str, Any]:
         )
 
     _check_edge_mappings(pipeline, warnings)
-    _check_kafka_sources(pipeline, warnings)
+    _check_kafka_nodes(pipeline, warnings)
 
     return {"valid": len(errors) == 0, "errors": errors, "warnings": warnings}
 
 
-def _check_kafka_sources(pipeline: Pipeline, warnings: list[str]) -> None:
+def _check_kafka_node(
+    node_kind: str,
+    config: dict[str, Any],
+    *,
+    warnings: list[str],
+    known: set[str],
+) -> None:
+    type_key = "source_type" if node_kind == "source" else "sink_type"
+    kafka_type = "kafka"
+    node_type = str(config.get(type_key) or ("records" if node_kind == "source" else "capture")).strip().lower()
+    if node_type != kafka_type:
+        return
+    topic = str(config.get("topic") or "").strip()
+    if known and topic and topic not in known:
+        warnings.append(
+            f"Kafka topic {topic!r} is not a standard pipeline topic; ensure it exists on the broker"
+        )
+
+
+def _check_kafka_nodes(pipeline: Pipeline, warnings: list[str]) -> None:
     from apemosyne.kafka_sources import kafka_reachable, known_pipeline_topics
 
+    known = set(known_pipeline_topics())
+    kafka_configured = False
     for node in pipeline.nodes:
-        if node.kind != "source":
-            continue
-        source_type = str(node.config.get("source_type") or "records").strip().lower()
-        if source_type != "kafka":
-            continue
-        topic = str(node.config.get("topic") or "").strip()
-        known = set(known_pipeline_topics())
-        if known and topic not in known:
-            warnings.append(
-                f"Kafka topic {topic!r} is not a standard pipeline topic; ensure it exists on the broker"
-            )
-        if not kafka_reachable():
-            warnings.append(
-                "Kafka broker unreachable from the host — pipeline runs will use the Docker "
-                "Kafka container when available, or start the full stack: apemosyne up --profile full"
-            )
+        if node.kind == "source":
+            _check_kafka_node("source", node.config, warnings=warnings, known=known)
+            if str(node.config.get("source_type") or "").strip().lower() == "kafka":
+                kafka_configured = True
+        if node.kind == "sink":
+            _check_kafka_node("sink", node.config, warnings=warnings, known=known)
+            if str(node.config.get("sink_type") or "").strip().lower() == "kafka":
+                kafka_configured = True
+
+    if kafka_configured and not kafka_reachable():
+        warnings.append(
+            "Kafka broker unreachable from the host — pipeline runs will use the Docker "
+            "Kafka container when available, or start the full stack: apemosyne up --profile full"
+        )
 
 
 def _has_cycle(adjacency: dict[str, list[str]], nodes: list[str]) -> bool:

@@ -12,6 +12,11 @@ from typing import Any, List, Optional, Tuple
 from apemosyne.agents.registry import AgentSpec, get_agent_spec
 from apemosyne.constants import DEFAULT_PROFILE
 from apemosyne.copy_manifest import copy_pairs_to_cluster
+from apemosyne.designer.runtime_env import (
+    designer_copy_pairs,
+    react_llm_shell_prefix,
+    sync_designer_db_to_cluster,
+)
 from apemosyne.docker_utils import container_id, docker_exec, project_root
 from apemosyne.paths import agents_dir, configure_runtime_sys_path, project_root
 from apemosyne.runs.plan import find_flink_job_for_agent, flink_job_state
@@ -91,6 +96,18 @@ def _agent_copy_pairs(spec: AgentSpec, *, root: Path) -> List[Tuple[str, str]]:
     else:
         pairs.append((str(examples_init), "/opt/flink/examples/__init__.py"))
 
+    if spec.type == "react" or spec.name == "react_double_value":
+        pairs.extend(designer_copy_pairs(root=root))
+        for path in (
+            root / "examples/agents/react_double_value_logic.py",
+            root / "examples/agents/react_double_value_prompt.py",
+        ):
+            if path.is_file():
+                rel = path.relative_to(root).as_posix()
+                remote = f"/opt/flink/{rel}"
+                if (str(path), remote) not in pairs:
+                    pairs.append((str(path), remote))
+
     return pairs
 
 
@@ -144,8 +161,12 @@ def submit_agent_cluster(
         service.finish_run(run_id, status="failed", error=f"copy failed: {stats.failed} file(s)")
         raise RuntimeError(f"Failed to copy {stats.failed} file(s) to cluster")
 
+    remote_designer_db = sync_designer_db_to_cluster(root=repo, profile=profile)
+    llm_env = react_llm_shell_prefix(root=repo, remote_designer_db=remote_designer_db)
+
     remote = f"/opt/flink/{spec.cluster_script}"
     command = (
+        f"{llm_env}"
         "cd /opt/flink && "
         "export PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:"
         "/opt/flink/opt/python/pyflink.zip:/opt/flink/opt/python/py4j-src.zip && "

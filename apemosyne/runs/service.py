@@ -20,7 +20,18 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _run_output(spans: list[Any]) -> Any | None:
+    for span in reversed(spans):
+        if span.get("kind") == "sink" and span.get("output") is not None:
+            return span["output"]
+    for span in reversed(spans):
+        if span.get("output") is not None:
+            return span["output"]
+    return None
+
+
 def _run_to_dict(run: Run, *, include_plan: bool = True) -> dict[str, Any]:
+    spans = [asdict(span) for span in run.spans]
     data: dict[str, Any] = {
         "id": run.id,
         "agent": run.agent,
@@ -31,7 +42,8 @@ def _run_to_dict(run: Run, *, include_plan: bool = True) -> dict[str, Any]:
         "flink_job_id": run.flink_job_id,
         "error": run.error,
         "record_count": run.record_count,
-        "spans": [asdict(span) for span in run.spans],
+        "spans": spans,
+        "output": _run_output(spans),
     }
     if include_plan:
         data["plan"] = run.plan or agent_execution_plan(run.agent)

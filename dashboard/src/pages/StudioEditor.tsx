@@ -9,7 +9,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api/client";
-import type { AgentSummary, KafkaTopicSummary, PipelineSummary, PipelineValidation } from "../api/types";
+import type { AgentCatalog, AgentSummary, KafkaTopicSummary, PipelineSummary, PipelineValidation } from "../api/types";
 import { AgentGraphPanel } from "../studio/AgentGraphPanel";
 import { NodePalette } from "../studio/NodePalette";
 import { PipelineInspector } from "../studio/PipelineInspector";
@@ -22,6 +22,7 @@ export function StudioEditorPage() {
   const navigate = useNavigate();
   const [pipeline, setPipeline] = useState<PipelineSummary | null>(null);
   const [agents, setAgents] = useState<AgentSummary[]>([]);
+  const [catalog, setCatalog] = useState<AgentCatalog | null>(null);
   const [kafkaTopics, setKafkaTopics] = useState<KafkaTopicSummary[]>([]);
   const [kafkaReachable, setKafkaReachable] = useState<boolean | undefined>(undefined);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
@@ -43,11 +44,12 @@ export function StudioEditorPage() {
 
   useEffect(() => {
     if (!id) return;
-    Promise.all([api.pipeline(id), api.agents(), api.kafkaTopics()])
-      .then(([p, a, kafka]) => {
+    Promise.all([api.pipeline(id), api.agents(), api.agentCatalog(), api.kafkaTopics()])
+      .then(([p, a, cat, kafka]) => {
         setPipeline(p);
         setAgents(a);
-        setKafkaTopics(kafka.topics);
+        setCatalog(cat);
+        setKafkaTopics(kafka.topics.filter((t) => !t.name.startsWith("__")));
         setKafkaReachable(kafka.reachable);
         const flow = pipelineToFlow(p, a);
         setNodes(flow.nodes);
@@ -117,7 +119,10 @@ export function StudioEditorPage() {
 
   function createNode(spec: DroppedNodeSpec, position: { x: number; y: number }): Node {
     if (spec.kind === "source") {
-      if (spec.kafkaTopic) {
+      if (spec.kafkaSource) {
+        const defaultTopic = kafkaTopics.find((t) => t.name === "cowrie.normalized")?.name
+          || kafkaTopics[0]?.name
+          || "";
         return {
           id: nextId("src"),
           type: "source",
@@ -125,10 +130,10 @@ export function StudioEditorPage() {
           data: {
             label: "Kafka source",
             sourceType: "kafka",
-            kafkaTopic: spec.kafkaTopic,
+            kafkaTopic: defaultTopic || undefined,
             config: {
               source_type: "kafka",
-              topic: spec.kafkaTopic,
+              topic: defaultTopic,
               max_records: 10,
             },
           },
@@ -150,7 +155,35 @@ export function StudioEditorPage() {
       };
     }
     if (spec.kind === "sink") {
-      return { id: nextId("sink"), type: "sink", position, data: { label: "Sink" } };
+      if (spec.kafkaSink) {
+        const defaultTopic = kafkaTopics.find((t) => t.name === "cowrie.alerts")?.name
+          || kafkaTopics[0]?.name
+          || "";
+        return {
+          id: nextId("sink"),
+          type: "sink",
+          position,
+          data: {
+            label: "Kafka sink",
+            sinkType: "kafka",
+            kafkaTopic: defaultTopic || undefined,
+            config: {
+              sink_type: "kafka",
+              topic: defaultTopic,
+            },
+          },
+        };
+      }
+      return {
+        id: nextId("sink"),
+        type: "sink",
+        position,
+        data: {
+          label: "Sink",
+          sinkType: "capture",
+          config: { sink_type: "capture" },
+        },
+      };
     }
     return {
       id: nextId("agent"),
@@ -180,15 +213,16 @@ export function StudioEditorPage() {
     addNodeAt({ kind: "source" }, { x: 80, y: 120 + nodes.length * 40 });
   }
 
-  function addKafkaSource(topic: KafkaTopicSummary) {
-    addNodeAt(
-      { kind: "source", kafkaTopic: topic.name, kafkaDescription: topic.description },
-      { x: 80, y: 120 + nodes.length * 40 },
-    );
+  function addKafkaSource() {
+    addNodeAt({ kind: "source", kafkaSource: true }, { x: 80, y: 120 + nodes.length * 40 });
   }
 
   function addSink() {
     addNodeAt({ kind: "sink" }, { x: 600, y: 120 + nodes.length * 40 });
+  }
+
+  function addKafkaSink() {
+    addNodeAt({ kind: "sink", kafkaSink: true }, { x: 600, y: 120 + nodes.length * 40 });
   }
 
   function addAgent(agent: AgentSummary) {
@@ -204,6 +238,7 @@ export function StudioEditorPage() {
       const prev = n.data as {
         config?: Record<string, unknown>;
         sourceType?: string;
+        sinkType?: string;
         kafkaTopic?: string;
         recordCount?: number;
       };
@@ -211,12 +246,19 @@ export function StudioEditorPage() {
       const data: typeof prev & Record<string, unknown> = { ...n.data, config };
       if (config?.source_type === "kafka") {
         data.sourceType = "kafka";
-        data.kafkaTopic = config.topic;
+        data.kafkaTopic = config.topic as string | undefined;
         data.recordCount = undefined;
       } else if (config?.records) {
         data.sourceType = "records";
         data.kafkaTopic = undefined;
         data.recordCount = (config.records as unknown[]).length;
+      }
+      if (config?.sink_type === "kafka") {
+        data.sinkType = "kafka";
+        data.kafkaTopic = config.topic as string | undefined;
+      } else if (config?.sink_type === "capture") {
+        data.sinkType = "capture";
+        data.kafkaTopic = undefined;
       }
       return { ...n, data };
     });
@@ -317,11 +359,13 @@ export function StudioEditorPage() {
       <div className="studio-layout">
         <NodePalette
           agents={agents}
+          catalog={catalog}
           kafkaTopics={kafkaTopics}
           kafkaReachable={kafkaReachable}
           onAddSource={addSource}
           onAddKafkaSource={addKafkaSource}
           onAddSink={addSink}
+          onAddKafkaSink={addKafkaSink}
           onAddAgent={addAgent}
         />
         <StudioCanvas

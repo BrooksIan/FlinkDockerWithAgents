@@ -14,7 +14,8 @@ apemosyne up              # default: minimal JobManager + TaskManager
 
 ## Registered agents
 
-Manifest: [`agents/agent-manifest.yaml`](agents/agent-manifest.yaml)
+Manifest: [`agents/agent-manifest.yaml`](agents/agent-manifest.yaml)  
+Catalog: [`agents/agent-catalog.yaml`](agents/agent-catalog.yaml) — categories, display names, I/O schemas for the dashboard.
 
 | Agent | Type | Local runner | Description |
 |-------|------|--------------|-------------|

@@ -3,6 +3,8 @@ import { Link, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import type { RunDetail } from "../api/types";
 import { ExecutionPlan } from "../components/ExecutionPlan";
+import { RunOutputPanel } from "../components/RunOutputPanel";
+import { RunSpanList } from "../components/RunSpanList";
 import { RunStatusBadge } from "../components/RunStatusBadge";
 import { isPipelineRun, pipelineRunName } from "../utils/runUtils";
 
@@ -77,25 +79,15 @@ export function RunDetailPage() {
 
           <ExecutionPlan plan={run.plan} />
 
+          {(run.output !== undefined && run.output !== null) || run.record_count > 0 ? (
+            <RunOutputPanel output={run.output} spans={run.spans} recordCount={run.record_count} />
+          ) : null}
+
           {isPipelineRun(run.agent) && run.spans.length > 0 && (
-            <p className="muted">Per-agent steps from the Studio pipeline run.</p>
+            <p className="muted">Per-agent and sink steps from the Studio pipeline run.</p>
           )}
 
-          {run.spans.length > 0 ? (
-            <div className="card">
-              <h3 style={{ marginTop: 0 }}>Recorded spans</h3>
-              <ul className="plan-tree">
-                {run.spans.map((s) => (
-                  <li key={s.id}>
-                    <span className="badge neutral">{s.kind}</span> <strong>{s.name}</strong>
-                    {s.duration_ms != null && <span className="muted"> ({s.duration_ms}ms)</span>}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <p className="muted">No runtime spans yet — Phase 2 will record live tool/action traces.</p>
-          )}
+          <RunSpanList spans={run.spans} />
         </>
       )}
     </>

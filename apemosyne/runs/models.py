@@ -7,7 +7,7 @@ from typing import Any, Literal
 
 RunKind = Literal["local", "cluster"]
 RunStatus = Literal["starting", "running", "finished", "failed", "canceled"]
-SpanKind = Literal["action", "tool", "output", "agent"]
+SpanKind = Literal["action", "tool", "output", "agent", "sink"]
 SpanStatus = Literal["ok", "error"]
 
 

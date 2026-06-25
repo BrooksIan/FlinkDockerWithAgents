@@ -27,6 +27,172 @@ export interface AgentSummary {
   runner: string;
   cluster_script: string;
   flink_yaml?: string | null;
+  catalog_id?: string;
+  display_name?: string;
+  tags?: string[];
+}
+
+export interface CatalogAgentEntry {
+  id: string;
+  manifest: string;
+  display_name: string;
+  description: string;
+  type: string;
+  entry: string;
+  runner: string;
+  cluster_script: string;
+  flink_yaml?: string | null;
+  tags: string[];
+  input_schema?: Record<string, unknown>;
+  output_schema?: Record<string, unknown>;
+  category_id: string;
+  category_label: string;
+  subcategory_id: string;
+  subcategory_label: string;
+}
+
+export interface CatalogSubcategory {
+  id: string;
+  label: string;
+  description: string;
+  agents: CatalogAgentEntry[];
+}
+
+export interface CatalogCategory {
+  id: string;
+  label: string;
+  description: string;
+  llm_required?: boolean;
+  subcategories: CatalogSubcategory[];
+}
+
+export interface AgentCatalog {
+  categories: CatalogCategory[];
+  react_llm_defaults?: ReactLlmSettings;
+}
+
+export interface ReactLlmSettings {
+  scope: string;
+  endpoint_url: string;
+  model_id: string;
+  api_key_set: boolean;
+  api_key_hint?: string | null;
+  configured: boolean;
+  source: "designer" | "environment" | "unset" | string;
+  env_fallback?: {
+    endpoint_url?: string | null;
+    model_id?: string | null;
+    api_key_set?: boolean;
+  };
+}
+
+export interface ReactLlmSettingsUpdate {
+  endpoint_url: string;
+  model_id: string;
+  api_key?: string | null;
+}
+
+export interface ReactLlmSettingsTestRequest {
+  endpoint_url?: string | null;
+  model_id?: string | null;
+  api_key?: string | null;
+}
+
+export interface ReactLlmSettingsTestResult {
+  ok: boolean;
+  duration_ms: number;
+  model_id: string;
+  endpoint_url: string;
+  message: string;
+  result: {
+    input: number;
+    doubled: number;
+    reasoning: string;
+  };
+}
+
+export type AgentNodeKind =
+  | "input_event"
+  | "action"
+  | "tool"
+  | "output_event"
+  | "prompt"
+  | "llm_call";
+
+export type AgentEdgeKind = "listens_to" | "calls" | "emits";
+
+export interface AgentDefinitionNode {
+  id: string;
+  kind: AgentNodeKind;
+  name: string;
+  config: Record<string, unknown>;
+}
+
+export interface AgentDefinitionEdge {
+  id: string;
+  source: string;
+  target: string;
+  kind: AgentEdgeKind;
+}
+
+export interface AgentDefinitionSummary {
+  id: string;
+  name: string;
+  type: "workflow" | "react" | string;
+  version: number;
+  description: string;
+  status: "draft" | "compiled" | "published" | string;
+  manifest_name?: string | null;
+  catalog_category_id?: string | null;
+  catalog_subcategory_id?: string | null;
+  catalog_tags: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AgentDefinition extends AgentDefinitionSummary {
+  nodes: AgentDefinitionNode[];
+  edges: AgentDefinitionEdge[];
+  layout: Record<string, { x: number; y: number }>;
+  input_schema: Record<string, unknown>;
+  output_schema: Record<string, unknown>;
+}
+
+export interface AgentDefinitionValidation {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
+export interface AgentDefinitionCompileFile {
+  path: string;
+  content: string;
+}
+
+export interface AgentDefinitionCompileResult {
+  definition_id: string;
+  agent_slug: string;
+  class_name: string;
+  output_dir: string;
+  status: string;
+  validation: AgentDefinitionValidation;
+  files: AgentDefinitionCompileFile[];
+  definition?: AgentDefinition;
+}
+
+export interface AgentDefinitionCreate {
+  name?: string;
+  type?: string;
+  description?: string;
+  nodes?: AgentDefinitionNode[];
+  edges?: AgentDefinitionEdge[];
+  layout?: Record<string, { x: number; y: number }>;
+  input_schema?: Record<string, unknown>;
+  output_schema?: Record<string, unknown>;
+  manifest_name?: string | null;
+  catalog_category_id?: string | null;
+  catalog_subcategory_id?: string | null;
+  catalog_tags?: string[];
 }
 
 export interface AgentDetail extends AgentSummary {
@@ -56,6 +222,7 @@ export interface RunSummary {
   error?: string | null;
   record_count: number;
   spans: SpanSummary[];
+  output?: unknown;
 }
 
 export interface SpanSummary {
