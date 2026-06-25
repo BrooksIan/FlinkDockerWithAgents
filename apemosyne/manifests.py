@@ -15,6 +15,8 @@ from apemosyne.paths import (
     project_root,
 )
 
+from apemosyne.constants import VERIFY_PROFILE_HONEYPOT
+
 DEMO_CATALOG_FILE = "demo-files.yaml"
 VERIFY_TIERS_FILE = "verify-tiers.yaml"
 STARTUP_MODES_FILE = "startup-modes.yaml"
@@ -263,12 +265,29 @@ def validate_manifest_paths(
         )
 
 
-def _verify_tiers_path(root: Path) -> Path:
-    for base in (manifests_dir(root), honeypot_manifests_dir(root)):
-        path = base / VERIFY_TIERS_FILE
-        if path.is_file():
-            return path
-    return manifests_dir(root) / VERIFY_TIERS_FILE
+
+def _normalize_step_options(options: Dict[str, Any]) -> Dict[str, Any]:
+    normalized = dict(options)
+    if "path" in normalized and "paths" not in normalized:
+        path_val = normalized.pop("path")
+        if isinstance(path_val, str):
+            normalized["paths"] = [path_val]
+        elif isinstance(path_val, list):
+            normalized["paths"] = path_val
+    return normalized
+
+
+def _parse_step_entries(raw_steps: list) -> List[VerifyStep]:
+    steps: list[VerifyStep] = []
+    for entry in raw_steps:
+        if not isinstance(entry, Mapping):
+            continue
+        step_type = str(entry.get("type", "python"))
+        options = _normalize_step_options(
+            {k: v for k, v in entry.items() if k != "type"}
+        )
+        steps.append(VerifyStep(type=step_type, options=options))
+    return steps
 
 
 def _resolve_verify_tier(name: str, raw_tiers: Mapping[str, Any]) -> List[VerifyStep]:
@@ -286,28 +305,45 @@ def _resolve_verify_tier(name: str, raw_tiers: Mapping[str, Any]) -> List[Verify
 
     raw_steps = raw.get("steps")
     if isinstance(raw_steps, list):
-        for entry in raw_steps:
-            if not isinstance(entry, Mapping):
-                continue
-            step_type = str(entry.get("type", "python"))
-            options = {k: v for k, v in entry.items() if k != "type"}
-            steps.append(VerifyStep(type=step_type, options=options))
+        steps.extend(_parse_step_entries(raw_steps))
     return steps
 
 
-def load_verify_tiers(*, root: Optional[Path] = None) -> Dict[str, VerifyTier]:
-    repo = root or project_root()
-    path = _verify_tiers_path(repo)
+def _overlay_tier_steps(name: str, raw_tiers: Mapping[str, Any]) -> List[VerifyStep]:
+    """Return direct steps from an overlay manifest (no ``extends``)."""
+    raw = raw_tiers.get(name)
+    if not isinstance(raw, Mapping):
+        return []
+    raw_steps = raw.get("steps")
+    if not isinstance(raw_steps, list):
+        return []
+    return _parse_step_entries(raw_steps)
+
+
+def _honeypot_verify_overlay_active(profile: str | None) -> bool:
+    if profile is None:
+        return False
+    return profile.strip().lower() in (VERIFY_PROFILE_HONEYPOT, "full", "cowrie")
+
+
+def _load_verify_tiers_file(path: Path) -> Mapping[str, Any]:
     if not path.is_file():
         raise ManifestError(f"Verify tiers file not found: {path}")
-
     data = _load_yaml(path)
     if not isinstance(data, Mapping):
         raise ManifestError(f"Verify tiers root must be a mapping: {path}")
-
     raw_tiers = data.get("tiers")
     if not isinstance(raw_tiers, Mapping):
         raise ManifestError(f"{path} must define a 'tiers' mapping")
+    return raw_tiers
+
+
+def load_verify_tiers(
+    *, root: Optional[Path] = None, profile: Optional[str] = None
+) -> Dict[str, VerifyTier]:
+    repo = root or project_root()
+    base_path = manifests_dir(repo) / VERIFY_TIERS_FILE
+    raw_tiers = _load_verify_tiers_file(base_path)
 
     resolved: Dict[str, VerifyTier] = {}
     for tier_name in raw_tiers:
@@ -316,11 +352,26 @@ def load_verify_tiers(*, root: Optional[Path] = None) -> Dict[str, VerifyTier]:
             name=name,
             steps=_resolve_verify_tier(name, raw_tiers),
         )
+
+    if _honeypot_verify_overlay_active(profile):
+        overlay_path = honeypot_manifests_dir(repo) / VERIFY_TIERS_FILE
+        if overlay_path.is_file():
+            overlay_tiers = _load_verify_tiers_file(overlay_path)
+            for tier_name, tier in list(resolved.items()):
+                overlay_steps = _overlay_tier_steps(tier_name, overlay_tiers)
+                if overlay_steps:
+                    resolved[tier_name] = VerifyTier(
+                        name=tier_name,
+                        steps=tier.steps + overlay_steps,
+                    )
+
     return resolved
 
 
-def get_verify_tier(name: str, *, root: Optional[Path] = None) -> VerifyTier:
-    tiers = load_verify_tiers(root=root)
+def get_verify_tier(
+    name: str, *, root: Optional[Path] = None, profile: Optional[str] = None
+) -> VerifyTier:
+    tiers = load_verify_tiers(root=root, profile=profile)
     if name not in tiers:
         known = ", ".join(sorted(tiers))
         raise ManifestError(f"Unknown verify tier '{name}'. Known tiers: {known}")

@@ -12,10 +12,6 @@ _INSTALLED = False
 
 # Dependency order for modules that exist only as .pyc today.
 _PYC_MODULES = [
-    "constants",
-    "docker_utils",
-    "paths",
-    "manifests",
     "copy_manifest",
     "env_sync",
     "config",
@@ -23,7 +19,6 @@ _PYC_MODULES = [
     "checks.doctor",
     "checks.demo_ready",
     "checks",
-    "commands.build",
     "commands.config_cmd",
     "commands.dashboard",
     "commands.demo",
@@ -34,7 +29,6 @@ _PYC_MODULES = [
     "commands.sync_env_cmd",
     "commands.test_cmd",
     "commands.utils",
-    "commands.verify_cmd",
 ]
 
 
@@ -106,17 +100,26 @@ def install_aliases() -> None:
                 return importlib.util.find_spec(alias)
             return None
 
+    import importlib
     import importlib.util
 
     if not any(type(f).__name__ == "_LegacyAliasFinder" for f in sys.meta_path):
         sys.meta_path.insert(0, _LegacyAliasFinder())
 
+    for mod in (
+        "apemosyne.constants",
+        "apemosyne.docker_utils",
+        "apemosyne.paths",
+        "apemosyne.manifests",
+        "apemosyne.startup_modes",
+        "apemosyne.commands",
+    ):
+        importlib.import_module(mod)
+    sys.modules["flink_cowrie.commands"] = sys.modules["apemosyne.commands"]
+
     for name in _PYC_MODULES:
         _load_pyc(f"apemosyne.{name}")
 
-    import importlib
-
-    importlib.import_module("apemosyne.commands")
     if "apemosyne.checks" in sys.modules:
         sys.modules["flink_cowrie.checks"] = sys.modules["apemosyne.checks"]
     sys.modules["flink_cowrie.commands"] = sys.modules["apemosyne.commands"]

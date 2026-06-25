@@ -1,0 +1,2 @@
+[console_scripts]
+pycdc = pycdc.cli:main

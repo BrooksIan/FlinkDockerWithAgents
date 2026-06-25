@@ -1,0 +1,67 @@
+Metadata-Version: 2.4
+Name: pycdc
+Version: 0.1.0
+Summary: Please Your Customer Direct Connect — search the web for CRM gift ideas and client appreciation strategies
+Project-URL: Homepage, https://github.com/brnv/pycdc
+Author-email: Artem <brnv@canva.com>
+License-Expression: MIT
+License-File: LICENSE
+Keywords: appreciation,client-relations,crm,customer,direct-connect,gifts
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Topic :: Office/Business :: Financial :: Point-Of-Sale
+Requires-Python: >=3.10
+Requires-Dist: httpx>=0.27
+Description-Content-Type: text/markdown
+
+# pycdc
+
+**P**lease **Y**our **C**ustomer **D**irect **C**onnect — a library to search the web and get gift ideas for CRM client appreciation.
+
+## Installation
+
+```bash
+pip install pycdc
+```
+
+## Usage
+
+```python
+from pycdc import GiftFinder, CustomerProfile, Occasion, Budget
+
+finder = GiftFinder()
+
+# Simple search
+ideas = finder.find(occasion=Occasion.RENEWAL, budget=Budget.STANDARD)
+
+# Customer-aware recommendations
+customer = CustomerProfile(
+    name="Sarah Chen",
+    company="Acme Corp",
+    deal_value=50_000,
+    interests=["coffee", "hiking", "tech"],
+    relationship_length_months=18,
+)
+recs = finder.recommend(customer, Occasion.ANNIVERSARY)
+for r in recs:
+    print(f"{r.name} ({r.price_range}) — {r.personalization_tip}")
+
+# Full gift strategy
+print(finder.summary_for(customer))
+```
+
+## CLI
+
+```bash
+pycdc search "tech" --budget premium
+pycdc search --occasion holiday --budget modest --json
+pycdc recommend --name "Sarah Chen" --company "Acme" --deal-value 50000 --interests coffee hiking
+pycdc occasions
+pycdc budgets
+```
+
+## License
+
+MIT
