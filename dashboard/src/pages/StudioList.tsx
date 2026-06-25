@@ -1,0 +1,113 @@
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { api } from "../api/client";
+import type { PipelineSummary } from "../api/types";
+import { defaultDemoPipeline } from "../studio/pipelineUtils";
+
+export function StudioListPage() {
+  const navigate = useNavigate();
+  const [pipelines, setPipelines] = useState<PipelineSummary[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  function load() {
+    setLoading(true);
+    api
+      .pipelines()
+      .then(setPipelines)
+      .catch((e) => setError(String(e)))
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function handleCreate() {
+    setError(null);
+    try {
+      const created = await api.createPipeline(defaultDemoPipeline());
+      navigate(`/studio/${created.id}`);
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("Delete this pipeline?")) return;
+    try {
+      await api.deletePipeline(id);
+      load();
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
+  async function handleDuplicate(p: PipelineSummary) {
+    try {
+      const copy = await api.createPipeline({
+        name: `${p.name} (copy)`,
+        nodes: p.nodes,
+        edges: p.edges,
+        layout: p.layout,
+      });
+      navigate(`/studio/${copy.id}`);
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
+  return (
+    <>
+      <h2>Agentic Studio</h2>
+      <p className="muted">Compose linear agent pipelines with drag-and-drop, then run locally.</p>
+      <div className="actions">
+        <button type="button" onClick={handleCreate}>
+          New pipeline
+        </button>
+        <button type="button" className="secondary" onClick={load} disabled={loading}>
+          Refresh
+        </button>
+      </div>
+      {error && <p className="error">{error}</p>}
+      <div className="card">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Nodes</th>
+              <th>Updated</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {pipelines.map((p) => (
+              <tr key={p.id}>
+                <td>
+                  <Link to={`/studio/${p.id}`}>{p.name}</Link>
+                </td>
+                <td>{p.nodes.length}</td>
+                <td className="muted">{new Date(p.updated_at).toLocaleString()}</td>
+                <td>
+                  <button type="button" className="secondary" onClick={() => handleDuplicate(p)}>
+                    Duplicate
+                  </button>{" "}
+                  <button type="button" className="danger" onClick={() => handleDelete(p.id)}>
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {!loading && pipelines.length === 0 && (
+              <tr>
+                <td colSpan={4} className="muted">
+                  No pipelines yet. Create one to get started.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}

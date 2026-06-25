@@ -21,62 +21,87 @@ Requires-Dist: requests>=2.28.0
 
 # Apemosyne
 
-**Build, run, and verify [Apache Flink Agents](https://github.com/apache/flink-agents) workflows on Docker — with pluggable subprojects.**
+**Build, run, and verify [Apache Flink Agents](https://github.com/apache/flink-agents) on Docker — with a CLI, registered agents, and a Control API for dashboards.**
 
 This repository is a **multi-project workspace** centered on the **Apemosyne** CLI:
 
 | Path | Description |
 |------|-------------|
-| [`apemosyne/`](apemosyne/README.md) | Shared CLI (`apemosyne`) — build, compose, demos, verify |
-| `apemosyne/manifests/` | Generic verify tiers, startup modes, demo catalog |
-| [`examples/`](examples/README.md) | Generic Flink Agents demos (no honeypot deps) |
-| [`honeypot/`](honeypot/README.md) | Cowrie honeypot cybersecurity pipeline (reference subproject) |
-| [`test/`](test/README.md) | CLI and cross-cutting tests |
-| [`docs/`](docs/README.md) | Flink Agents guides |
+| [`apemosyne/`](apemosyne/README.md) | CLI + Control API (`apemosyne`) |
+| [`examples/`](examples/README.md) | Generic Flink Agents demos and agent registry |
+| [`docs/`](docs/README.md) | Guides (workflow vs ReAct, platform API) |
+| [`honeypot/`](honeypot/README.md) | Optional Cowrie honeypot reference pipeline |
+| [`dashboard/`](dashboard/README.md) | Web UI for Control API (Overview, Agents, Jobs) |
+| [`test/`](test/README.md) | CLI and platform tests |
 
-Future subprojects can add their own directory with `docker-compose.yml`, `manifests/`, `src/`, and `docs/` while reusing the same CLI.
-
-## Quick start (Flink only)
+## Quick start (Flink Agents platform)
 
 ```bash
 pip install -e .
 apemosyne build
-apemosyne up                    # minimal: JobManager + TaskManager
-apemosyne demo datastream
-apemosyne test launch
+apemosyne up                    # minimal: JobManager + TaskManager (default)
 ```
 
-Flink Web UI: http://localhost:8081
-
-## Quick start (honeypot)
+**Terminal 2 — Control API** (for dashboard development; no API key in local dev):
 
 ```bash
-pip install -e .
-apemosyne build
-apemosyne up --profile full    # Cowrie + Kafka + dashboard + pipeline
+apemosyne api start
+curl http://127.0.0.1:8090/v1/health
+curl http://127.0.0.1:8090/v1/agents
+```
+
+**Agents:**
+
+```bash
+apemosyne agent list
+apemosyne agent run workflow_counter --local
+apemosyne agent submit workflow_counter
+apemosyne doctor
+apemosyne verify --tier quick
+```
+
+## Dashboard (web UI)
+
+```bash
+./scripts/dev-start.sh
+```
+
+Stop: `./scripts/dev-stop.sh`
+
+Or manually:
+
+Dashboard: http://localhost:3000
+
+See [dashboard/README.md](dashboard/README.md) and [docs/PLATFORM.md](docs/PLATFORM.md).
+
+| URL | Service |
+|-----|---------|
+| http://localhost:3000 | Dashboard (dev) |
+| http://localhost:8082 | Flink Web UI (minimal stack) |
+| http://localhost:8081 | Flink Web UI (honeypot / full profile) |
+| http://127.0.0.1:8090/docs | Control API (Swagger) |
+| http://127.0.0.1:8090/v1/health | Pipeline health |
+
+## Quick start (optional honeypot)
+
+```bash
+apemosyne up --profile full    # Cowrie + Kafka + dashboard
 apemosyne dashboard
 ```
 
 See [honeypot/README.md](honeypot/README.md).
 
-![Honeypot reference architecture](honeypot/docs/images/VeryNiceRA.png)
-
 ## Repository layout
 
 ```text
 .
-├── apemosyne/                 # CLI package
-├── examples/                  # Generic demos
-├── honeypot/                  # Honeypot subproject bundle
-│   ├── docker-compose.yml     # Full Cowrie + Kafka + dashboard stack
-│   ├── src/                   # Pipeline modules (core, pipeline, traps, react, …)
-│   ├── demo/                  # Cowrie-specific demos
-│   ├── dashboard/             # Streamlit UI
-│   ├── simulate_attack/       # Synthetic attack injection
-│   └── test/                  # Honeypot tests
-├── test/                      # CLI / shared tests
-├── scripts/                   # Shell helpers
-├── docker-compose.yml         # Minimal Flink stack
+├── apemosyne/                 # CLI package + api/ + agents/ + runtime/
+├── examples/
+│   └── agents/                # workflow_counter, react_echo + manifest
+├── docs/                      # FLINK_AGENTS.md, PLATFORM.md
+├── honeypot/                  # Optional Cowrie subproject
+├── test/                      # Platform + CLI tests
+├── docker-compose.yml         # Minimal Flink stack (default)
 ├── Dockerfile                 # agent_flink_image build
 └── README.md
 ```
@@ -84,15 +109,26 @@ See [honeypot/README.md](honeypot/README.md).
 ## CLI overview
 
 ```bash
-apemosyne build [git-ref]     # Build agent_flink_image:latest
-apemosyne up [--profile full|minimal]
+# Stack
+apemosyne build [git-ref]
+apemosyne up [--profile minimal|full] [--mode flink|platform|honeypot]
 apemosyne down
-apemosyne doctor [--fix]
-apemosyne demo <name>
+apemosyne doctor
+
+# Agents
+apemosyne agent list|describe|run|submit|status|cancel
+
+# Control API
+apemosyne api start|url|openapi|check
+
+# Demos & verify
+apemosyne demo workflow|react|datastream|table
 apemosyne verify --tier quick|standard|full|nightly
 apemosyne test launch [--cluster]
-apemosyne test phase1|phase2|phase3|production [--e2e]
+apemosyne test validate
 ```
+
+Honeypot-only tests (`phase1`–`phase3`, `production`) run when `honeypot/` is present and `--profile full` is used.
 
 Full command reference: [apemosyne/README.md](apemosyne/README.md)
 
@@ -102,15 +138,17 @@ Full command reference: [apemosyne/README.md](apemosyne/README.md)
 - Python 3.10+
 - Git (image build clones `apache/flink-agents`)
 
-Copy `.env.example` to `.env` for optional Cloudera LLM (honeypot Phase 3 ReAct).
+Optional: copy [`.env.example`](.env.example) to `.env` for API/Flink overrides. **Local dev:** leave `APEMOSYNE_API_KEY` unset.
 
 ## Documentation
 
-- [apemosyne/README.md](apemosyne/README.md) — CLI development
-- [honeypot/README.md](honeypot/README.md) — Cowrie cybersecurity demo
-- [examples/README.md](examples/README.md) — generic demos
-- [docs/README.md](docs/README.md) — Flink Agents guides
-- [docs/FLINK_AGENTS.md](docs/FLINK_AGENTS.md) — workflow vs ReAct agents
+| Doc | Description |
+|-----|-------------|
+| [docs/PLATFORM.md](docs/PLATFORM.md) | Control API, agents, observability, dashboard integration |
+| [docs/FLINK_AGENTS.md](docs/FLINK_AGENTS.md) | Workflow vs ReAct agents |
+| [apemosyne/README.md](apemosyne/README.md) | CLI package layout |
+| [examples/README.md](examples/README.md) | Example agents and demos |
+| [honeypot/README.md](honeypot/README.md) | Cowrie cybersecurity demo (optional) |
 
 ## License
 

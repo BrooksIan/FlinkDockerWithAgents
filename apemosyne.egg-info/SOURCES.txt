@@ -8,6 +8,8 @@ apemosyne/cli.py
 apemosyne/constants.py
 apemosyne/copy_manifest.py
 apemosyne/docker_utils.py
+apemosyne/env.py
+apemosyne/flink_rest.py
 apemosyne/main.py
 apemosyne/manifests.py
 apemosyne/paths.py
@@ -25,6 +27,7 @@ apemosyne/api/__init__.py
 apemosyne/api/app.py
 apemosyne/api/auth.py
 apemosyne/api/config.py
+apemosyne/api/events.py
 apemosyne/api/flink_client.py
 apemosyne/api/observability.py
 apemosyne/api/routes.py
@@ -38,6 +41,18 @@ apemosyne/commands/process.py
 apemosyne/commands/stack.py
 apemosyne/commands/test_cmd.py
 apemosyne/commands/verify_cmd.py
+apemosyne/pipelines/__init__.py
+apemosyne/pipelines/executor.py
+apemosyne/pipelines/introspect.py
+apemosyne/pipelines/models.py
+apemosyne/pipelines/service.py
+apemosyne/pipelines/store.py
+apemosyne/pipelines/validate.py
+apemosyne/runs/__init__.py
+apemosyne/runs/models.py
+apemosyne/runs/plan.py
+apemosyne/runs/service.py
+apemosyne/runs/store.py
 apemosyne/runtime/__init__.py
 apemosyne/runtime/cluster_launch_agent.py
 apemosyne/runtime/cluster_launch_test.py
@@ -46,4 +61,6 @@ test/test_api_platform.py
 test/test_cli_smoke.py
 test/test_generic_platform.py
 test/test_launch_flink_agents.py
+test/test_pipelines_platform.py
 test/test_production_pipeline.py
+test/test_runs_platform.py

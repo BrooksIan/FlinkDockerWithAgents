@@ -13,9 +13,8 @@ _HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
 def require_api_key(
     request: Request,
     api_key: str | None = Security(_HEADER),
-    settings: ApiSettings | None = None,
 ) -> None:
-    cfg = settings or getattr(request.app.state, "settings", None) or load_settings()
+    cfg = getattr(request.app.state, "settings", None) or load_settings()
     if not cfg.api_key:
         return
     if api_key != cfg.api_key:

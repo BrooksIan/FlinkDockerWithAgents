@@ -89,7 +89,17 @@ Presets in `apemosyne/manifests/startup-modes.yaml`:
 | `GET` | `/v1/agents` | Yes | List registered agents |
 | `GET` | `/v1/agents/{name}` | Yes | Agent metadata |
 | `GET` | `/v1/agents/{name}/definition` | Yes | Catalog + Flink YAML content |
+| `GET` | `/v1/agents/{name}/graph` | Yes | Internal action/tool graph for Studio drill-down |
 | `POST` | `/v1/agents/{name}/submit` | Yes | Submit agent to cluster |
+| `GET` | `/v1/runs` | Yes | List agent/pipeline runs |
+| `GET` | `/v1/runs/{id}` | Yes | Run detail + spans |
+| `GET` | `/v1/pipelines` | Yes | List composed pipelines |
+| `POST` | `/v1/pipelines` | Yes | Create pipeline |
+| `GET` | `/v1/pipelines/{id}` | Yes | Pipeline graph + layout |
+| `PUT` | `/v1/pipelines/{id}` | Yes | Save canvas state |
+| `DELETE` | `/v1/pipelines/{id}` | Yes | Delete pipeline |
+| `POST` | `/v1/pipelines/{id}/validate` | Yes | Validate linear pipeline |
+| `POST` | `/v1/pipelines/{id}/run` | Yes | Run pipeline locally (MVP) |
 | `GET` | `/v1/events` | No | SSE health + job snapshots |
 | `GET` | `/metrics` | No | Prometheus metrics |
 | `GET` | `/openapi.json` | No | OpenAPI schema (codegen for dashboard) |
@@ -222,7 +232,23 @@ Dashboard: http://localhost:3000
 | `/` | Overview (live via `GET /v1/events` SSE) |
 | `/agents` | Agent catalog |
 | `/agents/:name` | Detail, Flink YAML, submit |
+| `/runs` | Agent and pipeline run history |
+| `/runs/:id` | Run detail, execution plan, spans |
+| `/studio` | **Agentic Studio** — pipeline list |
+| `/studio/:id` | Drag-and-drop canvas, validate, run locally |
 | `/jobs` | Flink jobs, cancel |
+
+### Agentic Studio
+
+Compose **linear multi-agent pipelines** visually (Source → Agent → … → Sink):
+
+1. Open **Studio** in the dashboard sidebar.
+2. Create a pipeline (demo template: `workflow_counter` → `react_echo` with edge mapping).
+3. Connect nodes left-to-right; configure source records and edge field mapping in the inspector.
+4. **Validate**, then **Run locally** — creates a run with per-agent spans on `/runs/:id`.
+5. Double-click an agent node to view its internal action/tool graph (read-only).
+
+Pipelines persist in `.apemosyne/pipelines.db`. Cluster deploy from Studio is deferred (local execution only in MVP).
 
 **OpenAPI client codegen:**
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from flink_agents.api.events.event import InputEvent, OutputEvent
+from flink_agents.api.events.event import Event, InputEvent, OutputEvent
 from flink_agents.api.runner_context import RunnerContext
 
 
@@ -11,13 +11,17 @@ def double(value: int) -> int:
     return value * 2
 
 
-def process(event: InputEvent, ctx: RunnerContext) -> None:
-    payload = event.input
+def _int_from_input(event: Event) -> int:
+    payload = InputEvent.from_event(event).input
     if isinstance(payload, dict):
         raw = payload.get("value", 0)
     else:
-        raw = payload
-    n = int(raw)
+        raw = getattr(payload, "value", payload)
+    return int(raw)
+
+
+def process(event: Event, ctx: RunnerContext) -> None:
+    n = _int_from_input(event)
     result = double(n)
     ctx.send_event(
         OutputEvent(

@@ -105,6 +105,14 @@ def require_container(service: str = "taskmanager", profile: str = DEFAULT_PROFI
 
 
 def docker_cp(local: Path, container: str, remote: str) -> bool:
+    remote_parent = str(Path(remote).parent).replace("\\", "/")
+    if remote_parent not in (".", "/"):
+        subprocess.run(
+            ["docker", "exec", container, "mkdir", "-p", remote_parent],
+            cwd=project_root(),
+            capture_output=True,
+            text=True,
+        )
     result = subprocess.run(
         ["docker", "cp", str(local), f"{container}:{remote}"],
         cwd=project_root(),

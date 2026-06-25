@@ -16,6 +16,12 @@ tiers:
         path: test/test_api_platform.py
         description: Control API OpenAPI, health, metrics, and auth smoke
       - type: python
+        path: test/test_runs_platform.py
+        description: Agent run registry and /v1/runs API
+      - type: python
+        path: test/test_pipelines_platform.py
+        description: Agentic Studio pipelines and /v1/pipelines API
+      - type: python
         path: scripts/verify_doctor.py
         description: Doctor preflight (no --fix)
 

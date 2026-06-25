@@ -72,6 +72,10 @@ a:hover {
   max-width: 1100px;
 }
 
+.main:has(.studio-page) {
+  max-width: none;
+}
+
 h2 {
   margin-top: 0;
 }
@@ -195,4 +199,220 @@ pre.yaml {
   gap: 0.5rem;
   flex-wrap: wrap;
   margin: 1rem 0;
+}
+
+.plan-tree {
+  list-style: none;
+  padding-left: 0;
+  margin: 0.5rem 0 0;
+}
+
+.plan-step {
+  margin: 0.35rem 0;
+}
+
+/* Agentic Studio */
+.studio-page {
+  width: 100%;
+}
+
+.studio-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr 260px;
+  gap: 1rem;
+  align-items: start;
+  min-height: 520px;
+}
+
+.studio-canvas {
+  height: 520px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.studio-canvas .react-flow {
+  height: 100%;
+  min-height: 480px;
+}
+
+.studio-canvas .react-flow__handle,
+.studio-canvas .studio-handle {
+  width: 16px !important;
+  height: 16px !important;
+  background: var(--accent) !important;
+  border: 2px solid var(--text) !important;
+  border-radius: 50%;
+  z-index: 10;
+  pointer-events: all !important;
+}
+
+.studio-canvas .react-flow__handle:hover,
+.studio-canvas .studio-handle:hover {
+  background: var(--ok) !important;
+  transform: scale(1.2);
+}
+
+.studio-canvas .react-flow__handle-left,
+.studio-canvas .studio-handle-in {
+  left: -10px !important;
+}
+
+.studio-canvas .react-flow__handle-right,
+.studio-canvas .studio-handle-out {
+  right: -10px !important;
+}
+
+.studio-canvas .react-flow__edge-path {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.studio-canvas .react-flow__connectionline {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.studio-palette-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  background: #0a0e14;
+  cursor: grab;
+  user-select: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.studio-palette-item:hover {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.studio-palette-item:active {
+  cursor: grabbing;
+}
+
+.studio-palette-item-label {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.studio-palette-item-sub {
+  font-size: 0.75rem;
+}
+
+.studio-palette-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.studio-agent-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.studio-agent-list li {
+  margin-bottom: 0.35rem;
+}
+
+.studio-palette h4 {
+  margin: 1rem 0 0.5rem;
+  font-size: 0.9rem;
+}
+
+.studio-node {
+  min-width: 140px;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  font-size: 0.85rem;
+  position: relative;
+}
+
+.studio-node-body {
+  pointer-events: none;
+}
+
+.studio-node.selected {
+  border-color: var(--accent);
+}
+
+.studio-node.source {
+  border-color: #2563eb;
+}
+
+.studio-node.agent {
+  border-color: #2d6a3f;
+}
+
+.studio-node.sink {
+  border-color: #7c3aed;
+}
+
+.studio-node-title {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.studio-node-sub {
+  font-size: 0.75rem;
+}
+
+.studio-inspector .studio-label {
+  display: block;
+  margin: 0.75rem 0 0.35rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.studio-textarea {
+  width: 100%;
+  font-family: ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: #0a0e14;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem;
+  resize: vertical;
+}
+
+.studio-run-bar {
+  margin-bottom: 1rem;
+}
+
+.studio-drawer {
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: min(480px, 90vw);
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  padding: 1.25rem;
+  z-index: 100;
+  overflow-y: auto;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.35);
+}
+
+.studio-drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.studio-agent-graph {
+  height: 360px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.studio-agent-graph .react-flow {
+  height: 100%;
 }

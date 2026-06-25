@@ -78,7 +78,22 @@ npm run preview
 | `/` | Overview (SSE live health + jobs) |
 | `/agents` | Agent catalog |
 | `/agents/:name` | Detail, YAML, submit |
+| `/runs` | Run history (agents + pipelines) |
+| `/runs/:id` | Run detail, spans |
+| `/studio` | Agentic Studio — pipeline list |
+| `/studio/:id` | Canvas editor, validate, run locally |
 | `/jobs` | Flink jobs list |
 | `/jobs/:id` | Job detail, cancel, Flink UI link |
+
+### Agentic Studio
+
+Drag-and-drop canvas ([React Flow](https://reactflow.dev/)) for chaining registered agents:
+
+- **Palette** — add Source, agents from the catalog, and Sink
+- **Inspector** — edit source JSON records and edge field mappings (e.g. `{"message": "$.doubled"}`)
+- **Drill-down** — double-click an agent to see its action/tool/output graph
+- **Run locally** — executes the linear chain in-process; links to the run detail page
+
+Requires `flink_agents` (from `apemosyne build`) for local pipeline runs.
 
 See [docs/PLATFORM.md](../docs/PLATFORM.md).

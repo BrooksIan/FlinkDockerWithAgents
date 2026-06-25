@@ -3,15 +3,24 @@
 from __future__ import annotations
 
 import json
+import os
 
 import typer
 
 from apemosyne.agents.registry import AgentRegistryError, list_agent_names, load_agent_registry
-from apemosyne.agents.submit import describe_agent, run_agent_local, submit_agent_cluster
-from apemosyne.constants import DEFAULT_PROFILE, PROFILE_HELP
+from apemosyne.agents.submit import (
+    describe_agent,
+    run_agent_local,
+    submit_agent_cluster,
+)
+from apemosyne.constants import DEFAULT_PROFILE, PROFILE_HELP, normalize_profile
 from apemosyne.runtime import flink_cluster_submit
 
 app = typer.Typer(help="Manage Flink Agents (list, run, submit, status).")
+
+
+def _resolve_profile(profile: str | None) -> str:
+    return normalize_profile(profile or os.environ.get("APEMOSYNE_PROFILE", DEFAULT_PROFILE))
 
 
 @app.command("list")
@@ -42,15 +51,23 @@ def agent_describe(name: str = typer.Argument(..., help="Agent name")) -> None:
 def agent_run(
     name: str = typer.Argument(..., help="Agent name"),
     local: bool = typer.Option(True, "--local/--cluster", help="Local runner or cluster submit"),
-    profile: str = typer.Option(DEFAULT_PROFILE, "--profile", "-p", help=PROFILE_HELP),
+    profile: str | None = typer.Option(None, "--profile", "-p", help=PROFILE_HELP),
 ) -> None:
     """Run an agent locally or submit its cluster job."""
+    active_profile = _resolve_profile(profile)
     try:
-        rc = (
-            run_agent_local(name)
-            if local
-            else submit_agent_cluster(name, profile=profile)
-        )
+        if local:
+            result = run_agent_local(name)
+            rc = result.return_code
+            typer.echo(f"Run {result.run_id} finished (exit {rc}).")
+        else:
+            submit = submit_agent_cluster(name, profile=active_profile)
+            rc = submit.return_code
+            if rc == 0:
+                msg = f"Run {submit.run_id} submitted."
+                if submit.flink_job_id:
+                    msg += f" Flink job {submit.flink_job_id}"
+                typer.echo(msg)
     except (AgentRegistryError, RuntimeError, ValueError) as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
@@ -61,17 +78,20 @@ def agent_run(
 @app.command("submit")
 def agent_submit(
     name: str = typer.Argument(..., help="Agent name"),
-    profile: str = typer.Option(DEFAULT_PROFILE, "--profile", "-p", help=PROFILE_HELP),
+    profile: str | None = typer.Option(None, "--profile", "-p", help=PROFILE_HELP),
 ) -> None:
     """Submit an agent job to the Flink cluster."""
     try:
-        rc = submit_agent_cluster(name, profile=profile)
+        submit = submit_agent_cluster(name, profile=_resolve_profile(profile))
     except (AgentRegistryError, RuntimeError, ValueError) as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
-    if rc != 0:
-        raise typer.Exit(rc)
-    typer.echo(f"Submitted agent {name!r}.")
+    if submit.return_code != 0:
+        raise typer.Exit(submit.return_code)
+    msg = f"Submitted agent {name!r} — run {submit.run_id}"
+    if submit.flink_job_id:
+        msg += f", job {submit.flink_job_id}"
+    typer.echo(f"{msg}.")
 
 
 @app.command("status")

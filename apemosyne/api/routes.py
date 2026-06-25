@@ -21,7 +21,37 @@ router = APIRouter(prefix="/v1")
 class SubmitResponse(BaseModel):
     agent: str
     status: str
+    run_id: str | None = None
+    flink_job_id: str | None = None
     jobs: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class SpanCreate(BaseModel):
+    kind: str
+    name: str
+    status: str = "ok"
+    parent_id: str | None = None
+    duration_ms: int | None = None
+    input: Any | None = None
+    output: Any | None = None
+
+
+class PipelineCreate(BaseModel):
+    name: str = "Untitled pipeline"
+    nodes: list[dict[str, Any]] = Field(default_factory=list)
+    edges: list[dict[str, Any]] = Field(default_factory=list)
+    layout: dict[str, dict[str, float]] = Field(default_factory=dict)
+
+
+class PipelineUpdate(BaseModel):
+    name: str | None = None
+    nodes: list[dict[str, Any]] | None = None
+    edges: list[dict[str, Any]] | None = None
+    layout: dict[str, dict[str, float]] | None = None
+
+
+class PipelineRunRequest(BaseModel):
+    records: list[dict[str, Any]] | None = None
 
 
 def _settings(request: Request) -> ApiSettings:
@@ -102,6 +132,49 @@ def agent_definition(name: str) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
+@router.get("/agents/{name}/graph", tags=["agents"], dependencies=[Depends(require_api_key)])
+def agent_graph_route(name: str) -> dict[str, Any]:
+    try:
+        return services.get_agent_graph(name)
+    except AgentRegistryError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/agents/{name}/runs", tags=["runs"], dependencies=[Depends(require_api_key)])
+def agent_runs_list(name: str, limit: int = 50) -> list[dict[str, Any]]:
+    try:
+        return services.list_agent_runs(name, limit=limit)
+    except AgentRegistryError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/runs", tags=["runs"], dependencies=[Depends(require_api_key)])
+def runs_list(agent: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
+    try:
+        return services.list_runs(agent=agent, limit=limit)
+    except AgentRegistryError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/runs/{run_id}", tags=["runs"], dependencies=[Depends(require_api_key)])
+def run_detail(run_id: str) -> dict[str, Any]:
+    try:
+        return services.get_run(run_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"Run not found: {run_id}") from exc
+
+
+@router.post("/runs/{run_id}/spans", tags=["runs"], dependencies=[Depends(require_api_key)])
+async def run_append_span(run_id: str, request: Request) -> dict[str, str]:
+    try:
+        payload = SpanCreate.model_validate(await request.json())
+        return services.append_run_span(run_id, payload.model_dump())
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"Run not found: {run_id}") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
 @router.get("/events", tags=["events"])
 async def events_sse(settings: ApiSettings = Depends(_settings)) -> StreamingResponse:
     """SSE stream of health + job snapshots (for dashboard live view)."""
@@ -131,3 +204,71 @@ def agent_submit(name: str, settings: ApiSettings = Depends(_settings)) -> Submi
 @router.get("/pipeline/health", tags=["health"])
 def pipeline_health(settings: ApiSettings = Depends(_settings)) -> dict[str, Any]:
     return health(settings)
+
+
+@router.get("/pipelines", tags=["pipelines"], dependencies=[Depends(require_api_key)])
+def pipelines_list(limit: int = 100) -> list[dict[str, Any]]:
+    return services.list_pipelines(limit=limit)
+
+
+@router.post("/pipelines", tags=["pipelines"], dependencies=[Depends(require_api_key)])
+def pipelines_create(payload: PipelineCreate) -> dict[str, Any]:
+    return services.create_pipeline(payload.model_dump())
+
+
+@router.get("/pipelines/{pipeline_id}", tags=["pipelines"], dependencies=[Depends(require_api_key)])
+def pipelines_get(pipeline_id: str) -> dict[str, Any]:
+    try:
+        return services.get_pipeline(pipeline_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"Pipeline not found: {pipeline_id}") from exc
+
+
+@router.put("/pipelines/{pipeline_id}", tags=["pipelines"], dependencies=[Depends(require_api_key)])
+def pipelines_update(pipeline_id: str, payload: PipelineUpdate) -> dict[str, Any]:
+    try:
+        data = payload.model_dump(exclude_unset=True)
+        return services.update_pipeline(pipeline_id, data)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"Pipeline not found: {pipeline_id}") from exc
+
+
+@router.delete("/pipelines/{pipeline_id}", tags=["pipelines"], dependencies=[Depends(require_api_key)])
+def pipelines_delete(pipeline_id: str) -> dict[str, str]:
+    try:
+        services.delete_pipeline(pipeline_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"Pipeline not found: {pipeline_id}") from exc
+    return {"id": pipeline_id, "status": "deleted"}
+
+
+@router.post(
+    "/pipelines/{pipeline_id}/validate",
+    tags=["pipelines"],
+    dependencies=[Depends(require_api_key)],
+)
+def pipelines_validate(pipeline_id: str) -> dict[str, Any]:
+    try:
+        return services.validate_pipeline_by_id(pipeline_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"Pipeline not found: {pipeline_id}") from exc
+
+
+@router.post(
+    "/pipelines/{pipeline_id}/run",
+    tags=["pipelines"],
+    dependencies=[Depends(require_api_key)],
+)
+def pipelines_run(
+    pipeline_id: str,
+    run_request: PipelineRunRequest | None = None,
+) -> dict[str, Any]:
+    try:
+        records = run_request.records if run_request else None
+        return services.run_pipeline_local(pipeline_id, input_override=records)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"Pipeline not found: {pipeline_id}") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc

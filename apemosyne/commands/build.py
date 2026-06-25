@@ -15,7 +15,7 @@ app = typer.Typer(help="Build the Flink Agents Docker image.")
 def build_image(version: str = "stable") -> None:
     """Build ``agent_flink_image`` with the given Flink Agents version."""
     if version == "stable":
-        version = "release-0.2.1"
+        version = "release-0.3"
 
     root = project_root()
     typer.echo("=" * 80)
@@ -53,7 +53,7 @@ def build(
     ctx: typer.Context,
     version: str = typer.Argument(
         "stable",
-        help="Flink Agents git ref (main, stable→release-0.2.1, release-0.2.1, ...)",
+        help="Flink Agents git ref (main, stable→release-0.3, release-0.2, ...)",
     ),
 ) -> None:
     """Build the Docker image."""

@@ -23,6 +23,7 @@ def test_openapi_and_health() -> None:
     spec = client.get("/openapi.json")
     assert spec.status_code == 200
     assert "/v1/agents" in spec.json()["paths"]
+    assert "/v1/runs" in spec.json()["paths"]
 
     health = client.get("/v1/health")
     assert health.status_code == 200

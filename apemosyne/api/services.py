@@ -14,6 +14,62 @@ from apemosyne.agents.registry import (
 from apemosyne.agents.submit import describe_agent, submit_agent_cluster
 from apemosyne.api import flink_client
 from apemosyne.api.config import ApiSettings
+from apemosyne.runs.plan import find_flink_job_for_agent
+from apemosyne.runs.service import default_run_service
+from apemosyne.pipelines.introspect import agent_graph
+from apemosyne.pipelines.service import default_pipeline_service
+
+
+def _find_flink_job_for_agent(agent: str) -> str | None:
+    return find_flink_job_for_agent(agent)
+
+
+def list_runs(*, agent: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
+    return default_run_service().list_runs(agent=agent, limit=limit)
+
+
+def get_run(run_id: str) -> dict[str, Any]:
+    return default_run_service().get_run(run_id)
+
+
+def list_agent_runs(agent: str, *, limit: int = 50) -> list[dict[str, Any]]:
+    return default_run_service().list_runs(agent=agent, limit=limit)
+
+
+def append_run_span(run_id: str, body: dict[str, Any]) -> dict[str, str]:
+    span_id = default_run_service().append_span(
+        run_id,
+        kind=body["kind"],
+        name=body["name"],
+        status=body.get("status", "ok"),
+        parent_id=body.get("parent_id"),
+        duration_ms=body.get("duration_ms"),
+        input_data=body.get("input"),
+        output_data=body.get("output"),
+    )
+    return {"id": span_id, "run_id": run_id}
+
+
+def submit_agent(name: str, *, settings: ApiSettings) -> dict[str, Any]:
+    job_hint = _find_flink_job_for_agent(name)
+    result = submit_agent_cluster(
+        name,
+        profile=settings.default_profile,
+        flink_job_id=job_hint,
+    )
+    if result.return_code != 0:
+        raise RuntimeError(f"Agent submit failed with exit code {result.return_code}")
+    job_id = result.flink_job_id or _find_flink_job_for_agent(name)
+    if job_id and result.run_id:
+        default_run_service().set_running(result.run_id, flink_job_id=job_id)
+    jobs = flink_client.list_jobs()
+    return {
+        "agent": name,
+        "status": "submitted",
+        "run_id": result.run_id,
+        "flink_job_id": job_id,
+        "jobs": jobs,
+    }
 
 
 def list_agents() -> list[dict[str, Any]]:
@@ -57,14 +113,6 @@ def get_agent_definition(name: str) -> dict[str, Any]:
     }
 
 
-def submit_agent(name: str, *, settings: ApiSettings) -> dict[str, Any]:
-    rc = submit_agent_cluster(name, profile=settings.default_profile)
-    if rc != 0:
-        raise RuntimeError(f"Agent submit failed with exit code {rc}")
-    jobs = flink_client.list_jobs()
-    return {"agent": name, "status": "submitted", "jobs": jobs}
-
-
 def pipeline_health(settings: ApiSettings) -> dict[str, Any]:
     flink_block: dict[str, Any] = {
         "reachable": False,
@@ -104,3 +152,40 @@ def pipeline_health(settings: ApiSettings) -> dict[str, Any]:
         "agents": {"ok": agents_ok, "registered": agent_count},
         "api_version": "v1",
     }
+
+
+def list_pipelines(*, limit: int = 100) -> list[dict[str, Any]]:
+    return default_pipeline_service().list_pipelines(limit=limit)
+
+
+def get_pipeline(pipeline_id: str) -> dict[str, Any]:
+    return default_pipeline_service().get(pipeline_id)
+
+
+def create_pipeline(body: dict[str, Any]) -> dict[str, Any]:
+    return default_pipeline_service().create(
+        body.get("name") or "Untitled pipeline",
+        nodes=body.get("nodes"),
+        edges=body.get("edges"),
+        layout=body.get("layout"),
+    )
+
+
+def update_pipeline(pipeline_id: str, body: dict[str, Any]) -> dict[str, Any]:
+    return default_pipeline_service().update(pipeline_id, body)
+
+
+def delete_pipeline(pipeline_id: str) -> None:
+    default_pipeline_service().delete(pipeline_id)
+
+
+def validate_pipeline_by_id(pipeline_id: str) -> dict[str, Any]:
+    return default_pipeline_service().validate(pipeline_id)
+
+
+def run_pipeline_local(pipeline_id: str, *, input_override: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    return default_pipeline_service().run_local(pipeline_id, input_override=input_override)
+
+
+def get_agent_graph(name: str) -> dict[str, Any]:
+    return agent_graph(name)

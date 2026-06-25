@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, List, Optional, Tuple
 
@@ -13,6 +14,41 @@ from apemosyne.constants import DEFAULT_PROFILE
 from apemosyne.copy_manifest import copy_pairs_to_cluster
 from apemosyne.docker_utils import container_id, docker_exec, project_root
 from apemosyne.paths import agents_dir, configure_runtime_sys_path, project_root
+from apemosyne.runs.plan import find_flink_job_for_agent, flink_job_state
+
+if False:  # TYPE_CHECKING
+    from apemosyne.runs.service import RunService
+
+
+@dataclass(frozen=True)
+class LocalRunResult:
+    run_id: str
+    return_code: int
+
+
+@dataclass(frozen=True)
+class ClusterSubmitResult:
+    run_id: str
+    return_code: int
+    flink_job_id: str | None = None
+
+
+def _run_service(root: Optional[Path] = None, runs: Optional["RunService"] = None) -> "RunService":
+    if runs is not None:
+        return runs
+    from apemosyne.runs.service import default_run_service
+
+    return default_run_service(root)
+
+
+def _sync_cluster_run_status(service: "RunService", run_id: str, job_id: str | None) -> None:
+    if not job_id:
+        return
+    state = flink_job_state(job_id)
+    if state in ("FINISHED", "SUCCEEDED"):
+        service.finish_run(run_id, status="finished", flink_job_id=job_id)
+    elif state in ("FAILED", "CANCELED", "CANCELLED"):
+        service.finish_run(run_id, status="failed", flink_job_id=job_id, error=f"Flink job {state}")
 
 
 def _import_agent_class(spec: AgentSpec) -> type:
@@ -58,14 +94,26 @@ def _agent_copy_pairs(spec: AgentSpec, *, root: Path) -> List[Tuple[str, str]]:
     return pairs
 
 
-def run_agent_local(name: str, *, root: Optional[Path] = None) -> int:
-    """Execute an agent via its local runner script."""
+def run_agent_local(
+    name: str,
+    *,
+    root: Optional[Path] = None,
+    runs: Optional["RunService"] = None,
+) -> LocalRunResult:
+    """Execute an agent via its local runner script and record a run."""
     spec = get_agent_spec(name, root=root)
     if not spec.runner:
         raise ValueError(f"Agent {name!r} has no local runner configured")
     repo = root or project_root()
     runner = repo / spec.runner
-    return subprocess.run([sys.executable, str(runner)], cwd=repo).returncode
+    service = _run_service(repo, runs)
+    run_id = service.create_run(name, kind="local", status="running")
+    rc = subprocess.run([sys.executable, str(runner)], cwd=repo).returncode
+    if rc == 0:
+        service.finish_run(run_id, status="finished")
+    else:
+        service.finish_run(run_id, status="failed", error=f"exit code {rc}")
+    return LocalRunResult(run_id=run_id, return_code=rc)
 
 
 def submit_agent_cluster(
@@ -73,7 +121,9 @@ def submit_agent_cluster(
     *,
     root: Optional[Path] = None,
     profile: str = DEFAULT_PROFILE,
-) -> int:
+    runs: Optional["RunService"] = None,
+    flink_job_id: str | None = None,
+) -> ClusterSubmitResult:
     """Submit an agent cluster job to JobManager via ``flink run``."""
     spec = get_agent_spec(name, root=root)
     if not spec.cluster_script:
@@ -85,9 +135,13 @@ def submit_agent_cluster(
         )
 
     repo = root or project_root()
+    service = _run_service(repo, runs)
+    run_id = service.create_run(name, kind="cluster", status="starting")
+
     pairs = _agent_copy_pairs(spec, root=repo)
     stats = copy_pairs_to_cluster(pairs, profile=profile)
     if stats.failed:
+        service.finish_run(run_id, status="failed", error=f"copy failed: {stats.failed} file(s)")
         raise RuntimeError(f"Failed to copy {stats.failed} file(s) to cluster")
 
     remote = f"/opt/flink/{spec.cluster_script}"
@@ -103,11 +157,20 @@ def submit_agent_cluster(
         f"job_id, out = flink_run_py(Path('{remote}')); "
         "print('Submitted job', job_id)\""
     )
-    return docker_exec(
+    rc = docker_exec(
         container_id("jobmanager", profile=profile) or "",
         command,
         interactive=False,
     )
+    job_id = flink_job_id
+    if rc == 0:
+        if not job_id:
+            job_id = find_flink_job_for_agent(name)
+        service.set_running(run_id, flink_job_id=job_id)
+        _sync_cluster_run_status(service, run_id, job_id)
+    else:
+        service.finish_run(run_id, status="failed", error=f"submit exit code {rc}")
+    return ClusterSubmitResult(run_id=run_id, return_code=rc, flink_job_id=job_id)
 
 
 def describe_agent(name: str, *, root: Optional[Path] = None) -> dict[str, Any]:

@@ -1,6 +1,6 @@
 # Build: apemosyne build [git-ref]
 # Produces agent_flink_image:latest with PyFlink + Flink Agents Python wheel.
-ARG FLINK_AGENTS_VERSION=release-0.2.1
+ARG FLINK_AGENTS_VERSION=release-0.3
 
 FROM flink:1.20-java11
 

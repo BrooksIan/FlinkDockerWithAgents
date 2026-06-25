@@ -4,8 +4,18 @@ from __future__ import annotations
 
 from flink_agents.api.agents.agent import Agent
 from flink_agents.api.decorators import action, tool
-from flink_agents.api.events.event import InputEvent, OutputEvent
+from flink_agents.api.events.event import Event, InputEvent, OutputEvent
 from flink_agents.api.runner_context import RunnerContext
+
+_INPUT_EVENT = InputEvent.EVENT_TYPE
+
+
+def _text_from_input(event: Event) -> str:
+    payload = InputEvent.from_event(event).input
+    if isinstance(payload, dict):
+        return str(payload.get("message", payload))
+    message = getattr(payload, "message", None)
+    return str(message if message is not None else payload)
 
 
 class ReactEchoAgent(Agent):
@@ -30,11 +40,10 @@ class ReactEchoAgent(Agent):
     def summarize(text: str, severity: str) -> str:
         return f"[{severity}] {text[:80]}"
 
-    @action(InputEvent)
+    @action(_INPUT_EVENT)
     @staticmethod
-    def process(event: InputEvent, ctx: RunnerContext) -> None:
-        payload = event.input
-        text = str(payload.get("message", payload) if isinstance(payload, dict) else payload)
+    def process(event: Event, ctx: RunnerContext) -> None:
+        text = _text_from_input(event)
         severity = ReactEchoAgent.classify(text)
         summary = ReactEchoAgent.summarize(text, severity)
         ctx.send_event(
