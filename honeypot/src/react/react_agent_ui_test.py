@@ -1,32 +1,27 @@
-\
 """Bytecode-backed module (source pending recovery)."""
+
 from __future__ import annotations
 
-import sys
-from importlib.machinery import SourcelessFileLoader
-from importlib.util import module_from_spec, spec_from_loader
+import importlib.util
 from pathlib import Path
 
 
-def _load() -> None:
-    here = Path(__file__).resolve().parent
-    stem = Path(__file__).stem
-    pyc = here / "__pycache__" / f"{stem}.cpython-312.pyc"
-    loader = SourcelessFileLoader(stem, str(pyc))
-    spec = spec_from_loader(stem, loader)
-    mod = module_from_spec(spec)
-    sys.modules[stem] = mod
-    loader.exec_module(mod)
-    for key, value in mod.__dict__.items():
-        if not key.startswith("__"):
-            globals()[key] = value
+def _boot() -> None:
+    shim_paths = (
+        Path("/opt/flink/_pyc_shim.py"),
+        Path(__file__).resolve().parents[1] / "_pyc_shim.py",
+    )
+    for shim_path in shim_paths:
+        if not shim_path.is_file():
+            continue
+        spec = importlib.util.spec_from_file_location("_pyc_shim", shim_path)
+        if spec is None or spec.loader is None:
+            continue
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        mod.load_sibling_pyc(globals())
+        return
+    raise ImportError("Cannot load _pyc_shim.py for bytecode-backed module")
 
 
-_load()
-
-if __name__ == "__main__":
-    pyc = Path(__file__).resolve().parent / "__pycache__" / f"{Path(__file__).stem}.cpython-312.pyc"
-    loader = SourcelessFileLoader("__main__", str(pyc))
-    spec = spec_from_loader("__main__", loader)
-    mod = module_from_spec(spec)
-    loader.exec_module(mod)
+_boot()

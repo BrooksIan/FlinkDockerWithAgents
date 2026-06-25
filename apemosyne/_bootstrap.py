@@ -27,7 +27,6 @@ _PYC_MODULES = [
     "commands.modes_cmd",
     "commands.sync",
     "commands.sync_env_cmd",
-    "commands.test_cmd",
     "commands.utils",
 ]
 
@@ -123,6 +122,11 @@ def install_aliases() -> None:
     if "apemosyne.checks" in sys.modules:
         sys.modules["flink_cowrie.checks"] = sys.modules["apemosyne.checks"]
     sys.modules["flink_cowrie.commands"] = sys.modules["apemosyne.commands"]
+
+    from apemosyne.commands import test_cmd
+
+    if hasattr(test_cmd, "register_legacy_commands"):
+        test_cmd.register_legacy_commands()
 
 
 def _rebrand_typer_app(mod) -> None:

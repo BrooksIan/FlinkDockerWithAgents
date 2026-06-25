@@ -1,0 +1,20 @@
+# Files copied for ``apemosyne test production`` on the JobManager.
+files:
+  - local: test/test_production_pipeline.py
+    remote: /opt/flink/test_production_pipeline.py
+  - local: honeypot/src/pipeline/cowrie_pipeline.py
+    remote: /opt/flink/cowrie_pipeline.py
+  - local: honeypot/src/services/kafka_alerts_to_dashboard.py
+    remote: /opt/flink/kafka_alerts_to_dashboard.py
+  - local: honeypot/src/pipeline/cowrie_normalize.py
+    remote: /opt/flink/cowrie_normalize.py
+  - local: honeypot/src/pipeline/cowrie_phase2_workflow_job.py
+    remote: /opt/flink/cowrie_phase2_workflow_job.py
+  - local: honeypot/src/pipeline/cowrie_phase2_agent.py
+    remote: /opt/flink/cowrie_phase2_agent.py
+  - local: honeypot/src/core/cowrie_workflow_detect.py
+    remote: /opt/flink/cowrie_workflow_detect.py
+  - local: honeypot/src/pipeline/cowrie_phase3_react_augmentor.py
+    remote: /opt/flink/cowrie_phase3_react_augmentor.py
+  - local: honeypot/src/cluster/flink_cluster_submit.py
+    remote: /opt/flink/flink_cluster_submit.py

@@ -88,6 +88,12 @@ def runtime_module_path(filename: str, root: Path | None = None) -> Path:
     raise FileNotFoundError(f"runtime module not found: {name}")
 
 
+def honeypot_module_rel(filename: str, root: Path | None = None) -> str:
+    """Repo-relative path to a honeypot runtime module."""
+    repo = root or project_root()
+    return str(runtime_module_path(filename, repo).relative_to(repo))
+
+
 def loaded_env_files(root: Path | None = None) -> list[str]:
     """Return ``.env`` files that exist at the workspace root (for doctor display)."""
     repo = root or project_root()
