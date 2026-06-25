@@ -1,5 +1,6 @@
 import type { Edge, Node } from "@xyflow/react";
 import type { AgentEdgeKind, AgentNodeKind } from "../api/types";
+import { PromptInstructionFields } from "./DesignerPromptPanel";
 import { kindLabel } from "./definitionUtils";
 
 interface Props {
@@ -164,6 +165,21 @@ export function DesignerInspector({
             </>
           ) : null}
         </>
+      ) : null}
+
+      {kind === "prompt" ? (
+        <PromptInstructionFields
+          nodeId={selectedNode.id}
+          config={config}
+          onUpdate={(nodeId, patch) => onUpdateNode(nodeId, patch)}
+        />
+      ) : null}
+
+      {kind === "llm_call" ? (
+        <p className="muted" style={{ fontSize: "0.85rem" }}>
+          Uses platform LLM settings from <strong>Settings</strong> when{" "}
+          <code>use_platform_llm</code> is enabled.
+        </p>
       ) : null}
 
       <div className="actions" style={{ marginTop: "1rem" }}>

@@ -42,6 +42,15 @@ def validate_pipeline(pipeline: Pipeline) -> dict[str, Any]:
 
     known_agents = set(list_agent_names())
     node_ids = {n.id for n in pipeline.nodes}
+    if len(node_ids) != len(pipeline.nodes):
+        errors.append("Duplicate node ids in graph")
+
+    pipeline.edges = [
+        edge
+        for edge in pipeline.edges
+        if edge.source in node_ids and edge.target in node_ids
+    ]
+
     for node in pipeline.nodes:
         if node.kind == "source":
             source_type = str(node.config.get("source_type") or "records").strip().lower()

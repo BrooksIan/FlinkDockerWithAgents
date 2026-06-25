@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import type { PipelineSummary } from "../api/types";
-import { defaultDemoPipeline } from "../studio/pipelineUtils";
+import { defaultDemoPipeline, emptyPipeline } from "../studio/pipelineUtils";
 
 export function StudioListPage() {
   const navigate = useNavigate();
@@ -24,6 +24,16 @@ export function StudioListPage() {
   }, []);
 
   async function handleCreate() {
+    setError(null);
+    try {
+      const created = await api.createPipeline(emptyPipeline());
+      navigate(`/studio/${created.id}`);
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
+  async function handleCreateDemo() {
     setError(null);
     try {
       const created = await api.createPipeline(defaultDemoPipeline());
@@ -65,6 +75,9 @@ export function StudioListPage() {
         <button type="button" onClick={handleCreate}>
           New pipeline
         </button>
+        <button type="button" className="secondary" onClick={handleCreateDemo}>
+          New demo pipeline
+        </button>
         <button type="button" className="secondary" onClick={load} disabled={loading}>
           Refresh
         </button>
@@ -84,7 +97,7 @@ export function StudioListPage() {
             {pipelines.map((p) => (
               <tr key={p.id}>
                 <td>
-                  <Link to={`/studio/${p.id}`}>{p.name}</Link>
+                  <Link to={`/studio/${p.id}`}>{p.name.trim() || <span className="muted">Untitled</span>}</Link>
                 </td>
                 <td>{p.nodes.length}</td>
                 <td className="muted">{new Date(p.updated_at).toLocaleString()}</td>

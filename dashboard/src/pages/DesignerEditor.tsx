@@ -20,6 +20,7 @@ import { CompilePreviewPanel } from "../components/CompilePreviewPanel";
 import { DesignerCanvas } from "../designer/DesignerCanvas";
 import { DesignerInspector } from "../designer/DesignerInspector";
 import { DesignerPalette } from "../designer/DesignerPalette";
+import { DesignerPromptPanel } from "../designer/DesignerPromptPanel";
 import {
   autoWireAgentGraph,
   connectDesignerEdge,
@@ -30,6 +31,7 @@ import {
   nextId,
   type DesignerDroppedSpec,
 } from "../designer/definitionUtils";
+import { defaultPromptConfig } from "../designer/promptDefaults";
 
 export function DesignerEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -41,9 +43,12 @@ export function DesignerEditorPage() {
   const [validation, setValidation] = useState<AgentDefinitionValidation | null>(null);
   const [compileResult, setCompileResult] = useState<AgentDefinitionCompileResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [agentName, setAgentName] = useState("");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
-  const [busy, setBusy] = useState<"validate" | "compile" | null>(null);
+  const [busy, setBusy] = useState<"validate" | "compile" | "publish" | null>(null);
+  const [publishMessage, setPublishMessage] = useState<string | null>(null);
   const saveTimer = useRef<number | null>(null);
+  const nameSaveTimer = useRef<number | null>(null);
 
   const nodesRef = useRef(nodes);
   const edgesRef = useRef(edges);
@@ -58,6 +63,7 @@ export function DesignerEditorPage() {
       .getDesignerDefinition(id)
       .then((def) => {
         setDefinition(def);
+        setAgentName(def.name);
         const flow = definitionToFlow(def);
         setNodes(flow.nodes);
         setEdges(flow.edges);
@@ -96,6 +102,40 @@ export function DesignerEditorPage() {
       saveTimer.current = window.setTimeout(() => persist(nextNodes, nextEdges), 800);
     },
     [persist],
+  );
+
+  const saveName = useCallback(
+    (name: string) => {
+      if (!id) return;
+      const trimmed = name.trim();
+      if (!trimmed) {
+        setError("Agent name is required");
+        return;
+      }
+      setSaveState("saving");
+      api
+        .updateDesignerDefinition(id, { name: trimmed })
+        .then((updated) => {
+          setDefinition(updated);
+          setAgentName(updated.name);
+          setSaveState("saved");
+          setError(null);
+        })
+        .catch((e) => {
+          setError(String(e));
+          setSaveState("idle");
+        });
+    },
+    [id],
+  );
+
+  const handleNameChange = useCallback(
+    (value: string) => {
+      setAgentName(value);
+      if (nameSaveTimer.current) window.clearTimeout(nameSaveTimer.current);
+      nameSaveTimer.current = window.setTimeout(() => saveName(value), 600);
+    },
+    [saveName],
   );
 
   const handleNodesChange = useCallback(
@@ -161,6 +201,10 @@ export function DesignerEditorPage() {
     const x = 120 + nodes.length * 40;
     const y = 160 + (nodes.length % 3) * 80;
     handleDropNode(spec, { x, y });
+  }
+
+  function handleAddPromptNode() {
+    handleAddNode({ kind: "prompt", name: "prompt", config: defaultPromptConfig() });
   }
 
   function handleUpdateNode(nodeId: string, patch: { name?: string; config?: Record<string, unknown> }) {
@@ -234,12 +278,32 @@ export function DesignerEditorPage() {
     if (!id) return;
     setBusy("compile");
     setError(null);
+    setPublishMessage(null);
     try {
       await persist(nodes, edges);
       const result = await api.compileAgentDefinition(id);
       setCompileResult(result);
       if (result.definition) setDefinition(result.definition);
       setValidation(result.validation);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function handlePublish() {
+    if (!id) return;
+    setBusy("publish");
+    setError(null);
+    setPublishMessage(null);
+    try {
+      await persist(nodes, edges);
+      const result = await api.publishAgentDefinition(id);
+      if (result.definition) setDefinition(result.definition);
+      setPublishMessage(
+        `Added to catalog as ${result.manifest_name} — visible in Agents and Studio palette.`,
+      );
     } catch (e) {
       setError(String(e));
     } finally {
@@ -254,16 +318,42 @@ export function DesignerEditorPage() {
       <p>
         <Link to="/designer">← Designer</Link>
       </p>
-      <div className="studio-header">
-        <h2 style={{ margin: 0 }}>
-          {definition?.name || "Loading…"}
-          <span className="muted" style={{ fontSize: "0.85rem", marginLeft: "0.75rem" }}>
+      <div className="studio-header designer-editor-header">
+        <div className="designer-editor-title">
+          <label className="designer-agent-name-field">
+            <span className="muted">Agent name</span>
+            <input
+              className="designer-agent-name-input"
+              type="text"
+              value={agentName}
+              placeholder={definition ? "Untitled agent" : "Loading…"}
+              disabled={!definition}
+              maxLength={120}
+              onChange={(e) => handleNameChange(e.target.value)}
+              onBlur={() => {
+                if (nameSaveTimer.current) {
+                  window.clearTimeout(nameSaveTimer.current);
+                  nameSaveTimer.current = null;
+                }
+                if (!agentName.trim() && definition) {
+                  setAgentName(definition.name);
+                  setError(null);
+                  return;
+                }
+                if (definition && agentName.trim() !== definition.name) {
+                  saveName(agentName);
+                }
+              }}
+            />
+          </label>
+          <span className="muted designer-editor-meta">
             {definition?.type} · {definition?.status}
             {saveState === "saving" ? " · Saving…" : saveState === "saved" ? " · Saved" : ""}
           </span>
-        </h2>
+        </div>
       </div>
       {error && <p className="error">{error}</p>}
+      {publishMessage && <p className="badge ok">{publishMessage}</p>}
 
       <div className="designer-toolbar card">
         <button type="button" className="secondary" onClick={handleAutoWire}>
@@ -275,12 +365,28 @@ export function DesignerEditorPage() {
         <button type="button" disabled={busy !== null} onClick={handleCompile}>
           {busy === "compile" ? "Compiling…" : "Compile"}
         </button>
+        <button type="button" className="secondary" disabled={busy !== null} onClick={handlePublish}>
+          {busy === "publish" ? "Publishing…" : "Add to catalog"}
+        </button>
+        {definition?.manifest_name && (
+          <Link to={`/agents/${definition.manifest_name}`} className="secondary-link">
+            View in catalog
+          </Link>
+        )}
         {validation && (
           <span className={`badge ${validation.valid ? "ok" : "warn"}`} style={{ marginLeft: "0.5rem" }}>
             {validation.valid ? "Valid graph" : "Invalid graph"}
           </span>
         )}
       </div>
+
+      {definition?.type === "react" && (
+        <DesignerPromptPanel
+          nodes={nodes}
+          onUpdateNode={handleUpdateNode}
+          onAddPrompt={handleAddPromptNode}
+        />
+      )}
 
       <div className="studio-layout">
         <DesignerPalette agentType={definition?.type || "workflow"} onAdd={handleAddNode} />

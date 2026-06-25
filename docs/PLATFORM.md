@@ -1,6 +1,6 @@
 # Apemosyne platform — Flink Agents control plane
 
-This document describes the **generic Flink Agents platform** in this workspace: CLI lifecycle, registered agents, and the **Control API** for a future dashboard. It does not cover the optional [honeypot](../honeypot/README.md) subproject.
+This document describes the **generic Flink Agents platform** in this workspace: CLI lifecycle, registered agents, the **Control API**, and the [dashboard](../dashboard/README.md). It does not cover the optional [honeypot](../honeypot/README.md) subproject.
 
 ## Architecture
 
@@ -90,7 +90,18 @@ Presets in `apemosyne/manifests/startup-modes.yaml`:
 | `GET` | `/v1/agents/{name}` | Yes | Agent metadata |
 | `GET` | `/v1/agents/{name}/definition` | Yes | Catalog + Flink YAML content |
 | `GET` | `/v1/agents/{name}/graph` | Yes | Internal action/tool graph for Studio drill-down |
+| `GET` | `/v1/agents/catalog` | Yes | Agent catalog (categories, I/O schemas) |
 | `POST` | `/v1/agents/{name}/submit` | Yes | Submit agent to cluster |
+| `GET` | `/v1/designer/llm-settings` | Yes | ReAct LLM settings (key masked) |
+| `PUT` | `/v1/designer/llm-settings` | Yes | Update LLM endpoint, model, API key |
+| `POST` | `/v1/designer/llm-settings/test` | Yes | Test LLM with double-value prompt |
+| `GET` | `/v1/agent-definitions` | Yes | List designer agent definitions |
+| `POST` | `/v1/agent-definitions` | Yes | Create definition |
+| `GET` | `/v1/agent-definitions/{id}` | Yes | Get designer definition |
+| `PUT` | `/v1/agent-definitions/{id}` | Yes | Update definition graph |
+| `DELETE` | `/v1/agent-definitions/{id}` | Yes | Delete definition |
+| `POST` | `/v1/agent-definitions/{id}/validate` | Yes | Validate definition graph |
+| `POST` | `/v1/agent-definitions/{id}/compile` | Yes | Generate Python + YAML artifacts |
 | `GET` | `/v1/runs` | Yes | List agent/pipeline runs |
 | `GET` | `/v1/runs/{id}` | Yes | Run detail + spans |
 | `GET` | `/v1/pipelines` | Yes | List composed pipelines |
@@ -147,6 +158,7 @@ Agents are declared in [`examples/agents/agent-manifest.yaml`](../examples/agent
 |-------|------|-------------|
 | `workflow_counter` | workflow | Deterministic `@action` + `@tool` — doubles integers |
 | `react_echo` | react | Tool-chaining lab agent (no LLM) |
+| `react_double_value` | react | ReAct agent that doubles values via LLM (requires Settings LLM) |
 
 ```bash
 apemosyne agent list
@@ -212,31 +224,40 @@ Honeypot tests (`phase1`, `phase2`, `production`, …) require `honeypot/` and `
 
 ## Dashboard
 
-Web UI in [`dashboard/`](../dashboard/) — React + Vite, talks to Control API only.
+Web UI in [`dashboard/`](../dashboard/README.md) — React + Vite, talks to Control API only.
 
 ```bash
 apemosyne up
-apemosyne api start
+./scripts/dev-start.sh          # API :8090 + dashboard :3000
 ```
 
-Control API: http://127.0.0.1:8090
-
-```bash
-cd dashboard && npm install && npm run dev
-```
-
-Dashboard: http://localhost:3000
+Or manually: `apemosyne api start` then `cd dashboard && npm run dev`.
 
 | Route | Description |
 |-------|-------------|
 | `/` | Overview (live via `GET /v1/events` SSE) |
-| `/agents` | Agent catalog |
+| `/agents` | Registered agent catalog |
 | `/agents/:name` | Detail, Flink YAML, submit |
+| `/designer` | Agent Designer — user definitions + catalog preview |
+| `/designer/:id` | Visual editor — validate, compile to Python/YAML |
+| `/settings` | LLM connection for ReAct agents |
 | `/runs` | Agent and pipeline run history |
 | `/runs/:id` | Run detail, execution plan, spans |
 | `/studio` | **Agentic Studio** — pipeline list |
 | `/studio/:id` | Drag-and-drop canvas, validate, run locally |
 | `/jobs` | Flink jobs, cancel |
+
+Full page reference: [dashboard/README.md](../dashboard/README.md).
+
+### Agent Designer
+
+Visual editor for **workflow** and **ReAct** agents. Definitions persist in `.apemosyne/designer.db`; compiled artifacts go to `.apemosyne/agents/{definition_id}/`.
+
+- **Runtime vs designer:** `GET /v1/agents/{name}/definition` returns manifest Flink YAML for registered agents. `GET /v1/agent-definitions/{id}` returns the designer graph — different stores, different IDs.
+- **Compile:** `POST /v1/agent-definitions/{id}/compile` generates Python modules, Flink YAML, manifest snippet, and a local runner.
+- **LLM:** ReAct agents use platform settings from `/v1/designer/llm-settings` (configured in dashboard **Settings**).
+
+Roadmap: [AGENT_DESIGNER_PLAN.md](AGENT_DESIGNER_PLAN.md).
 
 ### Agentic Studio
 
@@ -268,6 +289,8 @@ Pipelines persist in `.apemosyne/pipelines.db`. Cluster deploy from Studio is de
 
 ## See also
 
+- [../dashboard/README.md](../dashboard/README.md) — dashboard pages, dev setup, project layout
+- [AGENT_DESIGNER_PLAN.md](AGENT_DESIGNER_PLAN.md) — Agent Designer phases and API
 - [FLINK_AGENTS.md](FLINK_AGENTS.md) — workflow vs ReAct concepts
 - [../examples/README.md](../examples/README.md) — example agents and demos
 - [../apemosyne/README.md](../apemosyne/README.md) — CLI package layout

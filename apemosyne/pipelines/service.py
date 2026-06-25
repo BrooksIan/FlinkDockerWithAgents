@@ -106,8 +106,8 @@ class PipelineService:
             pipeline.edges = _parse_edges(edges)
         if "layout" in body:
             pipeline.layout = body["layout"] or {}
-        if "name" in body and body["name"]:
-            pipeline.name = body["name"]
+        if "name" in body:
+            pipeline.name = str(body["name"] or "")
 
         updated = self._store.update(
             pipeline_id,

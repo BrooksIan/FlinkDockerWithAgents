@@ -177,7 +177,7 @@ def get_pipeline(pipeline_id: str) -> dict[str, Any]:
 
 def create_pipeline(body: dict[str, Any]) -> dict[str, Any]:
     return default_pipeline_service().create(
-        body.get("name") or "Untitled pipeline",
+        str(body.get("name") or ""),
         nodes=body.get("nodes"),
         edges=body.get("edges"),
         layout=body.get("layout"),
@@ -297,3 +297,9 @@ def compile_agent_definition_by_id(definition_id: str) -> dict[str, Any]:
     from apemosyne.designer.definitions.service import default_agent_definition_service
 
     return default_agent_definition_service().compile(definition_id)
+
+
+def publish_agent_definition_by_id(definition_id: str) -> dict[str, Any]:
+    from apemosyne.designer.definitions.service import default_agent_definition_service
+
+    return default_agent_definition_service().publish(definition_id)

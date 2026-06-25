@@ -6,6 +6,7 @@ import type {
   AgentEdgeKind,
   AgentNodeKind,
 } from "../api/types";
+import { defaultPromptConfig } from "./promptDefaults";
 
 let _id = 0;
 export function nextId(prefix: string) {
@@ -99,6 +100,7 @@ export function inferEdgeKind(source?: Node, target?: Node): AgentEdgeKind {
   const tk = target?.type;
   if (sk === "input_event" && tk === "action") return "listens_to";
   if (sk === "action" && tk === "tool") return "calls";
+  if (sk === "action" && (tk === "prompt" || tk === "llm_call")) return "calls";
   if (sk === "action" && tk === "output_event") return "emits";
   if (sk === "action" && tk === "action") return "listens_to";
   return "listens_to";
@@ -133,13 +135,15 @@ export function autoWireAgentGraph(nodes: Node[], edges: Edge[]): Edge[] {
 
   const input = nodes.find((n) => n.type === "input_event");
   const action = nodes.find((n) => n.type === "action");
+  const prompts = nodes.filter((n) => n.type === "prompt").sort((a, b) => a.position.x - b.position.x);
+  const llmCalls = nodes.filter((n) => n.type === "llm_call").sort((a, b) => a.position.x - b.position.x);
   const tools = nodes.filter((n) => n.type === "tool").sort((a, b) => a.position.x - b.position.x);
   const output = nodes.find((n) => n.type === "output_event");
 
   const chain: Node[] = [];
   if (input) chain.push(input);
   if (action) chain.push(action);
-  chain.push(...tools);
+  chain.push(...prompts, ...llmCalls, ...tools);
   if (output) chain.push(output);
 
   if (chain.length < 2) {
@@ -191,7 +195,7 @@ export function defaultConfigForKind(kind: AgentNodeKind): Record<string, unknow
     case "output_event":
       return { event_type: "_output_event" };
     case "prompt":
-      return { template: "system" };
+      return defaultPromptConfig();
     case "llm_call":
       return { use_platform_llm: true };
     default:

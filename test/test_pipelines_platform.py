@@ -68,6 +68,35 @@ def test_pipeline_validation_errors() -> None:
     assert any("source" in e for e in result["errors"])
 
 
+def test_pipeline_validation_strips_orphan_edges() -> None:
+    from apemosyne.pipelines.models import Pipeline, PipelineEdge, PipelineNode
+    from apemosyne.pipelines.validate import validate_pipeline
+
+    pipeline = Pipeline(
+        id="pipe_orphan",
+        name="orphan",
+        nodes=[
+            PipelineNode(
+                id="src1",
+                kind="source",
+                config={"records": [{"key": "1", "value": 3}]},
+            ),
+            PipelineNode(id="agent_wc", kind="agent", agent="workflow_counter"),
+            PipelineNode(id="sink1", kind="sink"),
+        ],
+        edges=[
+            PipelineEdge(id="e1", source="src1", target="agent_wc"),
+            PipelineEdge(id="e2", source="agent_wc", target="sink1"),
+            PipelineEdge(id="e_bad", source="src_deleted", target="agent_wc"),
+            PipelineEdge(id="e_bad2", source="agent_wc", target="sink_deleted"),
+        ],
+    )
+    result = validate_pipeline(pipeline)
+    assert result["valid"] is True
+    assert len(pipeline.edges) == 2
+    assert {e.id for e in pipeline.edges} == {"e1", "e2"}
+
+
 def test_agent_graph_introspect() -> None:
     from apemosyne.pipelines.introspect import agent_graph
 

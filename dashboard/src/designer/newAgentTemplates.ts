@@ -1,11 +1,18 @@
 import type { AgentDefinitionCreate } from "../api/types";
+import { defaultPromptConfig } from "./promptDefaults";
 
 export type NewAgentType = "workflow" | "react";
 
-export function newAgentPayload(type: NewAgentType): AgentDefinitionCreate {
+export function defaultAgentName(type: NewAgentType): string {
+  return type === "react" ? "New ReAct agent" : "New workflow agent";
+}
+
+export function newAgentPayload(type: NewAgentType, name?: string): AgentDefinitionCreate {
+  const agentName = name?.trim() || defaultAgentName(type);
+
   if (type === "react") {
     return {
-      name: "New ReAct agent",
+      name: agentName,
       type: "react",
       description: "ReAct agent with LLM prompt — configure LLM in Settings.",
       catalog_category_id: "react",
@@ -43,7 +50,7 @@ export function newAgentPayload(type: NewAgentType): AgentDefinitionCreate {
           id: "prompt1",
           kind: "prompt",
           name: "prompt",
-          config: { template: "system" },
+          config: defaultPromptConfig(),
         },
         {
           id: "llm1",
@@ -75,7 +82,7 @@ export function newAgentPayload(type: NewAgentType): AgentDefinitionCreate {
   }
 
   return {
-    name: "New workflow agent",
+    name: agentName,
     type: "workflow",
     description: "Deterministic workflow agent — add tools and wire the graph.",
     catalog_category_id: "workflow",

@@ -34,6 +34,12 @@ export function LogicNode({ data, selected, type }: NodeProps) {
             {(d.config?.expression as string) || (d.config?.tool_ref as string) || "tool"}
           </div>
         )}
+        {kind === "prompt" && (
+          <div className="studio-node-sub muted designer-node-prompt-preview">
+            {String(d.config?.system || "No system prompt yet").slice(0, 48)}
+            {String(d.config?.system || "").length > 48 ? "…" : ""}
+          </div>
+        )}
       </div>
       {showSource && (
         <Handle

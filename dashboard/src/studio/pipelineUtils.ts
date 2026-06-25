@@ -60,14 +60,51 @@ export function pipelineToFlow(
     };
   });
 
-  const edges: Edge[] = pipeline.edges.map((e) => ({
-    id: e.id,
-    source: e.source,
-    target: e.target,
-    data: { mapping: e.mapping || {} },
-  }));
+  const edges: Edge[] = pruneOrphanEdges(
+    nodes,
+    pipeline.edges.map((e) => ({
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      data: { mapping: e.mapping || {} },
+    })),
+  );
 
   return { nodes, edges };
+}
+
+/** Drop edges whose source or target no longer exists on the canvas. */
+export function pruneOrphanEdges(nodes: Node[], edges: Edge[]): Edge[] {
+  const nodeIds = new Set(nodes.map((n) => n.id));
+  return edges.filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target));
+}
+
+function linearChainNodes(nodes: Node[]): Node[] {
+  const ordered = [...nodes].sort((a, b) => a.position.x - b.position.x || a.position.y - b.position.y);
+  const source = ordered.find((n) => n.type === "source");
+  const sink = ordered.find((n) => n.type === "sink");
+  const agents = ordered.filter((n) => n.type === "agent");
+  return [source, ...agents, sink].filter(Boolean) as Node[];
+}
+
+/** Build a fresh Source → agents → Sink edge list (replaces stale wiring). */
+export function buildLinearChainEdges(nodes: Node[]): Edge[] {
+  const chain = linearChainNodes(nodes);
+  if (chain.length < 2) return [];
+
+  const edges: Edge[] = [];
+  for (let i = 0; i < chain.length - 1; i += 1) {
+    const src = chain[i];
+    const tgt = chain[i + 1];
+    edges.push({
+      id: nextId("e"),
+      source: src.id,
+      target: tgt.id,
+      type: "smoothstep",
+      data: { mapping: mappingForEdge(src, tgt) },
+    });
+  }
+  return edges;
 }
 
 export function flowToPipeline(
@@ -156,17 +193,14 @@ function mappingForEdge(source: Node, target: Node): Record<string, string> {
 
 /** Wire nodes left-to-right (by x) when edges are missing. */
 export function autoWireLinear(nodes: Node[], edges: Edge[]): Edge[] {
-  if (nodes.length < 2) return edges;
+  const valid = pruneOrphanEdges(nodes, edges);
+  if (nodes.length < 2) return valid;
 
-  const ordered = [...nodes].sort((a, b) => a.position.x - b.position.x || a.position.y - b.position.y);
-  const source = ordered.find((n) => n.type === "source");
-  const sink = ordered.find((n) => n.type === "sink");
-  const agents = ordered.filter((n) => n.type === "agent");
-  const chain = [source, ...agents, sink].filter(Boolean) as Node[];
-  if (chain.length < 2) return edges;
+  const chain = linearChainNodes(nodes);
+  if (chain.length < 2) return valid;
 
-  const existing = new Set(edges.map((e) => `${e.source}->${e.target}`));
-  let next = [...edges];
+  const existing = new Set(valid.map((e) => `${e.source}->${e.target}`));
+  let next = [...valid];
   for (let i = 0; i < chain.length - 1; i += 1) {
     const src = chain[i];
     const tgt = chain[i + 1];
@@ -184,6 +218,15 @@ export function autoWireLinear(nodes: Node[], edges: Edge[]): Edge[] {
     existing.add(key);
   }
   return next;
+}
+
+export function emptyPipeline(): Partial<PipelineSummary> {
+  return {
+    name: "",
+    nodes: [],
+    edges: [],
+    layout: {},
+  };
 }
 
 export function defaultDemoPipeline(): Partial<PipelineSummary> {

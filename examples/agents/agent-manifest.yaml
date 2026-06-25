@@ -1,22 +1,25 @@
 agents:
   workflow_counter:
     type: workflow
-    description: Deterministic counter — doubles input values
+    description: "Deterministic counter \u2014 doubles input values"
     entry: examples.agents.workflow_counter:CounterAgent
     runner: examples/agents/run_workflow_local.py
     cluster_script: examples/agents/run_workflow_cluster.py
     flink_yaml: examples/agents/workflow_counter/agent.yaml
-
   react_echo:
     type: react
-    description: Tool-chaining lab agent (no LLM) — classify and summarize text
+    description: "Tool-chaining lab agent (no LLM) \u2014 classify and summarize text"
     entry: examples.agents.react_echo:ReactEchoAgent
     runner: examples/agents/run_react_local.py
     cluster_script: examples/agents/run_react_cluster.py
-
   react_double_value:
     type: react
-    description: ReAct agent — LLM prompt doubles numeric input from a message
+    description: "ReAct agent \u2014 LLM prompt doubles numeric input from a message"
     entry: examples.agents.react_double_value:ReactDoubleValueAgent
     runner: examples/agents/run_react_double_local.py
     cluster_script: examples/agents/run_react_double_cluster.py
+  basicreact:
+    type: react
+    description: "ReAct agent with LLM prompt \u2014 configure LLM in Settings."
+    entry: examples.agents.published_shims.basicreact:BasicreactAgent
+    runner: .apemosyne/agents/def_a8888ce93ad3/run_local.py

@@ -10,7 +10,7 @@ This repository is a **multi-project workspace** centered on the **Apemosyne** C
 | [`examples/`](examples/README.md) | Generic Flink Agents demos and agent registry |
 | [`docs/`](docs/README.md) | Guides (workflow vs ReAct, platform API) |
 | [`honeypot/`](honeypot/README.md) | Optional Cowrie honeypot reference pipeline |
-| [`dashboard/`](dashboard/README.md) | Web UI for Control API (Overview, Agents, Jobs) |
+| [`dashboard/`](dashboard/README.md) | Web UI — Overview, Agents, Designer, Studio, Runs, Jobs |
 | [`test/`](test/README.md) | CLI and platform tests |
 
 ## Quick start (Flink Agents platform)
@@ -47,9 +47,7 @@ apemosyne verify --tier quick
 
 Stop: `./scripts/dev-stop.sh`
 
-Or manually:
-
-Dashboard: http://localhost:3000
+Dashboard: http://localhost:3000 — Overview, agent catalog, **Agent Designer**, **Agentic Studio**, runs, jobs, and LLM settings.
 
 See [dashboard/README.md](dashboard/README.md) and [docs/PLATFORM.md](docs/PLATFORM.md).
 
@@ -124,6 +122,8 @@ Optional: copy [`.env.example`](.env.example) to `.env` for API/Flink overrides.
 | Doc | Description |
 |-----|-------------|
 | [docs/PLATFORM.md](docs/PLATFORM.md) | Control API, agents, observability, dashboard integration |
+| [dashboard/README.md](dashboard/README.md) | Dashboard pages, dev setup, project structure |
+| [docs/AGENT_DESIGNER_PLAN.md](docs/AGENT_DESIGNER_PLAN.md) | Visual agent authoring and codegen roadmap |
 | [docs/FLINK_AGENTS.md](docs/FLINK_AGENTS.md) | Workflow vs ReAct agents |
 | [apemosyne/README.md](apemosyne/README.md) | CLI package layout |
 | [examples/README.md](examples/README.md) | Example agents and demos |

@@ -3,6 +3,7 @@ import type {
   AgentDefinition,
   AgentDefinitionCompileResult,
   AgentDefinitionCreate,
+  AgentDefinitionPublishResult,
   AgentDefinitionValidation,
   AgentDetail,
   AgentGraph,
@@ -94,6 +95,12 @@ export const api = {
   compileAgentDefinition: (id: string) =>
     request<AgentDefinitionCompileResult>(
       `/v1/agent-definitions/${encodeURIComponent(id)}/compile`,
+      { method: "POST" },
+    ),
+
+  publishAgentDefinition: (id: string) =>
+    request<AgentDefinitionPublishResult>(
+      `/v1/agent-definitions/${encodeURIComponent(id)}/publish`,
       { method: "POST" },
     ),
 

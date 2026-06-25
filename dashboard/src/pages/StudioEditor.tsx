@@ -2,9 +2,11 @@ import {
   useEdgesState,
   useNodesState,
   applyEdgeChanges,
+  applyNodeChanges,
   type Edge,
   type EdgeChange,
   type Node,
+  type NodeChange,
 } from "@xyflow/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -15,7 +17,7 @@ import { NodePalette } from "../studio/NodePalette";
 import { PipelineInspector } from "../studio/PipelineInspector";
 import { RunPipelineBar } from "../studio/RunPipelineBar";
 import { StudioCanvas, type DroppedNodeSpec } from "../studio/StudioCanvas";
-import { connectEdge, autoWireLinear, flowToPipeline, nextId, pipelineToFlow } from "../studio/pipelineUtils";
+import { connectEdge, buildLinearChainEdges, flowToPipeline, nextId, pipelineToFlow, pruneOrphanEdges } from "../studio/pipelineUtils";
 
 export function StudioEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -25,7 +27,7 @@ export function StudioEditorPage() {
   const [catalog, setCatalog] = useState<AgentCatalog | null>(null);
   const [kafkaTopics, setKafkaTopics] = useState<KafkaTopicSummary[]>([]);
   const [kafkaReachable, setKafkaReachable] = useState<boolean | undefined>(undefined);
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [nodes, setNodes] = useNodesState<Node>([]);
   const [edges, setEdges] = useEdgesState<Edge>([]);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
@@ -36,6 +38,8 @@ export function StudioEditorPage() {
   const [drillAgent, setDrillAgent] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const saveTimer = useRef<number | null>(null);
+  const nameSaveTimer = useRef<number | null>(null);
+  const [pipelineName, setPipelineName] = useState("");
 
   const nodesRef = useRef(nodes);
   const edgesRef = useRef(edges);
@@ -47,6 +51,7 @@ export function StudioEditorPage() {
     Promise.all([api.pipeline(id), api.agents(), api.agentCatalog(), api.kafkaTopics()])
       .then(([p, a, cat, kafka]) => {
         setPipeline(p);
+        setPipelineName(p.name);
         setAgents(a);
         setCatalog(cat);
         setKafkaTopics(kafka.topics.filter((t) => !t.name.startsWith("__")));
@@ -54,6 +59,18 @@ export function StudioEditorPage() {
         const flow = pipelineToFlow(p, a);
         setNodes(flow.nodes);
         setEdges(flow.edges);
+        nodesRef.current = flow.nodes;
+        edgesRef.current = flow.edges;
+        if (flow.edges.length !== p.edges.length) {
+          const body = flowToPipeline(id, p.name, flow.nodes, flow.edges, {
+            created_at: p.created_at,
+            updated_at: p.updated_at,
+          });
+          api
+            .updatePipeline(id, { nodes: body.nodes, edges: body.edges, layout: body.layout })
+            .then((updated) => setPipeline(updated))
+            .catch((e) => setError(String(e)));
+        }
       })
       .catch((e) => setError(String(e)));
   }, [id, setNodes, setEdges]);
@@ -89,6 +106,34 @@ export function StudioEditorPage() {
     [persist],
   );
 
+  const saveName = useCallback(
+    (name: string) => {
+      if (!id || !pipeline) return;
+      setSaveState("saving");
+      api
+        .updatePipeline(id, { name: name.trim() })
+        .then((updated) => {
+          setPipeline(updated);
+          setPipelineName(updated.name);
+          setSaveState("saved");
+        })
+        .catch((e) => {
+          setError(String(e));
+          setSaveState("idle");
+        });
+    },
+    [id, pipeline],
+  );
+
+  const handleNameChange = useCallback(
+    (value: string) => {
+      setPipelineName(value);
+      if (nameSaveTimer.current) window.clearTimeout(nameSaveTimer.current);
+      nameSaveTimer.current = window.setTimeout(() => saveName(value), 600);
+    },
+    [saveName],
+  );
+
   const onConnect = useCallback(
     (params: Parameters<typeof connectEdge>[1]) => {
       setEdges((eds) => {
@@ -99,6 +144,28 @@ export function StudioEditorPage() {
       });
     },
     [scheduleSave, setEdges],
+  );
+
+  const handleNodesChange = useCallback(
+    (changes: NodeChange[]) => {
+      const removed = changes.some((change) => change.type === "remove");
+      setNodes((nds) => {
+        const nextNodes = applyNodeChanges(changes, nds);
+        nodesRef.current = nextNodes;
+        if (removed) {
+          setEdges((eds) => {
+            const nextEdges = pruneOrphanEdges(nextNodes, eds);
+            edgesRef.current = nextEdges;
+            scheduleSave(nextNodes, nextEdges);
+            return nextEdges;
+          });
+        } else {
+          scheduleSave(nextNodes, edgesRef.current);
+        }
+        return nextNodes;
+      });
+    },
+    [scheduleSave, setNodes, setEdges],
   );
 
   const handleEdgesChange = useCallback(
@@ -272,10 +339,20 @@ export function StudioEditorPage() {
     scheduleSave(nodes, next);
   }
 
+  function handleDeleteNode(nodeId: string) {
+    handleNodesChange([{ type: "remove", id: nodeId }]);
+    setSelectedNode(null);
+  }
+
   async function handleValidate() {
     if (!id) return;
     try {
-      await persist(nodes, edges);
+      const cleanEdges = pruneOrphanEdges(nodes, edges);
+      if (cleanEdges.length !== edges.length) {
+        setEdges(cleanEdges);
+        edgesRef.current = cleanEdges;
+      }
+      await persist(nodes, cleanEdges);
       const result = await api.validatePipeline(id);
       setValidation(result);
       if (!result.valid) {
@@ -289,10 +366,12 @@ export function StudioEditorPage() {
   }
 
   function handleConnectChain() {
-    const nextEdges = autoWireLinear(nodes, edges);
+    const nextEdges = buildLinearChainEdges(nodes);
     setEdges(nextEdges);
+    edgesRef.current = nextEdges;
     scheduleSave(nodes, nextEdges);
     setError(null);
+    setValidation(null);
   }
 
   async function handleRun() {
@@ -300,9 +379,12 @@ export function StudioEditorPage() {
     setRunning(true);
     setError(null);
     try {
-      let nextEdges = edges;
+      let nextEdges = pruneOrphanEdges(nodes, edges);
+      if (nextEdges.length !== edges.length) {
+        setEdges(nextEdges);
+      }
       if (nextEdges.length < nodes.length - 1 && nodes.length >= 2) {
-        nextEdges = autoWireLinear(nodes, nextEdges);
+        nextEdges = buildLinearChainEdges(nodes);
         setEdges(nextEdges);
       }
       await persist(nodes, nextEdges);
@@ -337,13 +419,33 @@ export function StudioEditorPage() {
       <p>
         <Link to="/studio">← Studio</Link>
       </p>
-      <div className="studio-header">
-        <h2 style={{ margin: 0 }}>
-          {pipeline?.name || "Loading…"}
-          <span className="muted" style={{ fontSize: "0.85rem", marginLeft: "0.75rem" }}>
+      <div className="studio-header designer-editor-header">
+        <div className="designer-editor-title">
+          <label className="designer-agent-name-field">
+            <span className="muted">Pipeline name</span>
+            <input
+              className="designer-agent-name-input"
+              type="text"
+              value={pipelineName}
+              placeholder={pipeline ? "Untitled pipeline" : "Loading…"}
+              disabled={!pipeline}
+              maxLength={120}
+              onChange={(e) => handleNameChange(e.target.value)}
+              onBlur={() => {
+                if (nameSaveTimer.current) {
+                  window.clearTimeout(nameSaveTimer.current);
+                  nameSaveTimer.current = null;
+                }
+                if (pipeline && pipelineName.trim() !== pipeline.name) {
+                  saveName(pipelineName);
+                }
+              }}
+            />
+          </label>
+          <span className="muted designer-editor-meta">
             {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : ""}
           </span>
-        </h2>
+        </div>
       </div>
       {error && <p className="error">{error}</p>}
 
@@ -371,7 +473,7 @@ export function StudioEditorPage() {
         <StudioCanvas
           nodes={nodes}
           edges={edges}
-          onNodesChange={onNodesChange}
+          onNodesChange={handleNodesChange}
           onEdgesChange={handleEdgesChange}
           onConnect={onConnect}
           onNodeDoubleClick={handleNodeDoubleClick}
@@ -388,6 +490,7 @@ export function StudioEditorPage() {
           kafkaTopics={kafkaTopics}
           onUpdateNode={handleUpdateNode}
           onUpdateEdge={handleUpdateEdge}
+          onDeleteNode={handleDeleteNode}
         />
       </div>
 

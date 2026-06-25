@@ -37,7 +37,7 @@ class SpanCreate(BaseModel):
 
 
 class PipelineCreate(BaseModel):
-    name: str = "Untitled pipeline"
+    name: str = ""
     nodes: list[dict[str, Any]] = Field(default_factory=list)
     edges: list[dict[str, Any]] = Field(default_factory=list)
     layout: dict[str, dict[str, float]] = Field(default_factory=dict)
@@ -279,6 +279,22 @@ def agent_definitions_validate(definition_id: str) -> dict[str, Any]:
 def agent_definitions_compile(definition_id: str) -> dict[str, Any]:
     try:
         return services.compile_agent_definition_by_id(definition_id)
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=404, detail=f"Agent definition not found: {definition_id}"
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post(
+    "/agent-definitions/{definition_id}/publish",
+    tags=["designer"],
+    dependencies=[Depends(require_api_key)],
+)
+def agent_definitions_publish(definition_id: str) -> dict[str, Any]:
+    try:
+        return services.publish_agent_definition_by_id(definition_id)
     except KeyError as exc:
         raise HTTPException(
             status_code=404, detail=f"Agent definition not found: {definition_id}"

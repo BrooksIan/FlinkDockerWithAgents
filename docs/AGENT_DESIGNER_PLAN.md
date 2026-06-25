@@ -28,7 +28,7 @@ Platform-wide OpenAI-compatible settings for all ReAct agents:
 
 - **API:** `GET/PUT /v1/designer/llm-settings` — endpoint URL, model ID, API key (masked on read)
 - **Store:** `.apemosyne/designer.db` with env fallback (`APEMOSYNE_LLM_*`, `CLOUDERA_*`, `OPENAI_*`)
-- **UI:** Dashboard **Designer** page → **LLM connection** tool
+- **UI:** Dashboard **Settings** page → **LLM connection** (endpoint, model, test)
 - **Catalog:** ReAct category marked `llm_required: true`
 
 ---

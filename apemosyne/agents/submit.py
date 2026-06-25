@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, List, Optional, Tuple
 
+from apemosyne.agents.published_copy import is_published_agent_spec, published_agent_artifact_pairs
 from apemosyne.agents.registry import AgentSpec, get_agent_spec
 from apemosyne.constants import DEFAULT_PROFILE
 from apemosyne.copy_manifest import copy_pairs_to_cluster
@@ -67,19 +68,25 @@ def _import_agent_class(spec: AgentSpec) -> type:
 
 def _agent_copy_pairs(spec: AgentSpec, *, root: Path) -> List[Tuple[str, str]]:
     pairs: list[tuple[str, str]] = []
-    cluster = root / spec.cluster_script
-    pairs.append((str(cluster), f"/opt/flink/{spec.cluster_script}"))
+    if spec.cluster_script:
+        cluster = root / spec.cluster_script
+        if cluster.is_file():
+            pairs.append((str(cluster), f"/opt/flink/{spec.cluster_script}"))
 
     module_path = root / spec.module.replace(".", "/")
     if not str(module_path).endswith(".py"):
         module_path = Path(str(module_path) + ".py")
-    pairs.append((str(module_path), f"/opt/flink/{spec.module.replace('.', '/')}.py"))
+    if module_path.is_file():
+        pairs.append((str(module_path), f"/opt/flink/{spec.module.replace('.', '/')}.py"))
+
+    pairs.extend(published_agent_artifact_pairs(root, spec))
 
     init_py = agents_dir(root) / "__init__.py"
     pairs.append((str(init_py), "/opt/flink/examples/agents/__init__.py"))
 
     for rel in (
         "apemosyne/__init__.py",
+        "apemosyne/agents/published_copy.py",
         "apemosyne/runtime/__init__.py",
         "apemosyne/runtime/flink_cluster_submit.py",
         "apemosyne/runtime/cluster_launch_test.py",
@@ -96,7 +103,7 @@ def _agent_copy_pairs(spec: AgentSpec, *, root: Path) -> List[Tuple[str, str]]:
     else:
         pairs.append((str(examples_init), "/opt/flink/examples/__init__.py"))
 
-    if spec.type == "react" or spec.name == "react_double_value":
+    if spec.type == "react" or spec.name == "react_double_value" or is_published_agent_spec(spec):
         pairs.extend(designer_copy_pairs(root=root))
         for path in (
             root / "examples/agents/react_double_value_logic.py",

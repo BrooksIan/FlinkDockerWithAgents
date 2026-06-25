@@ -17,6 +17,7 @@ export function AgentDefinitionList({ onSelect, onCompiled }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [validatingId, setValidatingId] = useState<string | null>(null);
   const [compilingId, setCompilingId] = useState<string | null>(null);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
   const [validation, setValidation] = useState<AgentDefinitionValidation | null>(null);
 
   useEffect(() => {
@@ -58,6 +59,29 @@ export function AgentDefinitionList({ onSelect, onCompiled }: Props) {
     }
   }
 
+  async function handlePublish(id: string) {
+    setPublishingId(id);
+    setError(null);
+    try {
+      const result = await api.publishAgentDefinition(id);
+      if (result.definition) {
+        setDefinitions((current) =>
+          current.map((item) => (item.id === id ? result.definition! : item)),
+        );
+      }
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setPublishingId(null);
+    }
+  }
+
+  function statusBadgeClass(status: string): string {
+    if (status === "published") return "ok";
+    if (status === "compiled") return "ok";
+    return "warn";
+  }
+
   return (
     <div className="card designer-tool">
       <div className="designer-tool-header">
@@ -80,7 +104,7 @@ export function AgentDefinitionList({ onSelect, onCompiled }: Props) {
               <div className="designer-definition-main">
                 <strong>{def.name}</strong>
                 <span className="muted"> · {def.type}</span>
-                <span className={`badge ${def.status === "draft" ? "warn" : "ok"}`}>
+                <span className={`badge ${statusBadgeClass(def.status)}`}>
                   {def.status}
                 </span>
               </div>
@@ -110,10 +134,18 @@ export function AgentDefinitionList({ onSelect, onCompiled }: Props) {
                 </button>
                 <button
                   type="button"
-                  disabled={validatingId === def.id || compilingId === def.id}
+                  disabled={validatingId === def.id || compilingId === def.id || publishingId === def.id}
                   onClick={() => handleCompile(def.id)}
                 >
                   {compilingId === def.id ? "Compiling…" : "Compile"}
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={validatingId === def.id || compilingId === def.id || publishingId === def.id}
+                  onClick={() => handlePublish(def.id)}
+                >
+                  {publishingId === def.id ? "Publishing…" : "Add to catalog"}
                 </button>
                 {def.manifest_name && (
                   <Link to={`/agents/${def.manifest_name}`} className="secondary-link">

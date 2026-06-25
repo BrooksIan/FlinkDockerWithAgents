@@ -76,6 +76,24 @@ export function RunOutputPanel({ output, spans = [], recordCount }: Props) {
         </p>
       )}
 
+      {rows.some((row) => row.mode === "fallback") && (
+        <p className="error run-output-fallback-note">
+          LLM fallback was used
+          {rows.map((row) => row.fallback_reason).find(Boolean) ? (
+            <>
+              {": "}
+              {String(rows.map((row) => row.fallback_reason).find(Boolean))}
+            </>
+          ) : (
+            <> — the agent could not parse an LLM JSON response. Recompile after updating prompts to request JSON output.</>
+          )}
+        </p>
+      )}
+
+      {rows.some((row) => row.mode === "llm") && (
+        <p className="run-output-llm-note muted">LLM path was used for this run.</p>
+      )}
+
       {columns.length > 0 ? (
         <div className="run-output-table-wrap">
           <table className="run-output-table">

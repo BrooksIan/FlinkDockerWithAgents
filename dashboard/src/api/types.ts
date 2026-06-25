@@ -180,6 +180,17 @@ export interface AgentDefinitionCompileResult {
   definition?: AgentDefinition;
 }
 
+export interface AgentDefinitionPublishResult {
+  definition_id: string;
+  manifest_name: string;
+  catalog_id: string;
+  manifest_path: string;
+  catalog_path: string;
+  shim_path: string;
+  status: string;
+  definition?: AgentDefinition;
+}
+
 export interface AgentDefinitionCreate {
   name?: string;
   type?: string;

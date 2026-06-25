@@ -248,6 +248,31 @@ class AgentDefinitionService:
         payload["definition"] = self.get(definition_id)
         return payload
 
+    def publish(self, definition_id: str, *, root: Path | None = None) -> dict[str, Any]:
+        from apemosyne.designer.definitions.publish import (
+            PublishError,
+            publish_agent_definition,
+            publish_result_to_dict,
+        )
+
+        definition = self._store.get(definition_id)
+        if definition is None:
+            raise KeyError(definition_id)
+        try:
+            result = publish_agent_definition(definition, root=root, compile_first=True)
+        except PublishError as exc:
+            raise ValueError(str(exc)) from exc
+
+        self._store.update(
+            definition_id,
+            status="published",
+            manifest_name=result.manifest_name,
+            updated_at=_utc_now(),
+        )
+        payload = publish_result_to_dict(result)
+        payload["definition"] = self.get(definition_id)
+        return payload
+
 
 def reset_agent_definition_service_for_tests() -> None:
     global _default_service

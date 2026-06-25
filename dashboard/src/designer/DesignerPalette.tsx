@@ -1,5 +1,6 @@
 import type { AgentNodeKind } from "../api/types";
 import type { DesignerDroppedSpec } from "./definitionUtils";
+import { defaultPromptConfig } from "./promptDefaults";
 import { kindLabel } from "./definitionUtils";
 
 interface Props {
@@ -67,7 +68,7 @@ export function DesignerPalette({ agentType, onAdd }: Props) {
     agentType === "react"
       ? [
           ...WORKFLOW_BLOCKS.slice(0, 2),
-          blockSpec("prompt", "prompt", { template: "system" }),
+          blockSpec("prompt", "prompt", defaultPromptConfig()),
           blockSpec("llm_call", "llm", { use_platform_llm: true }),
           WORKFLOW_BLOCKS[4],
         ]

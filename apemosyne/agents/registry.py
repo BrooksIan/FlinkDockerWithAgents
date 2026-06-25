@@ -91,7 +91,12 @@ def load_agent_registry(
             cluster = repo / spec.cluster_script if spec.cluster_script else None
             flink_yaml = repo / spec.flink_yaml if spec.flink_yaml else None
             if spec.runner and (runner is None or not runner.is_file()):
-                raise AgentRegistryError(f"Agent {name!r} runner missing: {spec.runner}")
+                published = "published_shims" in spec.module
+                agent_py = runner.parent / "agent.py" if runner else None
+                if published and agent_py is not None and agent_py.is_file():
+                    pass
+                else:
+                    raise AgentRegistryError(f"Agent {name!r} runner missing: {spec.runner}")
             if spec.cluster_script and (cluster is None or not cluster.is_file()):
                 raise AgentRegistryError(
                     f"Agent {name!r} cluster script missing: {spec.cluster_script}"

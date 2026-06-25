@@ -9,9 +9,10 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
+from apemosyne.agents.published_copy import is_published_agent_spec, published_agent_artifact_pairs
 from apemosyne.constants import DEFAULT_PROFILE
 from apemosyne.copy_manifest import copy_pairs_to_cluster
-from apemosyne.designer.runtime_env import react_llm_shell_prefix, sync_designer_db_to_cluster
+from apemosyne.designer.runtime_env import designer_copy_pairs, react_llm_shell_prefix, sync_designer_db_to_cluster
 from apemosyne.docker_utils import PYFLINK_PYTHONPATH, container_id, docker_cp, project_root
 from apemosyne.pipelines.models import AgentStepResult, Pipeline
 
@@ -24,6 +25,7 @@ def _pipeline_copy_pairs(root: Path, pipeline: Pipeline) -> list[tuple[str, str]
         "apemosyne/paths.py",
         "apemosyne/agents/__init__.py",
         "apemosyne/agents/registry.py",
+        "apemosyne/agents/published_copy.py",
         "apemosyne/agents/submit.py",
         "apemosyne/copy_manifest.py",
         "apemosyne/docker_utils.py",
@@ -77,6 +79,9 @@ def _pipeline_copy_pairs(root: Path, pipeline: Pipeline) -> list[tuple[str, str]
             module_path = Path(str(module_path) + ".py")
         if module_path.is_file():
             pairs.append((str(module_path), f"/opt/flink/{spec.module.replace('.', '/')}.py"))
+        pairs.extend(published_agent_artifact_pairs(root, spec))
+        if is_published_agent_spec(spec) and spec.type == "react":
+            pairs.extend(designer_copy_pairs(root=root))
 
     # Deduplicate while preserving order.
     seen: set[tuple[str, str]] = set()

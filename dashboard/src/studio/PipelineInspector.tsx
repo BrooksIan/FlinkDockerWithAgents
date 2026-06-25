@@ -8,6 +8,7 @@ interface Props {
   kafkaTopics: KafkaTopicSummary[];
   onUpdateNode: (nodeId: string, patch: { config?: Record<string, unknown> }) => void;
   onUpdateEdge: (edgeId: string, mapping: Record<string, string>) => void;
+  onDeleteNode?: (nodeId: string) => void;
 }
 
 type KafkaConfig = {
@@ -77,6 +78,7 @@ export function PipelineInspector({
   kafkaTopics,
   onUpdateNode,
   onUpdateEdge,
+  onDeleteNode,
 }: Props) {
   if (!selectedNode && !selectedEdge) {
     return (
@@ -124,6 +126,14 @@ export function PipelineInspector({
   if (!selectedNode) return null;
   const kind = selectedNode.type;
 
+  const deleteButton = onDeleteNode ? (
+    <div className="actions" style={{ marginTop: "1rem" }}>
+      <button type="button" className="secondary" onClick={() => onDeleteNode(selectedNode.id)}>
+        Delete node
+      </button>
+    </div>
+  ) : null;
+
   if (kind === "source") {
     const config = ((selectedNode.data as { config?: Record<string, unknown> }).config || {}) as Record<
       string,
@@ -168,6 +178,7 @@ export function PipelineInspector({
               </>
             }
           />
+          {deleteButton}
         </div>
       );
     }
@@ -192,6 +203,7 @@ export function PipelineInspector({
             }
           }}
         />
+        {deleteButton}
       </div>
     );
   }
@@ -203,6 +215,7 @@ export function PipelineInspector({
         <h3 style={{ marginTop: 0 }}>Agent: {d.agent}</h3>
         <p className="muted">Type: {d.agentType}</p>
         <p className="muted">Double-click the node to view its internal action/tool graph.</p>
+        {deleteButton}
       </div>
     );
   }
@@ -229,6 +242,7 @@ export function PipelineInspector({
               })
             }
           />
+          {deleteButton}
         </div>
       );
     }
@@ -237,6 +251,7 @@ export function PipelineInspector({
       <div className="studio-inspector card">
         <h3 style={{ marginTop: 0 }}>Capture sink</h3>
         <p className="muted">Final pipeline output is returned in the run result.</p>
+        {deleteButton}
       </div>
     );
   }
