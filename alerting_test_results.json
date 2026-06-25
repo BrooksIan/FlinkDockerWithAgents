@@ -1,0 +1,128 @@
+{
+  "test_timestamp": "2025-12-11T20:34:09.271265",
+  "results": {
+    "slack_alerts": [
+      {
+        "test": 1,
+        "channel": "security-alerts",
+        "severity": "CRITICAL",
+        "result": {
+          "status": "sent",
+          "channel": "security-alerts",
+          "message_id": "msg-1765485249.270832"
+        },
+        "status": "success"
+      },
+      {
+        "test": 2,
+        "channel": "incident-response",
+        "severity": "HIGH",
+        "result": {
+          "status": "sent",
+          "channel": "incident-response",
+          "message_id": "msg-1765485249.270853"
+        },
+        "status": "success"
+      },
+      {
+        "test": 3,
+        "channel": "security-alerts",
+        "severity": "MEDIUM",
+        "result": {
+          "status": "sent",
+          "channel": "security-alerts",
+          "message_id": "msg-1765485249.270857"
+        },
+        "status": "success"
+      }
+    ],
+    "email_alerts": [
+      {
+        "test": 1,
+        "recipient": "security-team@example.com",
+        "result": {
+          "status": "sent",
+          "recipient": "security-team@example.com",
+          "message_id": "email-1765485249.270872"
+        },
+        "status": "success"
+      },
+      {
+        "test": 2,
+        "recipient": "soc@example.com",
+        "result": {
+          "status": "sent",
+          "recipient": "soc@example.com",
+          "message_id": "email-1765485249.270876"
+        },
+        "status": "success"
+      }
+    ],
+    "webhooks": [
+      {
+        "test": 1,
+        "url": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL",
+        "result": {
+          "status": "triggered",
+          "url": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL",
+          "response_code": 200
+        },
+        "status": "success"
+      },
+      {
+        "test": 2,
+        "url": "https://api.example.com/security/alerts",
+        "result": {
+          "status": "triggered",
+          "url": "https://api.example.com/security/alerts",
+          "response_code": 200
+        },
+        "status": "success"
+      }
+    ],
+    "incident_tickets": [
+      {
+        "test": 1,
+        "ticket_id": "INC-20251211-3654",
+        "result": {
+          "status": "created",
+          "ticket_id": "INC-20251211-3654",
+          "url": "https://tickets.example.com/INC-20251211-3654"
+        },
+        "status": "success"
+      },
+      {
+        "test": 2,
+        "ticket_id": "INC-20251211-3886",
+        "result": {
+          "status": "created",
+          "ticket_id": "INC-20251211-3886",
+          "url": "https://tickets.example.com/INC-20251211-3886"
+        },
+        "status": "success"
+      }
+    ],
+    "threat_intelligence": [
+      {
+        "test": 1,
+        "ip": "192.168.1.100",
+        "result": {
+          "status": "updated",
+          "indicator": "192.168.1.100",
+          "threat_type": "SUCCESSFUL_INTRUSION"
+        },
+        "status": "success"
+      },
+      {
+        "test": 2,
+        "ip": "10.0.0.50",
+        "result": {
+          "status": "updated",
+          "indicator": "10.0.0.50",
+          "threat_type": "MALICIOUS_COMMAND"
+        },
+        "status": "success"
+      }
+    ]
+  }
+}

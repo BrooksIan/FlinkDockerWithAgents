@@ -1,0 +1,292 @@
+{
+  "blocked_ips": [
+    {
+      "ip": "10.0.0.50",
+      "reason": "Blocked in Cowrie honeypot: MALICIOUS_COMMAND",
+      "blocked_at": "2025-12-11T15:47:12.742281",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents",
+      "action_type": "BLOCK_IP_COWRIE",
+      "severity": "HIGH",
+      "alert_id": "ALERT-2024-12-11T14:01:00-2",
+      "whois": {
+        "type": "private",
+        "note": "Private/local IP address - whois not available"
+      }
+    },
+    {
+      "ip": "127.0.0.1",
+      "reason": "Brute force attack pattern",
+      "blocked_at": "2025-12-11T15:40:00.596071",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents",
+      "action_type": "BLOCK_IP_COWRIE",
+      "severity": "MEDIUM",
+      "alert_id": "ALERT-2025-12-11T15:14:55.295984-1192",
+      "whois": {
+        "type": "private",
+        "note": "Private/local IP address - whois not available"
+      }
+    },
+    {
+      "ip": "172.16.0.25",
+      "reason": "Blocked in Cowrie honeypot: SUSPICIOUS_FILE_DOWNLOAD",
+      "blocked_at": "2025-12-11T15:47:12.742288",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents",
+      "action_type": "BLOCK_IP_COWRIE",
+      "severity": "HIGH",
+      "alert_id": "ALERT-HIGH-002",
+      "whois": {
+        "type": "private",
+        "note": "Private/local IP address - whois not available"
+      }
+    },
+    {
+      "ip": "203.0.113.42",
+      "reason": "Blocked in Cowrie honeypot: SUCCESSFUL_INTRUSION",
+      "blocked_at": "2025-12-11T15:47:12.742292",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents",
+      "action_type": "BLOCK_IP_COWRIE",
+      "severity": "CRITICAL",
+      "alert_id": "ALERT-CRITICAL-002",
+      "whois": {
+        "type": "private",
+        "note": "Private/local IP address - whois not available"
+      }
+    },
+    {
+      "ip": "192.168.150.14",
+      "reason": "Brute force attack pattern",
+      "blocked_at": "2025-12-11T21:00:39.435915",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents",
+      "action_type": "BLOCK_IP",
+      "severity": "MEDIUM",
+      "alert_id": "ALERT-2025-12-11T21:00:39.435915-839",
+      "whois": {
+        "type": "private",
+        "note": "Private/local IP address - whois not available"
+      }
+    },
+    {
+      "ip": "192.168.106.52",
+      "reason": "Successful login from 192.168.106.52",
+      "blocked_at": "2025-12-11T21:02:31.196384",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents",
+      "action_type": "BLOCK_IP",
+      "severity": "CRITICAL",
+      "alert_id": "ALERT-2025-12-11T21:02:31.196384-1872",
+      "whois": {
+        "type": "private",
+        "note": "Private/local IP address - whois not available"
+      }
+    },
+    {
+      "ip": "203.0.113.122",
+      "reason": "ReAct: SUCCESSFUL_INTRUSION (CRITICAL)",
+      "blocked_at": "2026-06-08T20:44:47.407616",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.42",
+      "reason": "ReAct: MALICIOUS_COMMAND (HIGH)",
+      "blocked_at": "2026-06-08T20:44:57.469423",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.52",
+      "reason": "ReAct: SUSPICIOUS_FILE_DOWNLOAD (HIGH)",
+      "blocked_at": "2026-06-08T20:45:05.616204",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.40",
+      "reason": "ReAct: MALICIOUS_COMMAND (HIGH)",
+      "blocked_at": "2026-06-08T21:48:56.516442",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.179",
+      "reason": "ReAct: SUCCESSFUL_INTRUSION (CRITICAL)",
+      "blocked_at": "2026-06-08T22:12:24.065037",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.84",
+      "reason": "ReAct: SUCCESSFUL_INTRUSION (CRITICAL)",
+      "blocked_at": "2026-06-08T22:12:34.993738",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.102",
+      "reason": "ReAct: MALICIOUS_COMMAND (HIGH)",
+      "blocked_at": "2026-06-08T22:12:56.652760",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.91",
+      "reason": "ReAct: SUCCESSFUL_INTRUSION (CRITICAL)",
+      "blocked_at": "2026-06-09T13:36:58.165293",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.23",
+      "reason": "ReAct: SUCCESSFUL_INTRUSION (CRITICAL)",
+      "blocked_at": "2026-06-09T15:15:23.228236",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.25",
+      "reason": "ReAct: SUCCESSFUL_INTRUSION (CRITICAL)",
+      "blocked_at": "2026-06-09T15:16:51.172146",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.130",
+      "reason": "ReAct: SUCCESSFUL_INTRUSION (CRITICAL)",
+      "blocked_at": "2026-06-09T17:49:10.340861",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.124",
+      "reason": "ReAct: SUCCESSFUL_INTRUSION (CRITICAL)",
+      "blocked_at": "2026-06-09T17:50:58.630631",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.127",
+      "reason": "ReAct: SUCCESSFUL_INTRUSION (CRITICAL)",
+      "blocked_at": "2026-06-09T17:56:54.866079",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.146",
+      "reason": "ReAct: SUCCESSFUL_INTRUSION (CRITICAL)",
+      "blocked_at": "2026-06-09T21:15:18.374527",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.165",
+      "reason": "ReAct: MALICIOUS_COMMAND (HIGH)",
+      "blocked_at": "2026-06-09T21:16:49.205733",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.232",
+      "reason": "ReAct: SUCCESSFUL_INTRUSION (CRITICAL)",
+      "blocked_at": "2026-06-09T21:43:38.090308",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.43",
+      "reason": "ReAct: MALICIOUS_COMMAND (HIGH)",
+      "blocked_at": "2026-06-09T21:54:43.808985",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.247",
+      "reason": "ReAct: SUCCESSFUL_INTRUSION (CRITICAL)",
+      "blocked_at": "2026-06-10T16:20:50.052972",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.90",
+      "reason": "ReAct: SUCCESSFUL_INTRUSION (CRITICAL)",
+      "blocked_at": "2026-06-10T16:21:02.339811",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.125",
+      "reason": "ReAct: SUCCESSFUL_INTRUSION (CRITICAL)",
+      "blocked_at": "2026-06-10T16:21:19.852548",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.204",
+      "reason": "ReAct: SUCCESSFUL_INTRUSION (CRITICAL)",
+      "blocked_at": "2026-06-10T16:26:04.399960",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.175",
+      "reason": "ReAct: SUCCESSFUL_INTRUSION (CRITICAL)",
+      "blocked_at": "2026-06-11T14:36:24.262307",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.46",
+      "reason": "ReAct: SUCCESSFUL_INTRUSION (CRITICAL)",
+      "blocked_at": "2026-06-11T14:50:35.551229",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.45",
+      "reason": "ReAct: SUCCESSFUL_INTRUSION (CRITICAL)",
+      "blocked_at": "2026-06-11T14:52:45.295619",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.157",
+      "reason": "ReAct: SUSPICIOUS_FILE_DOWNLOAD (HIGH)",
+      "blocked_at": "2026-06-11T19:55:47.760807",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.231",
+      "reason": "ReAct: SUCCESSFUL_INTRUSION (CRITICAL)",
+      "blocked_at": "2026-06-11T20:10:03.214789",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.41",
+      "reason": "ReAct: SUCCESSFUL_INTRUSION (CRITICAL)",
+      "blocked_at": "2026-06-11T20:11:52.669575",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.113",
+      "reason": "ReAct: SUCCESSFUL_INTRUSION (CRITICAL)",
+      "blocked_at": "2026-06-11T21:26:21.422944",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.10",
+      "reason": "Successful intrusion attempt - SUCCESSFUL_INTRUSION",
+      "blocked_at": "2026-06-25T10:20:23.340364",
+      "duration_minutes": 1440,
+      "blocked_by": "Cowrie workflow"
+    }
+  ],
+  "last_updated": "2026-06-25T10:20:23.340617"
+}

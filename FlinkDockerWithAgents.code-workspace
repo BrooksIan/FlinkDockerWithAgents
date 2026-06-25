@@ -1,0 +1,303 @@
+{
+	"folders": [
+		{
+			"path": ".",
+			"name": "FlinkDockerWithAgents"
+		}
+	],
+	"settings": {
+		// Python settings
+		"python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+		"python.analysis.typeCheckingMode": "basic",
+		"python.analysis.autoImportCompletions": true,
+		"python.analysis.diagnosticMode": "workspace",
+		"python.linting.enabled": true,
+		"python.linting.pylintEnabled": false,
+		"python.linting.flake8Enabled": true,
+		"python.formatting.provider": "black",
+		"python.formatting.blackArgs": [
+			"--line-length=100"
+		],
+		"editor.formatOnSave": true,
+		"[python]": {
+			"editor.defaultFormatter": "ms-python.black-formatter",
+			"editor.codeActionsOnSave": {
+				"source.organizeImports": "explicit"
+			},
+			"editor.rulers": [100]
+		},
+		
+		// File associations
+		"files.associations": {
+			"*.yml": "yaml",
+			"*.yaml": "yaml",
+			"docker-compose*.yml": "dockercompose",
+			"Dockerfile*": "dockerfile"
+		},
+		
+		// Editor settings
+		"editor.tabSize": 4,
+		"editor.insertSpaces": true,
+		"editor.trimAutoWhitespace": true,
+		"files.trimTrailingWhitespace": true,
+		"files.insertFinalNewline": true,
+		"files.exclude": {
+			"**/__pycache__": true,
+			"**/*.pyc": true,
+			"**/.pytest_cache": true,
+			"**/.venv": true,
+			"**/node_modules": true
+		},
+		
+		// Search settings
+		"search.exclude": {
+			"**/__pycache__": true,
+			"**/*.pyc": true,
+			"**/.pytest_cache": true,
+			"**/.venv": true,
+			"**/node_modules": true,
+			"**/qdrant_data": true,
+			"**/cowrie-logs": true,
+			"**/cowrie-data": true,
+			"**/dashboard-data": true
+		},
+		
+		// Docker settings
+		"docker.showStartPage": false,
+		
+		// Markdown settings
+		"[markdown]": {
+			"editor.wordWrap": "on",
+			"editor.quickSuggestions": {
+				"comments": "off",
+				"strings": "off",
+				"other": "off"
+			}
+		},
+		
+		// YAML settings
+		"[yaml]": {
+			"editor.insertSpaces": true,
+			"editor.tabSize": 2,
+			"editor.autoIndent": "advanced"
+		},
+		
+		// JSON settings
+		"[json]": {
+			"editor.defaultFormatter": "vscode.json-language-features",
+			"editor.formatOnSave": true
+		},
+		
+		// Shell script settings
+		"[shellscript]": {
+			"editor.tabSize": 2
+		},
+		
+		// Terminal settings
+		"terminal.integrated.defaultProfile.osx": "zsh",
+		"terminal.integrated.cwd": "${workspaceFolder}",
+		
+		// Git settings
+		"git.ignoreLimitWarning": true,
+		
+		// File watcher settings
+		"files.watcherExclude": {
+			"**/__pycache__/**": true,
+			"**/.pytest_cache/**": true,
+			"**/cowrie-logs/**": true,
+			"**/qdrant_data/**": true,
+			"**/dashboard-data/**": true
+		}
+	},
+	"extensions": {
+		"recommendations": [
+			"ms-python.python",
+			"ms-python.vscode-pylance",
+			"ms-python.black-formatter",
+			"ms-python.isort",
+			"ms-azuretools.vscode-docker",
+			"redhat.vscode-yaml",
+			"ms-vscode.makefile-tools",
+			"streetsidesoftware.code-spell-checker",
+			"yzhang.markdown-all-in-one",
+			"davidanson.vscode-markdownlint",
+			"ms-vscode.test-adapter-converter"
+		]
+	},
+	"tasks": {
+		"version": "2.0.0",
+		"tasks": [
+			{
+				"label": "Build Docker Image",
+				"type": "shell",
+				"command": "./deployScript.sh",
+				"group": "build",
+				"presentation": {
+					"reveal": "always",
+					"panel": "dedicated"
+				},
+				"problemMatcher": []
+			},
+			{
+				"label": "Start Flink + Cowrie Services",
+				"type": "shell",
+				"command": "docker-compose -f docker-compose-cowrie.yml up -d",
+				"group": "build",
+				"presentation": {
+					"reveal": "always",
+					"panel": "dedicated"
+				},
+				"problemMatcher": []
+			},
+			{
+				"label": "Stop All Services",
+				"type": "shell",
+				"command": "docker-compose -f docker-compose-cowrie.yml down",
+				"group": "build",
+				"presentation": {
+					"reveal": "always",
+					"panel": "dedicated"
+				},
+				"problemMatcher": []
+			},
+			{
+				"label": "View Service Logs",
+				"type": "shell",
+				"command": "docker-compose -f docker-compose-cowrie.yml logs -f",
+				"group": "test",
+				"presentation": {
+					"reveal": "always",
+					"panel": "dedicated"
+				},
+				"problemMatcher": []
+			},
+			{
+				"label": "Run Cowrie Demo",
+				"type": "shell",
+				"command": "./run_cowrie_demo.sh",
+				"group": "test",
+				"presentation": {
+					"reveal": "always",
+					"panel": "dedicated"
+				},
+				"problemMatcher": []
+			},
+			{
+				"label": "Run Demo",
+				"type": "shell",
+				"command": "./run_demo.sh",
+				"group": "test",
+				"presentation": {
+					"reveal": "always",
+					"panel": "dedicated"
+				},
+				"problemMatcher": []
+			},
+			{
+				"label": "Install Python Dependencies",
+				"type": "shell",
+				"command": "pip install -r requirements.txt",
+				"group": "build",
+				"presentation": {
+					"reveal": "always",
+					"panel": "dedicated"
+				},
+				"problemMatcher": []
+			},
+			{
+				"label": "Run Python Tests",
+				"type": "shell",
+				"command": "python -m pytest test/ -v",
+				"group": "test",
+				"presentation": {
+					"reveal": "always",
+					"panel": "dedicated"
+				},
+				"problemMatcher": {
+					"owner": "python",
+					"fileLocation": ["relative", "${workspaceFolder}"],
+					"pattern": {
+						"regexp": "^(.+):(\\d+):(\\d+):\\s+(ERROR|WARNING|INFO):\\s+(.+)$",
+						"file": 1,
+						"line": 2,
+						"column": 3,
+						"severity": 4,
+						"message": 5
+					}
+				}
+			},
+			{
+				"label": "Check Docker Containers",
+				"type": "shell",
+				"command": "docker-compose -f docker-compose-cowrie.yml ps",
+				"group": "test",
+				"presentation": {
+					"reveal": "always",
+					"panel": "dedicated"
+				},
+				"problemMatcher": []
+			}
+		]
+	},
+	"launch": {
+		"version": "0.2.0",
+		"configurations": [
+			{
+				"name": "Python: Current File",
+				"type": "python",
+				"request": "launch",
+				"program": "${file}",
+				"console": "integratedTerminal",
+				"justMyCode": true,
+				"env": {
+					"PYTHONPATH": "${workspaceFolder}"
+				}
+			},
+			{
+				"name": "Python: Demo Cowrie",
+				"type": "python",
+				"request": "launch",
+				"program": "${workspaceFolder}/demo/demo_cowrie.py",
+				"console": "integratedTerminal",
+				"justMyCode": true,
+				"env": {
+					"PYTHONPATH": "${workspaceFolder}"
+				}
+			},
+			{
+				"name": "Python: Demo React Agent",
+				"type": "python",
+				"request": "launch",
+				"program": "${workspaceFolder}/demo/demo_react_agent.py",
+				"console": "integratedTerminal",
+				"justMyCode": true,
+				"env": {
+					"PYTHONPATH": "${workspaceFolder}"
+				}
+			},
+			{
+				"name": "Python: Dashboard",
+				"type": "python",
+				"request": "launch",
+				"program": "${workspaceFolder}/dashboard/dashboard_cowrie.py",
+				"console": "integratedTerminal",
+				"justMyCode": true,
+				"env": {
+					"PYTHONPATH": "${workspaceFolder}"
+				}
+			},
+			{
+				"name": "Python: Test Cloudera LLM",
+				"type": "python",
+				"request": "launch",
+				"program": "${workspaceFolder}/test/test_cloudera_llm.py",
+				"console": "integratedTerminal",
+				"justMyCode": true,
+				"env": {
+					"PYTHONPATH": "${workspaceFolder}"
+				}
+			}
+		]
+	}
+}
+

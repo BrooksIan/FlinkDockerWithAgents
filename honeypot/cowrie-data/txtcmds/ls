@@ -1,0 +1,7 @@
+total 24
+-rw-r--r-- 1 user user  12345 Jun  1 12:34 infostealer.exe
+-rw-r--r-- 1 user user  23456 Jun  2 13:45 keylogger.exe
+-rw-r--r-- 1 user user  34567 Jun  3 14:56 backdoor.zip
+-rw-r--r-- 1 user user  45678 Jun  4 15:67 credential_harvester.py
+-rw-r--r-- 1 user user  56789 Jun  5 16:78 ransomware.exe
+-rw-r--r-- 1 user user  67890 Jun  6 17:89 brute_force_attacker.py

@@ -1,0 +1,2 @@
+# Cowrie IP Blocklist
+# Managed by Flink Agents
