@@ -19,7 +19,7 @@ from apemosyne.docker_utils import (
     docker_exec,
     project_root,
 )
-from apemosyne.paths import honeypot_module_rel
+from apemosyne.paths import honeypot_available, honeypot_module_rel, project_root
 
 app = typer.Typer(help="Build and smoke-test Flink Agents.")
 
@@ -37,10 +37,23 @@ def _docker_available() -> bool:
         return False
 
 
-def _required_validate_paths(root: Path) -> list[str]:
-    paths = [
+def _generic_validate_paths(root: Path) -> list[str]:
+    return [
         "Dockerfile",
         LAUNCH_TEST,
+        "examples/demo_datastream_local.py",
+        "apemosyne/runtime/cluster_launch_test.py",
+        "apemosyne/runtime/flink_cluster_submit.py",
+        "apemosyne/manifests/test-launch.yaml",
+        "examples/agents/agent-manifest.yaml",
+        "pyproject.toml",
+    ]
+
+
+def _honeypot_validate_paths(root: Path) -> list[str]:
+    if not honeypot_available(root):
+        return []
+    return [
         "test/test_production_pipeline.py",
         honeypot_module_rel("cowrie_kafka_normalize_job.py", root),
         honeypot_module_rel("cowrie_normalize.py", root),
@@ -50,12 +63,15 @@ def _required_validate_paths(root: Path) -> list[str]:
         honeypot_module_rel("cowrie_workflow_detect.py", root),
         honeypot_module_rel("cowrie_phase3_react_augmentor.py", root),
         honeypot_module_rel("cowrie_pipeline.py", root),
-        "examples/demo_datastream_local.py",
         honeypot_module_rel("cowrie_log_processor.py", root),
-        "pyproject.toml",
-        "honeypot/manifests/test-launch.yaml",
         "honeypot/manifests/test-production.yaml",
     ]
+
+
+def _required_validate_paths(root: Path, *, profile: str = DEFAULT_PROFILE) -> list[str]:
+    paths = list(_generic_validate_paths(root))
+    if profile == FULL_PROFILE:
+        paths.extend(_honeypot_validate_paths(root))
     return paths
 
 
@@ -89,7 +105,8 @@ def _bootstrap_cluster_containers(profile: str = DEFAULT_PROFILE) -> None:
         "cd /opt/flink && "
         "export PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:"
         "/opt/flink/opt/python/pyflink.zip:/opt/flink/opt/python/py4j-src.zip && "
-        "python3 -c 'import cluster_launch_test; cluster_launch_test.bootstrap_runtime()'"
+        "python3 -c 'from apemosyne.runtime.cluster_launch_test import bootstrap_runtime; "
+        "bootstrap_runtime()'"
     )
     for service in ("jobmanager", "taskmanager"):
         cid = container_id(service, profile=profile)
@@ -213,10 +230,17 @@ def test_launch(
 
 
 @app.command("validate")
-def test_validate() -> None:
+def test_validate(
+    profile: str = typer.Option(
+        DEFAULT_PROFILE,
+        "--profile",
+        "-p",
+        help="Include honeypot paths when 'full' or when honeypot/ exists",
+    ),
+) -> None:
     """Validate Dockerfile and required workspace files (no Docker build)."""
     root = project_root()
-    required = _required_validate_paths(root)
+    required = _required_validate_paths(root, profile=profile)
     missing = [rel for rel in required if not (root / rel).is_file()]
 
     typer.echo("Validating project files...")
@@ -300,9 +324,11 @@ _LEGACY_REGISTERED = False
 
 
 def register_legacy_commands() -> None:
-    """Attach cluster/e2e test commands from the legacy bytecode implementation."""
+    """Attach honeypot cluster/e2e test commands when the subproject is present."""
     global _LEGACY_REGISTERED
     if _LEGACY_REGISTERED:
+        return
+    if not honeypot_available():
         return
     _LEGACY_REGISTERED = True
 

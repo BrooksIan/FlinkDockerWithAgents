@@ -111,7 +111,7 @@ def ensure_flink_jobs_cmd(
 
 @app.command("up")
 def up(
-    profile: str = typer.Option("full", "--profile", "-p", help=PROFILE_HELP),
+    profile: str = typer.Option("minimal", "--profile", "-p", help=PROFILE_HELP),
     build_image: bool = typer.Option(
         False, "--build-image", help="Build Docker image before starting if missing"
     ),
@@ -179,7 +179,7 @@ def up(
 
 @app.command("down")
 def down(
-    profile: str = typer.Option("full", "--profile", "-p", help=PROFILE_HELP),
+    profile: str = typer.Option("minimal", "--profile", "-p", help=PROFILE_HELP),
     volumes: bool = typer.Option(False, "--volumes", "-v", help="Remove volumes"),
 ) -> None:
     """Stop the stack."""
@@ -192,7 +192,7 @@ def down(
 
 @app.command("status")
 def status(
-    profile: str = typer.Option("full", "--profile", "-p", help=PROFILE_HELP),
+    profile: str = typer.Option("minimal", "--profile", "-p", help=PROFILE_HELP),
 ) -> None:
     """Show running services."""
     run_compose("ps", profile=profile)
@@ -201,7 +201,7 @@ def status(
 @app.command("logs")
 def logs(
     service: str = typer.Argument("", help="Service name (omit for all services)"),
-    profile: str = typer.Option("full", "--profile", "-p", help=PROFILE_HELP),
+    profile: str = typer.Option("minimal", "--profile", "-p", help=PROFILE_HELP),
     follow: bool = typer.Option(False, "--follow", "-f", help="Follow log output"),
 ) -> None:
     """Tail service logs."""

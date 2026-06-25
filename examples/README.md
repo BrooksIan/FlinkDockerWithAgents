@@ -18,6 +18,18 @@ apemosyne up              # or: apemosyne up --profile minimal
 |------|---------|-------------|
 | Datastream | `apemosyne demo datastream` | Flink Agents DataStream smoke test |
 | Table | `apemosyne demo table` | Table API smoke test |
+| Workflow | `apemosyne demo workflow` | Flink Agents workflow agent (local runner) |
+| ReAct lab | `apemosyne demo react` | Tool-chaining lab agent (no LLM) |
+
+Agent lifecycle (no honeypot):
+
+```bash
+apemosyne agent list
+apemosyne agent describe workflow_counter
+apemosyne agent run workflow_counter --local
+apemosyne agent submit workflow_counter   # requires running Flink stack
+apemosyne agent status
+```
 
 Source files (when present in this directory):
 

@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from pathlib import Path
 
@@ -24,21 +23,11 @@ def _bootstrap_paths() -> None:
         from apemosyne.paths import configure_runtime_sys_path
 
         install_aliases()
-        configure_runtime_sys_path(repo)
+        configure_runtime_sys_path(repo, include_honeypot=False)
     except ImportError:
-        hp_src = repo / "honeypot" / "src"
-        for sub in (
-            "cluster",
-            "core",
-            "pipeline",
-            "react",
-            "integrations",
-            "traps",
-            "services",
-        ):
-            path = hp_src / sub
-            if path.is_dir() and str(path) not in sys.path:
-                sys.path.insert(0, str(path))
+        runtime = repo / "apemosyne"
+        if runtime.is_dir() and str(repo) not in sys.path:
+            sys.path.insert(0, str(repo))
 
 
 def _smoke_import() -> None:
@@ -56,7 +45,7 @@ def _smoke_pyflink() -> None:
 
 
 def _run_cluster() -> int:
-    import cluster_launch_test
+    from apemosyne.runtime import cluster_launch_test
 
     return cluster_launch_test.run_cluster_launch()
 

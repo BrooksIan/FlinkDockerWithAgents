@@ -28,3 +28,4 @@ apemosyne = "apemosyne.main:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["apemosyne*"]
+namespaces = false

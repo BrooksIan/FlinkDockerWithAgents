@@ -21,5 +21,8 @@ RUN git clone --depth 1 --branch "${FLINK_AGENTS_VERSION}" https://github.com/ap
     && rm -rf /tmp/flink-agents
 
 COPY examples/demo_datastream.py examples/demo_table.py examples/demo_datastream_local.py /opt/flink/
+COPY examples/agents /opt/flink/examples/agents
+COPY apemosyne/runtime /opt/flink/apemosyne/runtime
+COPY apemosyne/__init__.py /opt/flink/apemosyne/__init__.py
 
 USER flink

@@ -25,6 +25,7 @@ This repository is a **multi-project workspace** centered on the **Apemosyne** C
 | Path | Description |
 |------|-------------|
 | [`apemosyne/`](apemosyne/README.md) | Shared CLI (`apemosyne`) — build, compose, demos, verify |
+| `apemosyne/manifests/` | Generic verify tiers, startup modes, demo catalog |
 | [`examples/`](examples/README.md) | Generic Flink Agents demos (no honeypot deps) |
 | [`honeypot/`](honeypot/README.md) | Cowrie honeypot cybersecurity pipeline (reference subproject) |
 | [`test/`](test/README.md) | CLI and cross-cutting tests |
@@ -72,7 +73,8 @@ See [honeypot/README.md](honeypot/README.md).
 │   └── test/                  # Honeypot tests
 ├── test/                      # CLI / shared tests
 ├── scripts/                   # Shell helpers
-├── docker-compose.yml         # Minimal Flink stack (when present)
+├── docker-compose.yml         # Minimal Flink stack
+├── Dockerfile                 # agent_flink_image build
 └── README.md
 ```
 

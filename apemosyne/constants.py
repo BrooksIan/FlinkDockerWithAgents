@@ -23,7 +23,7 @@ STARTUP_MODE_HELP: Final[str] = (
     "Startup preset: flink (default), honeypot. Run: apemosyne modes"
 )
 
-GENERIC_DEMOS: Final[FrozenSet[str]] = frozenset({"datastream", "table"})
+GENERIC_DEMOS: Final[FrozenSet[str]] = frozenset({"datastream", "table", "workflow", "react"})
 
 ENV_FILE_NAMES: Final[Tuple[str, ...]] = (".env", ".env.flink", ".env.cowrie", ".env.llm")
 ENV_OVERLAY_FILES: Final[Tuple[str, ...]] = (".env.flink", ".env.cowrie", ".env.llm")

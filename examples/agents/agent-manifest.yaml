@@ -1,0 +1,14 @@
+agents:
+  workflow_counter:
+    type: workflow
+    description: Deterministic counter — doubles input values
+    entry: examples.agents.workflow_counter:CounterAgent
+    runner: examples/agents/run_workflow_local.py
+    cluster_script: examples/agents/run_workflow_cluster.py
+
+  react_echo:
+    type: react
+    description: Tool-chaining lab agent (no LLM) — classify and summarize text
+    entry: examples.agents.react_echo:ReactEchoAgent
+    runner: examples/agents/run_react_local.py
+    cluster_script: examples/agents/run_react_cluster.py

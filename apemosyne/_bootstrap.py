@@ -12,10 +12,8 @@ _INSTALLED = False
 
 # Dependency order for modules that exist only as .pyc today.
 _PYC_MODULES = [
-    "copy_manifest",
     "env_sync",
     "config",
-    "startup_modes",
     "checks.doctor",
     "checks.demo_ready",
     "checks",
@@ -150,8 +148,15 @@ def _rebrand_typer_app(mod) -> None:
 
 
 def get_app():
-    """Return the Typer application (loads ``cli`` bytecode once)."""
+    """Return the Typer application (prefers ``apemosyne.cli`` source)."""
     install_aliases()
+    from apemosyne.cli import app as source_app
+
+    return source_app
+
+
+def _legacy_get_app_from_bytecode():
+    """Fallback if source CLI is unavailable."""
     impl = "apemosyne._cli_impl"
     if impl not in sys.modules:
         pyc = _PKG / "__pycache__" / "cli.cpython-312.pyc"

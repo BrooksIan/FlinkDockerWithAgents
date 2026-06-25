@@ -3,6 +3,8 @@ name: demo-files-examples
 choices:
   - datastream
   - table
+  - workflow
+  - react
 demos:
   datastream:
     script: demo_datastream.py
@@ -14,3 +16,21 @@ demos:
     files:
       - local: examples/demo_table.py
         remote: /opt/flink/demo_table.py
+  workflow:
+    script: examples/agents/run_workflow_local.py
+    files:
+      - local: examples/agents/workflow_counter.py
+        remote: /opt/flink/examples/agents/workflow_counter.py
+      - local: examples/agents/run_workflow_local.py
+        remote: /opt/flink/examples/agents/run_workflow_local.py
+      - local: examples/agents/__init__.py
+        remote: /opt/flink/examples/agents/__init__.py
+  react:
+    script: examples/agents/run_react_local.py
+    files:
+      - local: examples/agents/react_echo.py
+        remote: /opt/flink/examples/agents/react_echo.py
+      - local: examples/agents/run_react_local.py
+        remote: /opt/flink/examples/agents/run_react_local.py
+      - local: examples/agents/__init__.py
+        remote: /opt/flink/examples/agents/__init__.py

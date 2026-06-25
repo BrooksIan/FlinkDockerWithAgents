@@ -5,6 +5,9 @@ tiers:
       - type: python
         path: test/test_cli_smoke.py
         description: Workspace layout, manifests, and CLI catalog smoke
+      - type: python
+        path: test/test_generic_platform.py
+        description: Generic agent registry and validate paths (no honeypot)
 
   standard:
     extends: quick
