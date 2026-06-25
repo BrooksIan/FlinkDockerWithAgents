@@ -1,0 +1,14 @@
+flowchart LR
+    NET[Internet] --> COW[Cowrie]
+    COW --> K1[(cowrie.events)]
+    K1 --> N[Phase 1 normalize]
+    N --> K2[(cowrie.normalized)]
+    K2 --> AC[Phase 1.5 actor classify]
+    AC --> K2e[(cowrie.normalized.enriched)]
+    K2e --> P2[Phase 2 workflow]
+    P2 --> K3[(cowrie.alerts)]
+    K2e --> P3[Phase 3 ReAct sidecar]
+    P3 --> K4[(cowrie.react_alerts)]
+    K3 --> DASH[Dashboard JSON]
+    K4 --> DASH
+    DASH --> UI[Streamlit :8501]

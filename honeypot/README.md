@@ -6,9 +6,11 @@ This directory is a **subproject** in the [Flink Agents CLI](../README.md) works
 
 ## Architecture
 
-![Flink Agent powered honeypot — reference architecture](docs/images/PrettyRASlide.png)
+![Flink Agent powered honeypot — reference architecture](docs/images/VeryNiceRA.png)
 
 *Cowrie → Kafka → Phase 2 workflow (`cowrie.alerts`) vs Phase 3 ReAct enrichment (`cowrie.react_alerts`).*
+
+![Simplified pipeline diagram](docs/images/PrettyRASlide.png)
 
 More diagrams: [../docs/PRODUCTION_ARCHITECTURE.md](../docs/PRODUCTION_ARCHITECTURE.md)
 

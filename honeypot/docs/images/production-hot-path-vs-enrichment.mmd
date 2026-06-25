@@ -1,0 +1,20 @@
+flowchart TB
+    subgraph Hot["Hot path — Phase 2 workflow"]
+        direction TB
+        H1[Every event] --> H2[cowrie_workflow_detect]
+        H2 --> H3[Block IP + alert]
+        H4[Latency: ms–s]
+        H5[Engine: pure_python / flink_agents]
+    end
+
+    subgraph Cold["Enrichment — Phase 3 ReAct"]
+        direction TB
+        C1[Selected events] --> C2[kafka-react-augmentor]
+        C2 --> C3[Cloudera LLM reasoning]
+        C3 --> C4[cowrie.react_alerts]
+        C5[Latency: 10–60s]
+        C6[Does not gate blocking]
+    end
+
+    EVT[Normalized event] --> Hot
+    EVT --> Cold

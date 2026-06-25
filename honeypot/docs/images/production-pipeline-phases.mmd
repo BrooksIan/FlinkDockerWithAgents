@@ -1,0 +1,13 @@
+flowchart LR
+    subgraph P1["Phase 1"]
+        E[cowrie.events] --> N[normalize] --> NORM[cowrie.normalized]
+    end
+    subgraph P15["Phase 1.5"]
+        NORM --> AC[actor classify] --> ENR[cowrie.normalized.enriched]
+    end
+    subgraph P2["Phase 2 hot path"]
+        ENR --> WF[workflow detect] --> ALT[cowrie.alerts]
+    end
+    subgraph P3["Phase 3 enrichment"]
+        ENR --> RX[ReAct augmentor] --> RALT[cowrie.react_alerts]
+    end

@@ -1,0 +1,53 @@
+%% Reference architecture — Flink Agents honeypot
+flowchart TB
+    subgraph Internet["Internet attackers"]
+        A[SSH/Telnet scans]
+    end
+
+    subgraph Cowrie["Cowrie honeypot :2222/:2223"]
+        B[JSON event logs]
+    end
+
+    subgraph Kafka["Apache Kafka"]
+        T1[cowrie.events]
+        T2[cowrie.normalized]
+        T2e[cowrie.normalized.enriched]
+        T3[cowrie.alerts]
+        T4[cowrie.react_alerts]
+    end
+
+    subgraph Flink["Flink cluster :8081"]
+        P1[Phase 1 Normalize]
+        P15[Phase 1.5 Actor classify]
+        P2[Phase 2 Workflow]
+    end
+
+    subgraph HotPath["Hot path — milliseconds"]
+        W[cowrie_workflow_detect]
+        BL[Auto-block IP]
+        AL[Security alerts]
+    end
+
+    subgraph Enrichment["Async enrichment"]
+        R3[kafka-react-augmentor]
+        LLM[Cloudera ReAct LLM]
+    end
+
+    subgraph Ops["Internal ops"]
+        D[Streamlit dashboard :8501]
+        FUI[Flink Web UI]
+    end
+
+    A --> B --> T1 --> P1 --> T2
+    T2 --> P15 --> T2e --> P2 --> T3
+    T3 --> W --> BL
+    W --> AL
+    T2e --> R3 --> LLM --> T4
+    T3 --> D
+    T4 --> D
+    P1 & P2 --> FUI
+
+    classDef hot fill:#ffe0e0,stroke:#c00,stroke-width:2px
+    classDef enrich fill:#e0e8ff,stroke:#36c,stroke-width:2px
+    class W,BL,AL,T3 hot
+    class R3,LLM,T4 enrich

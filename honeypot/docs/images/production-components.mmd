@@ -1,0 +1,29 @@
+flowchart TB
+    subgraph Supervisor["flink-pipeline-supervisor"]
+        SK[Kafka topics bootstrap]
+        SJ[Flink job submit 1 / 1.5 / 2]
+    end
+
+    subgraph FlinkJobs["Flink streaming jobs"]
+        J1[Cowrie Phase1 Normalize]
+        J15[Cowrie Phase1.5 Actor Classify]
+        J2[Cowrie Phase2 Workflow]
+    end
+
+    subgraph Sidecars["Kafka sidecars"]
+        LP[log-processor]
+        KAD[kafka-alerts-to-dashboard]
+        KRA[kafka-react-augmentor]
+    end
+
+    subgraph UI["Ops UI"]
+        ST[Streamlit dashboard]
+        FW[Flink Web UI :8081]
+    end
+
+    SK --> FlinkJobs
+    SJ --> FlinkJobs
+    FlinkJobs --> FW
+    LP --> ST
+    KAD --> ST
+    KRA --> ST
