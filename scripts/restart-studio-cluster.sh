@@ -14,8 +14,10 @@ cd "$ROOT"
 BUILD=false
 SMOKE=false
 RESTART_API=false
+START_DASHBOARD=false
 SKIP_KAFKA=false
 SYNC_ONLY=false
+DASHBOARD_PORT="${DASHBOARD_PORT:-3000}"
 
 usage() {
   cat <<'EOF'
@@ -31,6 +33,8 @@ Options:
   --build       Rebuild agent_flink_image before restarting Flink
   --smoke       Run cluster launch smoke job after sync
   --api         Restart Control API on :8090 (stops dev ports first)
+  --dashboard   Start dashboard dev server on :3000 (background)
+  --dev         Shorthand for --api --dashboard
   --no-kafka    Skip Studio Kafka restart
   --sync-only   Do not restart Docker services; copy code + bootstrap only
   -h, --help    Show this help
@@ -44,7 +48,7 @@ Environment (from .env):
 After restart:
   Flink UI:    http://localhost:8082
   Control API: http://127.0.0.1:8090/docs
-  Dashboard:   cd dashboard && npm run dev  → http://localhost:5173
+  Dashboard:   http://localhost:3000  (pass --dev or --dashboard)
 EOF
 }
 
@@ -53,6 +57,8 @@ while [ $# -gt 0 ]; do
     --build) BUILD=true ;;
     --smoke) SMOKE=true ;;
     --api) RESTART_API=true ;;
+    --dashboard) START_DASHBOARD=true ;;
+    --dev) RESTART_API=true; START_DASHBOARD=true ;;
     --no-kafka) SKIP_KAFKA=true ;;
     --sync-only) SYNC_ONLY=true ;;
     -h|--help) usage; exit 0 ;;
@@ -72,6 +78,28 @@ export APEMOSYNE_PROFILE="${APEMOSYNE_PROFILE:-minimal}"
 export FLINK_REST_PORT="${FLINK_REST_PORT:-8082}"
 export KAFKA_BOOTSTRAP_SERVERS="${KAFKA_BOOTSTRAP_SERVERS:-localhost:9094}"
 export APEMOSYNE_API_PORT="${APEMOSYNE_API_PORT:-8090}"
+export DASHBOARD_PORT
+
+start_dashboard() {
+  if [ ! -d "$ROOT/dashboard/node_modules" ]; then
+    echo "  Installing dashboard dependencies..."
+    (cd "$ROOT/dashboard" && npm install)
+  fi
+  mkdir -p "$ROOT/.apemosyne"
+  echo "  Starting dashboard on :${DASHBOARD_PORT}..."
+  (
+    cd "$ROOT/dashboard"
+    nohup npm run dev -- --host 127.0.0.1 --port "$DASHBOARD_PORT" \
+      >"$ROOT/.apemosyne/dashboard-dev.log" 2>&1 &
+    echo $! >"$ROOT/.apemosyne/dashboard.pid"
+  )
+  sleep 2
+  if curl -sf --max-time 5 "http://127.0.0.1:${DASHBOARD_PORT}/" >/dev/null; then
+    echo "  Dashboard ready: http://localhost:${DASHBOARD_PORT}"
+  else
+    echo "  Dashboard starting — log: .apemosyne/dashboard-dev.log" >&2
+  fi
+}
 
 if [ -x "$ROOT/.venv/bin/apemosyne" ]; then
   run_apemosyne() { "$ROOT/.venv/bin/apemosyne" "$@"; }
@@ -127,18 +155,23 @@ from apemosyne.runtime.studio_cluster_sync import restart_studio_cluster
 restart_studio_cluster(smoke=${SMOKE_FLAG})
 PY
 
-if $RESTART_API; then
-  echo "[5/5] Restarting Control API..."
+if $RESTART_API || $START_DASHBOARD; then
+  echo "[5/5] Restarting dev services..."
   "$ROOT/scripts/dev-stop.sh"
-  run_apemosyne api start &
-  sleep 2
-  if curl -sf --max-time 5 "http://127.0.0.1:${APEMOSYNE_API_PORT}/v1/health" >/dev/null; then
-    echo "  API healthy on :${APEMOSYNE_API_PORT}"
-  else
-    echo "  API not healthy yet — check: curl http://127.0.0.1:${APEMOSYNE_API_PORT}/v1/health" >&2
+  if $RESTART_API; then
+    run_apemosyne api start &
+    sleep 2
+    if curl -sf --max-time 5 "http://127.0.0.1:${APEMOSYNE_API_PORT}/v1/health" >/dev/null; then
+      echo "  API healthy on :${APEMOSYNE_API_PORT}"
+    else
+      echo "  API not healthy yet — check: curl http://127.0.0.1:${APEMOSYNE_API_PORT}/v1/health" >&2
+    fi
+  fi
+  if $START_DASHBOARD; then
+    start_dashboard
   fi
 else
-  echo "[5/5] API not restarted (pass --api to restart Control API)"
+  echo "[5/5] Dev services not restarted (pass --dev, --api, or --dashboard)"
 fi
 
 echo ""
@@ -146,6 +179,11 @@ echo "=== Ready ==="
 echo "  Flink UI:    http://localhost:${FLINK_REST_PORT}"
 echo "  Kafka:       ${KAFKA_BOOTSTRAP_SERVERS}"
 echo "  Control API: http://127.0.0.1:${APEMOSYNE_API_PORT}/docs"
+if $START_DASHBOARD; then
+  echo "  Dashboard:   http://localhost:${DASHBOARD_PORT}"
+else
+  echo "  Dashboard:   pass --dev or --dashboard to start"
+fi
 echo ""
-echo "Start dashboard: cd dashboard && npm run dev"
 echo "Submit pipeline: Studio → Run on Flink cluster"
+echo "Stop dev services: ./scripts/dev-stop.sh"

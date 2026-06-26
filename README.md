@@ -35,7 +35,8 @@ APEMOSYNE_API_PORT=8090
 
 ```bash
 ./scripts/restart-studio-cluster.sh
-./scripts/restart-studio-cluster.sh --build --api   # rebuild image + restart API
+./scripts/restart-studio-cluster.sh --dev          # + API + dashboard
+./scripts/restart-studio-cluster.sh --build --dev  # rebuild image + dev stack
 ./scripts/restart-studio-cluster.sh --sync-only     # hot-sync code, no container restart
 ```
 
@@ -118,7 +119,7 @@ apemosyne kafka up|down|status   # Studio Kafka (docker-compose.kafka.yml)
 apemosyne doctor
 
 # Studio cluster (after pulling or editing runtime code)
-./scripts/restart-studio-cluster.sh [--build] [--smoke] [--api] [--sync-only]
+./scripts/restart-studio-cluster.sh [--build] [--smoke] [--dev|--api|--dashboard] [--sync-only]
 
 # Agents
 apemosyne agent list|describe|run|submit|status|cancel

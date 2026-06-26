@@ -21,7 +21,8 @@ ENV SKIP_SPOTLESS_CHECK=true
 RUN git clone --depth 1 --branch "${FLINK_AGENTS_VERSION}" https://github.com/apache/flink-agents.git /tmp/flink-agents \
     && cd /tmp/flink-agents \
     && bash ./tools/build.sh \
-    && python3 -m pip install --break-system-packages ./python/dist/*.whl \
+    && mkdir -p /opt/flink/pythonpath/agent-site-packages \
+    && python3 -m pip install --target=/opt/flink/pythonpath/agent-site-packages ./python/dist/*.whl \
     && rm -rf /tmp/flink-agents
 
 COPY examples/demo_datastream.py examples/demo_table.py examples/demo_datastream_local.py /opt/flink/

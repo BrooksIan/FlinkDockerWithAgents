@@ -18,25 +18,32 @@ Copy [`.env.example`](../.env.example) to `.env` with `APEMOSYNE_PROFILE=minimal
 After pulling changes or editing cluster runtime code:
 
 ```bash
-./scripts/restart-studio-cluster.sh --api
+./scripts/restart-studio-cluster.sh --dev   # Flink + Kafka + API + dashboard
 ```
 
-In a **second terminal**, start the Control API:
+Or restart only dev services (cluster already running):
 
 ```bash
-apemosyne api start
+./scripts/restart-studio-cluster.sh --sync-only --dev
 ```
 
-API docs: http://127.0.0.1:8090/docs
+API docs: http://127.0.0.1:8090/docs  
+Dashboard: http://localhost:3000
 
 Local dev: leave `APEMOSYNE_API_KEY` unset so all routes are open.
 
 ## Run
 
-**One command** (Flink must already be up):
+**One command** (Flink must already be up; foreground API + dashboard):
 
 ```bash
 ./scripts/dev-start.sh
+```
+
+**Background** (after cluster restart):
+
+```bash
+./scripts/restart-studio-cluster.sh --dev
 ```
 
 Stops API + dashboard:

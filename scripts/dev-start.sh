@@ -31,6 +31,6 @@ echo ""
 
 cd "$ROOT/dashboard"
 trap "$ROOT/scripts/dev-stop.sh" EXIT INT TERM
-npm run dev
+npm run dev -- --host 127.0.0.1 --port 3000
 
 wait $API_PID
