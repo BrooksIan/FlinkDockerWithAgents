@@ -161,7 +161,7 @@ def test_generate_cluster_runner_workflow_counter() -> None:
     assert "from examples.agents.workflow_counter import CounterAgent" in script
     assert "env.from_collection(RECORDS)" in script
     assert "stream.print()" in script
-    assert cluster_job_name(pipeline) in script
+    assert "patch_flink_agents_version()" in script
 
 
 def test_generate_cluster_runner_published_agent_import() -> None:

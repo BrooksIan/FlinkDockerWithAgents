@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Optional
 from apemosyne.constants import DEFAULT_PROFILE
 from apemosyne.copy_manifest import copy_pairs_to_cluster
 from apemosyne.designer.runtime_env import react_llm_shell_prefix, sync_designer_db_to_cluster
-from apemosyne.docker_utils import container_id, docker_exec, project_root
+from apemosyne.docker_utils import PYFLINK_PYTHONPATH, container_id, docker_exec, project_root
 from apemosyne.pipelines.cluster_codegen import (
     cluster_job_name,
     cluster_runner_relpath,
@@ -68,6 +68,7 @@ def _cluster_copy_pairs(root: Path, pipeline: Pipeline, runner_path: Path) -> li
         "apemosyne/runtime/flink_cluster_submit.py",
         "apemosyne/runtime/cluster_launch_test.py",
         "apemosyne/runtime/cluster_launch_agent.py",
+        "apemosyne/runtime/flink_agents_bootstrap.py",
         "apemosyne/kafka_sources.py",
         "apemosyne/pipelines/cluster_kafka_sink.py",
         "apemosyne/pipelines/cluster_codegen.py",
@@ -148,8 +149,7 @@ def submit_pipeline_cluster(
             f"{llm_env}"
             f"{kafka_env}"
             "cd /opt/flink && "
-            "export PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:"
-            "/opt/flink/opt/python/pyflink.zip:/opt/flink/opt/python/py4j-src.zip && "
+            f"export PYTHONPATH={PYFLINK_PYTHONPATH} && "
             "export FLINK_REST_ADDRESS=localhost FLINK_REST_PORT=8081 && "
             "python3 -c \""
             "from pathlib import Path; "

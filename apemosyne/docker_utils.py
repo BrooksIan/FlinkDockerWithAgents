@@ -18,7 +18,7 @@ COMPOSE_FULL = "honeypot/docker-compose.yml"
 COMPOSE_KAFKA = "docker-compose.kafka.yml"
 PYFLINK_PYTHONPATH = (
     "/opt/flink:/opt/flink/pythonpath/agent-site-packages:"
-    "/opt/flink/opt/python/pyflink.zip:/opt/flink/opt/python/py4j-src.zip"
+    "/opt/flink/opt/python/pyflink:/opt/flink/opt/python/py4j"
 )
 
 
@@ -111,7 +111,7 @@ def docker_cp(local: Path, container: str, remote: str) -> bool:
     remote_parent = str(Path(remote).parent).replace("\\", "/")
     if remote_parent not in (".", "/"):
         subprocess.run(
-            ["docker", "exec", container, "mkdir", "-p", remote_parent],
+            ["docker", "exec", "-u", "root", container, "mkdir", "-p", remote_parent],
             cwd=project_root(),
             capture_output=True,
             text=True,
@@ -122,6 +122,13 @@ def docker_cp(local: Path, container: str, remote: str) -> bool:
         capture_output=True,
         text=True,
     )
+    if result.returncode == 0 and remote_parent not in (".", "/"):
+        subprocess.run(
+            ["docker", "exec", "-u", "root", container, "chown", "flink:flink", remote],
+            cwd=project_root(),
+            capture_output=True,
+            text=True,
+        )
     return result.returncode == 0
 
 

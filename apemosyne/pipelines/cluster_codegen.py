@@ -146,6 +146,9 @@ def generate_cluster_runner(pipeline: Pipeline, *, root: Path | None = None) -> 
         [
             "def main() -> None:",
             "    _bootstrap()",
+            "    from apemosyne.runtime.flink_agents_bootstrap import patch_flink_agents_version",
+            "",
+            "    patch_flink_agents_version()",
             "    from pyflink.datastream import StreamExecutionEnvironment",
             "    from flink_agents.api.execution_environment import AgentsExecutionEnvironment",
             "    from apemosyne.runtime.flink_cluster_submit import attach_flink_agents_jars",

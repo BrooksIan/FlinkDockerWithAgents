@@ -24,8 +24,8 @@ FLINK_AGENTS_SRC = Path("/opt/flink/flink-agents")
 DEFAULT_PYTHONPATH = (
     "/opt/flink:"
     "/opt/flink/pythonpath/agent-site-packages:"
-    "/opt/flink/opt/python/pyflink.zip:"
-    "/opt/flink/opt/python/py4j-src.zip"
+    "/opt/flink/opt/python/pyflink:"
+    "/opt/flink/opt/python/py4j"
 )
 
 
@@ -33,7 +33,7 @@ def ensure_python_symlink() -> None:
     python3 = Path("/usr/bin/python3")
     python = Path("/usr/bin/python")
     if python3.is_file() and not python.exists():
-        subprocess.run(["ln", "-sf", str(python3), str(python)], check=True)
+        subprocess.run(["ln", "-sf", str(python3), str(python)], check=False)
 
 
 def flink_major_version() -> str:
@@ -112,6 +112,63 @@ def attach_flink_agents_jars(stream_env) -> None:
         pass
 
 
+def ensure_pemja_embed_runtime() -> None:
+    """Install Pemja + libpython for Flink Agents embedded Python on workers."""
+    try:
+        import pemja  # noqa: F401
+    except ImportError:
+        subprocess.run(
+            [
+                "python3",
+                "-m",
+                "pip",
+                "install",
+                "--target",
+                str(SITE_PACKAGES),
+                "pemja>=0.6.0,<0.7.0",
+            ],
+            check=False,
+        )
+
+
+def ensure_pyflink_beam_runtime() -> None:
+    """Install PyFlink 1.20 Beam runner deps when missing from the image."""
+    missing: list[str] = []
+    try:
+        import apache_beam  # noqa: F401
+    except ImportError:
+        missing.extend(
+            [
+                "numpy>=1.22.4,<2",
+                "pyarrow>=5.0.0,<16.0.0",
+                "apache-beam>=2.43.0,<2.49.0",
+                "grpcio-tools>=1.29.0,<=1.51.3",
+            "pemja>=0.5.6,<0.5.8",
+            "setuptools>=75.3,<82",
+            ]
+        )
+    try:
+        import avro  # noqa: F401
+    except ImportError:
+        missing.append("avro-python3>=1.10.0,<1.12.0")
+    if not missing:
+        return
+
+    subprocess.run(
+        [
+            "python3",
+            "-m",
+            "pip",
+            "install",
+            "--target",
+            str(SITE_PACKAGES),
+            "--upgrade",
+            *missing,
+        ],
+        check=False,
+    )
+
+
 def bootstrap_cluster_runtime(
     *,
     download_kafka_jars: bool = False,
@@ -119,6 +176,8 @@ def bootstrap_cluster_runtime(
 ) -> None:
     """Prepare Python workers and optional Flink Agents JARs."""
     ensure_python_symlink()
+    ensure_pemja_embed_runtime()
+    ensure_pyflink_beam_runtime()
     if install_agents_jars:
         ensure_flink_agents_jars()
 
@@ -133,7 +192,7 @@ def bootstrap_cluster_containers(*, profile: str | None = None) -> None:
     command = (
         "cd /opt/flink && "
         "export PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:"
-        "/opt/flink/opt/python/pyflink.zip:/opt/flink/opt/python/py4j-src.zip && "
+        "/opt/flink/opt/python/pyflink:/opt/flink/opt/python/py4j && "
         "python3 -c 'from apemosyne.runtime.cluster_launch_test import bootstrap_runtime; "
         "bootstrap_runtime()'"
     )

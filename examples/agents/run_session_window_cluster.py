@@ -62,7 +62,9 @@ def _kafka_source(env, topic: str, bootstrap: str):
 
 def main() -> None:
     _bootstrap()
-    from pyflink.common.typeinfo import Types
+    from apemosyne.runtime.flink_agents_bootstrap import patch_flink_agents_version
+
+    patch_flink_agents_version()
     from pyflink.datastream import StreamExecutionEnvironment
     from pyflink.datastream.window import DynamicProcessingTimeSessionWindows
     from flink_agents.api.execution_environment import AgentsExecutionEnvironment
@@ -86,12 +88,12 @@ def main() -> None:
     if use_kafka:
         stream = _kafka_source(env, topic, _kafka_bootstrap())
     else:
-        stream = env.from_collection(demo_session_events(), type_info=Types.PICKLED_BYTE_ARRAY())
+        stream = env.from_collection(demo_session_events())
 
     windowed = (
         stream.key_by(lambda e: str(e.get("src_ip") or "unknown"))
         .window(DynamicProcessingTimeSessionWindows.with_dynamic_gap(CowrieActivityGapExtractor()))
-        .process(SessionSummaryFunction(), output_type=Types.PICKLED_BYTE_ARRAY())
+        .process(SessionSummaryFunction())
     )
 
     out = agents_env.from_datastream(

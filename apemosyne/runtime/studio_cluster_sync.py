@@ -143,7 +143,29 @@ def sync_studio_cluster_code(*, profile: str = DEFAULT_PROFILE) -> CopyStats:
     return copy_pairs_to_cluster(pairs, profile=profile)
 
 
+def ensure_cluster_python_embed_libs(*, profile: str | None = None) -> None:
+    """Install libpython on JM/TM (Pemja needs libpython3.10.so at runtime)."""
+    import subprocess
+
+    from apemosyne.constants import DEFAULT_PROFILE
+    from apemosyne.docker_utils import container_id
+
+    active_profile = profile or DEFAULT_PROFILE
+    install_cmd = (
+        "dpkg -s libpython3.10 >/dev/null 2>&1 || "
+        "(apt-get update -qq && apt-get install -y -qq libpython3.10 libpython3.10-dev g++ gcc)"
+    )
+    for service in ("jobmanager", "taskmanager"):
+        cid = container_id(service, profile=active_profile)
+        if cid:
+            subprocess.run(
+                ["docker", "exec", "-u", "root", cid, "bash", "-c", install_cmd],
+                check=False,
+            )
+
+
 def bootstrap_studio_cluster(*, profile: str = DEFAULT_PROFILE) -> None:
+    ensure_cluster_python_embed_libs(profile=profile)
     flink_cluster_submit.bootstrap_cluster_containers(profile=profile)
 
 

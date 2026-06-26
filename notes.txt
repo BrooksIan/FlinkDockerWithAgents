@@ -1,6 +1,6 @@
 Typical after pulling changes:
 
-./scripts/restart-studio-cluster.sh --api
+./scripts/restart-studio-cluster.sh --dev
 
 
 After Dockerfile/runtime edits:

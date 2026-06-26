@@ -20,6 +20,9 @@ def _bootstrap() -> None:
 
 def main() -> None:
     _bootstrap()
+    from apemosyne.runtime.flink_agents_bootstrap import patch_flink_agents_version
+
+    patch_flink_agents_version()
     from pyflink.datastream import StreamExecutionEnvironment
 
     from flink_agents.api.execution_environment import AgentsExecutionEnvironment

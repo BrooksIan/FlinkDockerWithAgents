@@ -16,7 +16,7 @@ services:
       retries: 24
       start_period: 20s
     environment:
-      - PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:/opt/flink/opt/python/pyflink.zip:/opt/flink/opt/python/py4j-src.zip
+      - PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:/opt/flink/opt/python/pyflink:/opt/flink/opt/python/py4j
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
@@ -30,7 +30,7 @@ services:
     command: taskmanager
     scale: 1
     environment:
-      - PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:/opt/flink/opt/python/pyflink.zip:/opt/flink/opt/python/py4j-src.zip
+      - PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:/opt/flink/opt/python/pyflink:/opt/flink/opt/python/py4j
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager

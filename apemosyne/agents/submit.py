@@ -94,6 +94,7 @@ def _agent_copy_pairs(spec: AgentSpec, *, root: Path) -> List[Tuple[str, str]]:
         "apemosyne/runtime/cluster_launch_test.py",
         "apemosyne/runtime/cluster_launch_agent.py",
         "apemosyne/runtime/kafka_jars.py",
+        "apemosyne/runtime/flink_agents_bootstrap.py",
         "apemosyne/kafka_sources.py",
         "apemosyne/paths.py",
         "apemosyne/docker_utils.py",
@@ -200,7 +201,7 @@ def submit_agent_cluster(
         f"{llm_env}"
         "cd /opt/flink && "
         "export PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:"
-        "/opt/flink/opt/python/pyflink.zip:/opt/flink/opt/python/py4j-src.zip && "
+        "/opt/flink/opt/python/pyflink:/opt/flink/opt/python/py4j && "
         "export FLINK_REST_ADDRESS=localhost FLINK_REST_PORT=8081 && "
         "python3 -c \""
         "from pathlib import Path; "
