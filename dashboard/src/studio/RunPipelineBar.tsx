@@ -7,6 +7,8 @@ interface Props {
   submitting: boolean;
   lastRunId: string | null;
   clusterBlockedReason?: string | null;
+  executionPlan?: string | null;
+  windowPreview?: { keyField: string; gapPolicy: string } | null;
   onValidate: () => void;
   onConnectChain: () => void;
   onRun: () => void;
@@ -28,6 +30,8 @@ export function RunPipelineBar({
   submitting,
   lastRunId,
   clusterBlockedReason,
+  executionPlan,
+  windowPreview,
   onValidate,
   onConnectChain,
   onRun,
@@ -64,6 +68,18 @@ export function RunPipelineBar({
           <span className="badge warn">Cluster</span>
           <p>{clusterReactWarning}</p>
         </div>
+      )}
+      {windowPreview && (
+        <p className="muted" style={{ margin: "0 0 0.75rem", fontSize: "0.85rem" }}>
+          Window preview: groups by <code>{windowPreview.keyField}</code>, policy{" "}
+          <code>{windowPreview.gapPolicy}</code>
+          {executionPlan ? ` · flow: ${executionPlan}` : ""}. Local run emits session summaries before agents.
+        </p>
+      )}
+      {!windowPreview && executionPlan && (
+        <p className="muted" style={{ margin: "0 0 0.75rem", fontSize: "0.85rem" }}>
+          Flow: {executionPlan}
+        </p>
       )}
       <div className="actions" style={{ margin: 0 }}>
         <button type="button" className="secondary" onClick={onConnectChain} disabled={busy}>

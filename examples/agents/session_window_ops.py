@@ -1,32 +1,24 @@
-"""PyFlink window operators for session aggregation (cluster runner)."""
+"""PyFlink window operators for session aggregation (cluster runner).
+
+Cowrie/session_detect helpers remain in ``examples/agents`` for optional demos.
+"""
 
 from __future__ import annotations
 
-from typing import Any, Iterable
+from apemosyne.pipelines.window_ops import (
+    FixedGapExtractor,
+    GenericSessionSummaryFunction,
+    PolicyGapExtractor,
+)
 
-from pyflink.datastream.functions import ProcessWindowFunction
-from pyflink.datastream.window import SessionWindowTimeGapExtractor
+# Backward-compatible names used by older runners and docs.
+CowrieActivityGapExtractor = PolicyGapExtractor
+SessionSummaryFunction = GenericSessionSummaryFunction
 
-from examples.agents.session_window_policy import session_gap_ms, summarize_session
-
-
-class CowrieActivityGapExtractor(SessionWindowTimeGapExtractor):
-    """Dynamic processing-time session gap — later codegen target for workflow tools."""
-
-    def extract(self, element: dict[str, Any]) -> int:
-        return session_gap_ms(element)
-
-
-class SessionSummaryFunction(ProcessWindowFunction):
-    """Emit one session summary dict when a dynamic session window closes."""
-
-    def process(
-        self,
-        key: str,
-        context: ProcessWindowFunction.Context,
-        elements: Iterable[dict[str, Any]],
-    ) -> Iterable[dict[str, Any]]:
-        events = list(elements)
-        if not events:
-            return
-        yield summarize_session(str(key), events)
+__all__ = [
+    "CowrieActivityGapExtractor",
+    "FixedGapExtractor",
+    "GenericSessionSummaryFunction",
+    "PolicyGapExtractor",
+    "SessionSummaryFunction",
+]

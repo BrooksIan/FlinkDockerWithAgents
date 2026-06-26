@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from apemosyne.agents.registry import AgentSpec
+from apemosyne.designer.skills_catalog import compiled_agent_uses_skills
 
 
 def is_published_agent_spec(spec: AgentSpec) -> bool:
@@ -115,5 +116,21 @@ def published_agent_artifact_pairs(root: Path, spec: AgentSpec) -> list[tuple[st
     if shim.is_file():
         rel = shim.relative_to(root).as_posix()
         pairs.append((str(shim), f"/opt/flink/{rel}"))
+
+    if compiled_agent_uses_skills(agent_dir):
+        from apemosyne.designer.skills_catalog import skills_copy_pairs
+
+        for path in (
+            root / "examples/agents/react_skills_paths.py",
+            root / "apemosyne/designer/flink_llm.py",
+        ):
+            if path.is_file():
+                rel = path.relative_to(root).as_posix()
+                remote = f"/opt/flink/{rel}"
+                if (str(path), remote) not in pairs:
+                    pairs.append((str(path), remote))
+        for skill_pair in skills_copy_pairs(root):
+            if skill_pair not in pairs:
+                pairs.append(skill_pair)
 
     return pairs

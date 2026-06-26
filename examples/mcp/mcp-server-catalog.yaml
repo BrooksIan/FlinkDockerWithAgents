@@ -1,0 +1,34 @@
+categories:
+  - id: threat_intel
+    label: Threat Intelligence
+    description: External reputation and enrichment lookups.
+    servers:
+      - id: abuseipdb
+        display_name: AbuseIPDB
+        description: IP reputation lookup via AbuseIPDB REST API.
+        transport: http
+        docs_url: https://docs.abuseipdb.com/
+        tags:
+          - security
+          - ip
+        tools:
+          - name: check_ip
+            description: Look up IP abuse confidence score and reports.
+            input_schema:
+              type: object
+              required:
+                - ip
+              properties:
+                ip:
+                  type: string
+                  description: IPv4 or IPv6 address
+        required_secrets:
+          - name: ABUSEIPDB_API_KEY
+            label: AbuseIPDB API key
+        config_schema:
+          type: object
+          properties:
+            max_age_days:
+              type: integer
+              default: 90
+              description: AbuseIPDB maxAgeInDays parameter

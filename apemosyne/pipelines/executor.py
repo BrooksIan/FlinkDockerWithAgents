@@ -181,6 +181,23 @@ def execute_pipeline_agents(
             input_override = None
             continue
 
+        if node.kind == "window":
+            from apemosyne.pipelines.window_local import apply_window_node, session_summary_to_agent_record
+
+            started = time.perf_counter()
+            summaries = apply_window_node(records, node.config)
+            duration_ms = int((time.perf_counter() - started) * 1000)
+            steps.append(
+                AgentStepResult(
+                    agent="window",
+                    duration_ms=duration_ms,
+                    input_data=records,
+                    output_data=summaries,
+                )
+            )
+            records = [session_summary_to_agent_record(summary) for summary in summaries]
+            continue
+
         if node.kind == "sink":
             sink_output = list(records)
             if deliver_sinks:
@@ -198,6 +215,8 @@ def execute_pipeline_agents(
                     records = apply_edge_mapping(records, edge.mapping)
                 else:
                     records = [_agent_output_to_input(r) for r in records]
+            elif src_node.kind == "window":
+                records = [_agent_output_to_input(r) for r in records]
 
         spec = get_agent_spec(node.agent)
         agent_cls = _import_agent_class(spec)
@@ -260,9 +279,10 @@ def run_pipeline_local(
                 _deliver_sink_output(sink_node.config, output)
 
         for step in steps:
+            span_kind = "window" if step.agent == "window" else "agent"
             run_service.append_span(
                 run_id,
-                kind="agent",
+                kind=span_kind,
                 name=step.agent,
                 duration_ms=step.duration_ms,
                 input_data=step.input_data,

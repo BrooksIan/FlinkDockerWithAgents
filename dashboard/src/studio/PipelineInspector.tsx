@@ -208,6 +208,106 @@ export function PipelineInspector({
     );
   }
 
+  if (kind === "window") {
+    const config = ((selectedNode.data as { config?: Record<string, unknown> }).config || {}) as Record<
+      string,
+      unknown
+    >;
+    const keyField = (config.key_field as string) || "key";
+    const gapPolicy = (config.gap_policy as string) || "default";
+    const gapMs = typeof config.gap_ms === "number" ? config.gap_ms : 1000;
+    const executionMode = (config.execution_mode as string) || "logic";
+    const bridgeTopic = (config.bridge_topic as string) || "";
+    return (
+      <div className="studio-inspector card">
+        <h3 style={{ marginTop: 0 }}>Session window</h3>
+        <p className="muted">
+          Groups streaming events by key and emits a session summary when inactivity exceeds the gap.
+        </p>
+        <label className="studio-label">Key field</label>
+        <input
+          className="studio-input"
+          type="text"
+          defaultValue={keyField}
+          key={`${selectedNode.id}-key`}
+          onBlur={(e) =>
+            onUpdateNode(selectedNode.id, {
+              config: { ...config, key_field: e.target.value.trim() || "key" },
+            })
+          }
+        />
+        <label className="studio-label">Gap policy</label>
+        <select
+          className="studio-select"
+          value={gapPolicy}
+          onChange={(e) =>
+            onUpdateNode(selectedNode.id, {
+              config: { ...config, gap_policy: e.target.value },
+            })
+          }
+        >
+          <option value="default">default (fixed gap)</option>
+          <option value="session_detect">session_detect (Cowrie example)</option>
+        </select>
+        {gapPolicy === "default" && (
+          <>
+            <label className="studio-label">Gap (ms)</label>
+            <input
+              className="studio-input"
+              type="number"
+              min={1}
+              defaultValue={gapMs}
+              key={`${selectedNode.id}-gap-ms`}
+              onBlur={(e) => {
+                const parsed = parseInt(e.target.value, 10);
+                onUpdateNode(selectedNode.id, {
+                  config: { ...config, gap_ms: Number.isFinite(parsed) && parsed > 0 ? parsed : 1000 },
+                });
+              }}
+            />
+          </>
+        )}
+        <label className="studio-label">Cluster execution</label>
+        <select
+          className="studio-select"
+          value={executionMode}
+          onChange={(e) =>
+            onUpdateNode(selectedNode.id, {
+              config: { ...config, execution_mode: e.target.value },
+            })
+          }
+        >
+          <option value="logic">Logic map (recommended)</option>
+          <option value="agent_bridge">Agent bridge (Kafka + full Flink Agents)</option>
+        </select>
+        {executionMode === "agent_bridge" && (
+          <>
+            <label className="studio-label">Bridge topic (optional)</label>
+            <input
+              className="studio-input"
+              type="text"
+              placeholder="pipeline.{id}.sessions"
+              defaultValue={bridgeTopic}
+              key={`${selectedNode.id}-bridge`}
+              onBlur={(e) =>
+                onUpdateNode(selectedNode.id, {
+                  config: {
+                    ...config,
+                    bridge_topic: e.target.value.trim() || undefined,
+                  },
+                })
+              }
+            />
+            <p className="muted" style={{ fontSize: "0.8rem" }}>
+              Window job publishes session summaries here; agent job consumes them.
+            </p>
+          </>
+        )}
+        {deleteButton}
+      </div>
+    );
+  }
+
   if (kind === "agent") {
     const d = selectedNode.data as { agent?: string; agentType?: string; description?: string };
     return (

@@ -51,7 +51,7 @@ def test_validate_pipeline_cluster_rejects_kafka_source() -> None:
     )
     result = validate_pipeline_cluster(pipeline)
     assert result["valid"] is False
-    assert any("Kafka" in err and "source" in err.lower() or "streaming" in err.lower() for err in result["errors"])
+    assert any("window" in err.lower() for err in result["errors"])
 
 
 def test_validate_pipeline_cluster_allows_kafka_sink() -> None:

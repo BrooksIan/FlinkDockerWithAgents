@@ -17,7 +17,7 @@ import { NodePalette } from "../studio/NodePalette";
 import { PipelineInspector } from "../studio/PipelineInspector";
 import { RunPipelineBar } from "../studio/RunPipelineBar";
 import { StudioCanvas, type DroppedNodeSpec } from "../studio/StudioCanvas";
-import { connectEdge, buildLinearChainEdges, DEFAULT_KAFKA_OUTPUT_TOPIC, flowToPipeline, nextId, pipelineToFlow, pruneOrphanEdges } from "../studio/pipelineUtils";
+import { connectEdge, buildLinearChainEdges, ensureLinearChainEdges, DEFAULT_KAFKA_OUTPUT_TOPIC, flowToPipeline, nextId, pipelineToFlow, pruneOrphanEdges } from "../studio/pipelineUtils";
 
 export function StudioEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -257,6 +257,28 @@ export function StudioEditorPage() {
         },
       };
     }
+    if (spec.kind === "window") {
+      return {
+        id: nextId("win"),
+        type: "window",
+        position,
+        data: {
+          label: "Session window",
+          keyField: "key",
+          gapPolicy: "default",
+          gapMs: 1000,
+          executionMode: "logic",
+          config: {
+            window_type: "dynamic_session",
+            key_field: "key",
+            gap_policy: "default",
+            gap_ms: 1000,
+            time_mode: "processing",
+            execution_mode: "logic",
+          },
+        },
+      };
+    }
     return {
       id: nextId("agent"),
       type: "agent",
@@ -289,6 +311,10 @@ export function StudioEditorPage() {
     addNodeAt({ kind: "source", kafkaSource: true }, { x: 80, y: 120 + nodes.length * 40 });
   }
 
+  function addWindow() {
+    addNodeAt({ kind: "window" }, { x: 240, y: 120 + nodes.length * 40 });
+  }
+
   function addSink() {
     addNodeAt({ kind: "sink" }, { x: 600, y: 120 + nodes.length * 40 });
   }
@@ -313,6 +339,9 @@ export function StudioEditorPage() {
         sinkType?: string;
         kafkaTopic?: string;
         recordCount?: number;
+        keyField?: string;
+        gapPolicy?: string;
+        executionMode?: string;
       };
       const config = patch.config ?? prev.config;
       const data: typeof prev & Record<string, unknown> = { ...n.data, config };
@@ -331,6 +360,12 @@ export function StudioEditorPage() {
       } else if (config?.sink_type === "capture") {
         data.sinkType = "capture";
         data.kafkaTopic = undefined;
+      }
+      if (n.type === "window" && config) {
+        data.keyField = (config.key_field as string) || "key";
+        data.gapPolicy = (config.gap_policy as string) || "default";
+        data.gapMs = typeof config.gap_ms === "number" ? config.gap_ms : 1000;
+        data.executionMode = (config.execution_mode as string) || "logic";
       }
       return { ...n, data };
     });
@@ -352,12 +387,12 @@ export function StudioEditorPage() {
   async function handleValidate() {
     if (!id) return;
     try {
-      const cleanEdges = pruneOrphanEdges(nodes, edges);
-      if (cleanEdges.length !== edges.length) {
-        setEdges(cleanEdges);
-        edgesRef.current = cleanEdges;
+      const nextEdges = ensureLinearChainEdges(nodes, edges);
+      if (nextEdges.length !== edges.length) {
+        setEdges(nextEdges);
+        edgesRef.current = nextEdges;
       }
-      await persist(nodes, cleanEdges);
+      await persist(nodes, nextEdges);
       const result = await api.validatePipeline(id);
       setValidation(result);
       if (!result.valid) {
@@ -384,12 +419,8 @@ export function StudioEditorPage() {
     setRunning(true);
     setError(null);
     try {
-      let nextEdges = pruneOrphanEdges(nodes, edges);
+      let nextEdges = ensureLinearChainEdges(nodes, edges);
       if (nextEdges.length !== edges.length) {
-        setEdges(nextEdges);
-      }
-      if (nextEdges.length < nodes.length - 1 && nodes.length >= 2) {
-        nextEdges = buildLinearChainEdges(nodes);
         setEdges(nextEdges);
       }
       await persist(nodes, nextEdges);
@@ -422,12 +453,8 @@ export function StudioEditorPage() {
     setSubmitting(true);
     setError(null);
     try {
-      let nextEdges = pruneOrphanEdges(nodes, edges);
+      let nextEdges = ensureLinearChainEdges(nodes, edges);
       if (nextEdges.length !== edges.length) {
-        setEdges(nextEdges);
-      }
-      if (nextEdges.length < nodes.length - 1 && nodes.length >= 2) {
-        nextEdges = buildLinearChainEdges(nodes);
         setEdges(nextEdges);
       }
       await persist(nodes, nextEdges);
@@ -458,16 +485,24 @@ export function StudioEditorPage() {
 
   function clusterBatchBlockedReason(): string | null {
     const source = nodes.find((n) => n.type === "source");
+    const hasWindow = nodes.some((n) => n.type === "window");
     const sourceData = source?.data as {
       sourceType?: string;
       config?: { source_type?: string };
     };
     const sourceType = sourceData?.sourceType || sourceData?.config?.source_type || "records";
-    if (sourceType === "kafka") {
-      return "Flink cluster (batch) needs a static records source. Kafka streaming source is coming next.";
+    if (sourceType === "kafka" && !hasWindow) {
+      return "Kafka streaming source requires a window node before cluster submit.";
     }
     return null;
   }
+
+  const windowPreview = nodes.find((n) => n.type === "window");
+  const executionPlan = nodes.length
+    ? ["source", "window", "agent", "sink"]
+        .filter((kind) => nodes.some((n) => n.type === kind))
+        .join(" → ")
+    : null;
 
   if (!id) return null;
 
@@ -512,6 +547,15 @@ export function StudioEditorPage() {
         submitting={submitting}
         lastRunId={lastRunId}
         clusterBlockedReason={clusterBatchBlockedReason()}
+        executionPlan={executionPlan}
+        windowPreview={
+          windowPreview
+            ? {
+                keyField: (windowPreview.data as { keyField?: string }).keyField || "key",
+                gapPolicy: (windowPreview.data as { gapPolicy?: string }).gapPolicy || "default",
+              }
+            : null
+        }
         onValidate={handleValidate}
         onConnectChain={handleConnectChain}
         onRun={handleRun}
@@ -526,6 +570,7 @@ export function StudioEditorPage() {
           kafkaReachable={kafkaReachable}
           onAddSource={addSource}
           onAddKafkaSource={addKafkaSource}
+          onAddWindow={addWindow}
           onAddSink={addSink}
           onAddKafkaSink={addKafkaSink}
           onAddAgent={addAgent}

@@ -67,6 +67,16 @@ class ReactLlmSettingsTest(BaseModel):
     api_key: str | None = None
 
 
+class McpInstanceUpdate(BaseModel):
+    enabled: bool = False
+    secrets: dict[str, str] | None = None
+    config: dict[str, Any] | None = None
+
+
+class McpInstanceTest(BaseModel):
+    secrets: dict[str, str] | None = None
+
+
 class AgentDefinitionCreate(BaseModel):
     name: str = "Untitled agent"
     type: str = "workflow"
@@ -80,6 +90,7 @@ class AgentDefinitionCreate(BaseModel):
     catalog_category_id: str | None = None
     catalog_subcategory_id: str | None = None
     catalog_tags: list[str] = Field(default_factory=list)
+    mcp_servers: list[str] = Field(default_factory=list)
 
 
 class AgentDefinitionUpdate(BaseModel):
@@ -97,6 +108,7 @@ class AgentDefinitionUpdate(BaseModel):
     catalog_category_id: str | None = None
     catalog_subcategory_id: str | None = None
     catalog_tags: list[str] | None = None
+    mcp_servers: list[str] | None = None
 
 
 def _settings(request: Request) -> ApiSettings:
@@ -203,6 +215,53 @@ def designer_llm_settings_test(body: ReactLlmSettingsTest | None = None) -> dict
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@router.get("/mcp/catalog", tags=["mcp"], dependencies=[Depends(require_api_key)])
+def mcp_catalog() -> dict[str, Any]:
+    try:
+        return services.mcp_catalog_api()
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/designer/mcp-instances", tags=["mcp"], dependencies=[Depends(require_api_key)])
+def designer_mcp_instances_list() -> dict[str, Any]:
+    return services.list_mcp_instances_api()
+
+
+@router.put(
+    "/designer/mcp-instances/{catalog_id}",
+    tags=["mcp"],
+    dependencies=[Depends(require_api_key)],
+)
+def designer_mcp_instances_upsert(catalog_id: str, body: McpInstanceUpdate) -> dict[str, Any]:
+    try:
+        return services.upsert_mcp_instance_api(catalog_id, body.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post(
+    "/designer/mcp-instances/{catalog_id}/test",
+    tags=["mcp"],
+    dependencies=[Depends(require_api_key)],
+)
+def designer_mcp_instances_test(catalog_id: str, body: McpInstanceTest | None = None) -> dict[str, Any]:
+    try:
+        payload = body.model_dump() if body else None
+        return services.test_mcp_instance_api(catalog_id, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@router.get("/designer/skills", tags=["designer"], dependencies=[Depends(require_api_key)])
+def designer_skills_catalog() -> list[dict[str, Any]]:
+    from apemosyne.designer.skills_catalog import skill_catalog_for_api
+
+    return skill_catalog_for_api()
 
 
 @router.get(

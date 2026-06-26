@@ -9,13 +9,14 @@ interface Props {
   kafkaReachable?: boolean;
   onAddSource: () => void;
   onAddKafkaSource: () => void;
+  onAddWindow: () => void;
   onAddSink: () => void;
   onAddKafkaSink: () => void;
   onAddAgent: (agent: AgentSummary) => void;
 }
 
 function dragPayload(
-  kind: "source" | "agent" | "sink",
+  kind: "source" | "window" | "agent" | "sink",
   extra?: { agent?: AgentSummary; kafkaSource?: boolean; kafkaSink?: boolean },
 ) {
   return JSON.stringify({
@@ -90,6 +91,7 @@ export function NodePalette({
   kafkaReachable,
   onAddSource,
   onAddKafkaSource,
+  onAddWindow,
   onAddSink,
   onAddKafkaSink,
   onAddAgent,
@@ -132,6 +134,16 @@ export function NodePalette({
           Kafka topics unavailable. Start the full stack: <code>apemosyne up --profile full</code>
         </p>
       )}
+
+      <h4>Window</h4>
+      <div className="studio-palette-actions">
+        <PaletteItem
+          label="+ Dynamic session window"
+          sub="Group events by key, close on inactivity"
+          payload={dragPayload("window")}
+          onClick={onAddWindow}
+        />
+      </div>
 
       <h4>Sinks</h4>
       <div className="studio-palette-actions">

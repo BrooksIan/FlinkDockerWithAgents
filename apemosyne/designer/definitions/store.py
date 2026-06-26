@@ -245,6 +245,7 @@ class AgentDefinitionStore:
             catalog_category_id=catalog.get("category_id"),
             catalog_subcategory_id=catalog.get("subcategory_id"),
             catalog_tags=list(catalog.get("tags") or []),
+            mcp_servers=list(catalog.get("mcp_servers") or []),
             created_at=row["created_at"],
             updated_at=row["updated_at"],
         )

@@ -66,6 +66,12 @@ def _import_agent_class(spec: AgentSpec) -> type:
     return agent_cls
 
 
+def _skills_copy_pairs(root: Path, *, rel_dir: str = "examples/skills") -> List[Tuple[str, str]]:
+    from apemosyne.designer.skills_catalog import skills_copy_pairs
+
+    return skills_copy_pairs(root, rel_dir=rel_dir)
+
+
 def _agent_copy_pairs(spec: AgentSpec, *, root: Path) -> List[Tuple[str, str]]:
     pairs: list[tuple[str, str]] = []
     if spec.cluster_script:
@@ -121,6 +127,20 @@ def _agent_copy_pairs(spec: AgentSpec, *, root: Path) -> List[Tuple[str, str]]:
                 remote = f"/opt/flink/{rel}"
                 if (str(path), remote) not in pairs:
                     pairs.append((str(path), remote))
+
+    if spec.name == "react_skills_demo":
+        for path in (
+            root / "examples/agents/react_skills_paths.py",
+            root / "apemosyne/designer/flink_llm.py",
+        ):
+            if path.is_file():
+                rel = path.relative_to(root).as_posix()
+                remote = f"/opt/flink/{rel}"
+                if (str(path), remote) not in pairs:
+                    pairs.append((str(path), remote))
+        for skill_pair in _skills_copy_pairs(root):
+            if skill_pair not in pairs:
+                pairs.append(skill_pair)
 
     if spec.name == "session_detect":
         for path in (

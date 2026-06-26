@@ -18,6 +18,7 @@ const KIND_LABELS: Record<AgentNodeKind, string> = {
   input_event: "Input",
   action: "Action",
   tool: "Tool",
+  mcp_tool: "MCP Tool",
   output_event: "Output",
   prompt: "Prompt",
   llm_call: "LLM",
@@ -100,6 +101,7 @@ export function inferEdgeKind(source?: Node, target?: Node): AgentEdgeKind {
   const tk = target?.type;
   if (sk === "input_event" && tk === "action") return "listens_to";
   if (sk === "action" && tk === "tool") return "calls";
+  if (sk === "action" && tk === "mcp_tool") return "calls";
   if (sk === "action" && (tk === "prompt" || tk === "llm_call")) return "calls";
   if (sk === "action" && tk === "output_event") return "emits";
   if (sk === "action" && tk === "action") return "listens_to";
@@ -137,7 +139,7 @@ export function autoWireAgentGraph(nodes: Node[], edges: Edge[]): Edge[] {
   const action = nodes.find((n) => n.type === "action");
   const prompts = nodes.filter((n) => n.type === "prompt").sort((a, b) => a.position.x - b.position.x);
   const llmCalls = nodes.filter((n) => n.type === "llm_call").sort((a, b) => a.position.x - b.position.x);
-  const tools = nodes.filter((n) => n.type === "tool").sort((a, b) => a.position.x - b.position.x);
+  const tools = nodes.filter((n) => n.type === "tool" || n.type === "mcp_tool").sort((a, b) => a.position.x - b.position.x);
   const output = nodes.find((n) => n.type === "output_event");
 
   const chain: Node[] = [];
@@ -192,6 +194,12 @@ export function defaultConfigForKind(kind: AgentNodeKind): Record<string, unknow
       return { listens_to: ["_input_event"] };
     case "tool":
       return { tool_ref: "double", expression: "value * 2" };
+    case "mcp_tool":
+      return {
+        server_ref: "inst_abuseipdb",
+        tool_name: "check_ip",
+        arg_name: "ip",
+      };
     case "output_event":
       return { event_type: "_output_event" };
     case "prompt":
@@ -211,6 +219,8 @@ export function defaultNameForKind(kind: AgentNodeKind): string {
       return "process";
     case "tool":
       return "double";
+    case "mcp_tool":
+      return "check_ip";
     case "output_event":
       return "OutputEvent";
     case "prompt":

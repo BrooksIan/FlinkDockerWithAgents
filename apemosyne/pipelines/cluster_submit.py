@@ -69,9 +69,16 @@ def _cluster_copy_pairs(root: Path, pipeline: Pipeline, runner_path: Path) -> li
         "apemosyne/runtime/cluster_launch_test.py",
         "apemosyne/runtime/cluster_launch_agent.py",
         "apemosyne/runtime/flink_agents_bootstrap.py",
+        "apemosyne/runtime/kafka_jars.py",
         "apemosyne/kafka_sources.py",
         "apemosyne/pipelines/cluster_kafka_sink.py",
         "apemosyne/pipelines/cluster_codegen.py",
+        "apemosyne/pipelines/window_config.py",
+        "apemosyne/pipelines/window_policies.py",
+        "apemosyne/pipelines/window_ops.py",
+        "apemosyne/pipelines/window_local.py",
+        "apemosyne/pipelines/window_codegen.py",
+        "apemosyne/pipelines/validate_cluster.py",
     ):
         local = root / runtime_rel
         if local.is_file():
@@ -115,10 +122,26 @@ def submit_pipeline_cluster(
 
     try:
         runner_path = write_cluster_runner(pipeline, root=repo)
+        import ast
+
+        try:
+            ast.parse(runner_path.read_text(encoding="utf-8"))
+        except SyntaxError as exc:
+            raise RuntimeError(f"Generated cluster runner has a syntax error: {exc}") from exc
+
         rel = cluster_runner_relpath(pipeline.id)
         remote = f"/opt/flink/{rel}"
 
         pairs = _cluster_copy_pairs(repo, pipeline, runner_path)
+        from apemosyne.pipelines.window_config import EXECUTION_AGENT_BRIDGE, parse_window_config, pipeline_window_node
+
+        window_node = pipeline_window_node(pipeline)
+        if window_node and parse_window_config(window_node.config).execution_mode == EXECUTION_AGENT_BRIDGE:
+            bridge_dir = runner_path.parent
+            for name in ("run_cluster_window.py", "run_cluster_agent.py"):
+                local = bridge_dir / name
+                if local.is_file():
+                    pairs.append((str(local), f"/opt/flink/.apemosyne/pipelines/{pipeline.id}/{name}"))
         stats = copy_pairs_to_cluster(pairs, profile=profile)
         if stats.failed:
             service.finish_run(

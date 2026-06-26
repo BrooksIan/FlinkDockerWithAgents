@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-NodeKind = Literal["source", "agent", "sink"]
+NodeKind = Literal["source", "window", "agent", "sink"]
 
 
 @dataclass

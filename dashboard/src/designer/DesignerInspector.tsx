@@ -1,5 +1,7 @@
 import type { Edge, Node } from "@xyflow/react";
-import type { AgentEdgeKind, AgentNodeKind } from "../api/types";
+import { useEffect, useState } from "react";
+import { api } from "../api/client";
+import type { AgentEdgeKind, AgentNodeKind, DesignerSkill, LlmCallConfig } from "../api/types";
 import { PromptInstructionFields } from "./DesignerPromptPanel";
 import { kindLabel } from "./definitionUtils";
 
@@ -14,6 +16,38 @@ interface Props {
 
 const EDGE_KINDS: AgentEdgeKind[] = ["listens_to", "calls", "emits"];
 
+function llmConfigFromNode(config: Record<string, unknown>): LlmCallConfig {
+  const mode = config.mode === "flink_skills" ? "flink_skills" : "simple";
+  const skills = Array.isArray(config.skills)
+    ? config.skills.map((item) => String(item)).filter(Boolean)
+    : [];
+  const allowed_commands = Array.isArray(config.allowed_commands)
+    ? config.allowed_commands.map((item) => String(item)).filter(Boolean)
+    : [];
+  return {
+    use_platform_llm: config.use_platform_llm !== false,
+    mode,
+    skills,
+    allowed_commands,
+  };
+}
+
+function mergeAllowedCommands(
+  selectedSkills: string[],
+  catalog: DesignerSkill[],
+  current: string[],
+): string[] {
+  const merged = [...current];
+  for (const skillId of selectedSkills) {
+    const entry = catalog.find((item) => item.id === skillId);
+    if (!entry) continue;
+    for (const command of entry.default_allowed_commands) {
+      if (!merged.includes(command)) merged.push(command);
+    }
+  }
+  return merged;
+}
+
 export function DesignerInspector({
   selectedNode,
   selectedEdge,
@@ -22,6 +56,16 @@ export function DesignerInspector({
   onDeleteNode,
   onDeleteEdge,
 }: Props) {
+  const [skillCatalog, setSkillCatalog] = useState<DesignerSkill[]>([]);
+  const [skillsError, setSkillsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    api
+      .designerSkills()
+      .then(setSkillCatalog)
+      .catch((err) => setSkillsError(String(err)));
+  }, []);
+
   if (!selectedNode && !selectedEdge) {
     return (
       <div className="studio-inspector card">
@@ -176,10 +220,131 @@ export function DesignerInspector({
       ) : null}
 
       {kind === "llm_call" ? (
-        <p className="muted" style={{ fontSize: "0.85rem" }}>
-          Uses platform LLM settings from <strong>Settings</strong> when{" "}
-          <code>use_platform_llm</code> is enabled.
-        </p>
+        <>
+          <label className="studio-label">Execution mode</label>
+          <select
+            className="studio-select"
+            value={llmConfigFromNode(config).mode || "simple"}
+            onChange={(e) => {
+              const mode = e.target.value === "flink_skills" ? "flink_skills" : "simple";
+              const next: LlmCallConfig = {
+                ...llmConfigFromNode(config),
+                mode,
+              };
+              if (mode === "flink_skills" && (!next.skills || next.skills.length === 0)) {
+                next.skills = skillCatalog.length ? [skillCatalog[0].id] : ["math-calculator"];
+                next.allowed_commands = mergeAllowedCommands(
+                  next.skills,
+                  skillCatalog,
+                  next.allowed_commands || [],
+                );
+              }
+              onUpdateNode(selectedNode.id, {
+                config: { ...config, ...next },
+              });
+            }}
+          >
+            <option value="simple">Simple (HTTP LLM)</option>
+            <option value="flink_skills">Flink skills (native chat model)</option>
+          </select>
+
+          {llmConfigFromNode(config).mode === "simple" ? (
+            <>
+              <label className="studio-label">
+                <input
+                  type="checkbox"
+                  checked={llmConfigFromNode(config).use_platform_llm !== false}
+                  onChange={(e) =>
+                    onUpdateNode(selectedNode.id, {
+                      config: { ...config, use_platform_llm: e.target.checked },
+                    })
+                  }
+                />{" "}
+                Use platform LLM from Settings
+              </label>
+              <p className="muted" style={{ fontSize: "0.85rem" }}>
+                Direct OpenAI-compatible call via Designer settings. Compile appends JSON response
+                rules to the system prompt.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="muted" style={{ fontSize: "0.85rem" }}>
+                Uses native <code>@chat_model_setup</code> with <code>load_skill</code> and{" "}
+                <code>bash</code>. Configure endpoint and model in <strong>Settings</strong>.
+              </p>
+              {skillsError ? (
+                <p className="error-text" style={{ fontSize: "0.85rem" }}>
+                  {skillsError}
+                </p>
+              ) : null}
+              <label className="studio-label">Skills</label>
+              {skillCatalog.length === 0 ? (
+                <p className="muted" style={{ fontSize: "0.85rem" }}>
+                  No skills found under <code>examples/skills/</code>.
+                </p>
+              ) : (
+                <div className="designer-skill-list">
+                  {skillCatalog.map((skill) => {
+                    const selected = (llmConfigFromNode(config).skills || []).includes(skill.id);
+                    return (
+                      <label key={skill.id} className="designer-skill-option">
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={(e) => {
+                            const current = llmConfigFromNode(config).skills || [];
+                            const nextSkills = e.target.checked
+                              ? [...current, skill.id]
+                              : current.filter((item) => item !== skill.id);
+                            const nextCommands = mergeAllowedCommands(
+                              nextSkills,
+                              skillCatalog,
+                              llmConfigFromNode(config).allowed_commands || [],
+                            );
+                            onUpdateNode(selectedNode.id, {
+                              config: {
+                                ...config,
+                                mode: "flink_skills",
+                                skills: nextSkills,
+                                allowed_commands: nextCommands,
+                              },
+                            });
+                          }}
+                        />
+                        <span>
+                          <strong>{skill.name}</strong>
+                          {skill.description ? (
+                            <span className="muted"> — {skill.description}</span>
+                          ) : null}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+              <label className="studio-label">Allowed bash commands</label>
+              <input
+                className="studio-input"
+                type="text"
+                value={(llmConfigFromNode(config).allowed_commands || []).join(", ")}
+                placeholder="echo, bc"
+                onChange={(e) => {
+                  const allowed_commands = e.target.value
+                    .split(",")
+                    .map((item) => item.trim())
+                    .filter(Boolean);
+                  onUpdateNode(selectedNode.id, {
+                    config: { ...config, mode: "flink_skills", allowed_commands },
+                  });
+                }}
+              />
+              <p className="muted" style={{ fontSize: "0.85rem" }}>
+                Whitelist for the built-in <code>bash</code> tool. Auto-filled from selected skills.
+              </p>
+            </>
+          )}
+        </>
       ) : null}
 
       <div className="actions" style={{ marginTop: "1rem" }}>

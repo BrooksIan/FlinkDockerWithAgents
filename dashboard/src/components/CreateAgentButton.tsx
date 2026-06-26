@@ -64,6 +64,7 @@ export function CreateAgentButton({ onError }: Props) {
         >
           <option value="workflow">Workflow</option>
           <option value="react">ReAct (LLM)</option>
+          <option value="react_skills">ReAct (Flink skills)</option>
         </select>
       </label>
       <button type="button" disabled={creating || !trimmedName} onClick={handleCreate}>

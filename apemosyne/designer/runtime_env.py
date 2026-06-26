@@ -20,7 +20,10 @@ def designer_copy_pairs(root: Path | None = None) -> list[tuple[str, str]]:
         "apemosyne/designer/store.py",
         "apemosyne/designer/llm_settings.py",
         "apemosyne/designer/llm_client.py",
+        "apemosyne/designer/flink_llm.py",
+        "apemosyne/designer/skills_catalog.py",
         "apemosyne/designer/runtime_env.py",
+        "examples/agents/react_skills_paths.py",
         "examples/agents/react_double_value_logic.py",
         "examples/agents/react_double_value_prompt.py",
     ):

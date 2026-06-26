@@ -7,7 +7,9 @@ from typing import Any, Literal
 
 AgentDefinitionType = Literal["workflow", "react"]
 AgentDefinitionStatus = Literal["draft", "compiled", "published"]
-AgentNodeKind = Literal["input_event", "action", "tool", "output_event", "prompt", "llm_call"]
+AgentNodeKind = Literal[
+    "input_event", "action", "tool", "mcp_tool", "output_event", "prompt", "llm_call"
+]
 AgentEdgeKind = Literal["listens_to", "calls", "emits"]
 
 
@@ -44,6 +46,7 @@ class AgentDefinition:
     catalog_category_id: str | None = None
     catalog_subcategory_id: str | None = None
     catalog_tags: list[str] = field(default_factory=list)
+    mcp_servers: list[str] = field(default_factory=list)
     created_at: str = ""
     updated_at: str = ""
 
@@ -81,6 +84,7 @@ def agent_definition_from_dict(data: dict[str, Any]) -> AgentDefinition:
         catalog_category_id=data.get("catalog_category_id"),
         catalog_subcategory_id=data.get("catalog_subcategory_id"),
         catalog_tags=list(data.get("catalog_tags") or []),
+        mcp_servers=list(data.get("mcp_servers") or []),
         created_at=data.get("created_at") or "",
         updated_at=data.get("updated_at") or "",
     )

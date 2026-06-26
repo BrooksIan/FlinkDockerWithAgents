@@ -136,10 +136,107 @@ export interface ReactLlmSettingsTestResult {
   };
 }
 
+export interface McpToolSpec {
+  name: string;
+  description: string;
+  input_schema?: Record<string, unknown>;
+}
+
+export interface McpSecretSpec {
+  name: string;
+  label: string;
+}
+
+export interface McpCatalogServer {
+  id: string;
+  display_name: string;
+  description: string;
+  transport: string;
+  docs_url?: string | null;
+  tags: string[];
+  tools: McpToolSpec[];
+  required_secrets: McpSecretSpec[];
+  config_schema?: Record<string, unknown>;
+  default_instance_id: string;
+  category_id: string;
+  category_label: string;
+}
+
+export interface McpCatalogCategory {
+  id: string;
+  label: string;
+  description: string;
+  servers: McpCatalogServer[];
+}
+
+export interface McpCatalog {
+  categories: McpCatalogCategory[];
+}
+
+export interface McpSecretStatus {
+  set: boolean;
+  hint?: string | null;
+  source?: string | null;
+}
+
+export interface McpInstance {
+  instance_id: string;
+  catalog_id: string;
+  display_name: string;
+  description: string;
+  enabled: boolean;
+  config: Record<string, unknown>;
+  secrets: Record<string, McpSecretStatus>;
+  configured: boolean;
+  updated_at?: string | null;
+}
+
+export interface McpInstancesResponse {
+  instances: McpInstance[];
+}
+
+export interface McpInstanceUpdate {
+  enabled: boolean;
+  secrets?: Record<string, string>;
+  config?: Record<string, unknown>;
+}
+
+export interface McpInstanceTestRequest {
+  secrets?: Record<string, string>;
+}
+
+export interface McpInstanceTestResult {
+  ok: boolean;
+  catalog_id: string;
+  instance_id: string;
+  tool?: string;
+  message: string;
+  result: Record<string, unknown>;
+}
+
+export type LlmCallMode = "simple" | "flink_skills";
+
+export interface DesignerSkill {
+  id: string;
+  name: string;
+  description: string;
+  compatibility: string;
+  default_allowed_commands: string[];
+  path: string;
+}
+
+export interface LlmCallConfig {
+  use_platform_llm?: boolean;
+  mode?: LlmCallMode;
+  skills?: string[];
+  allowed_commands?: string[];
+}
+
 export type AgentNodeKind =
   | "input_event"
   | "action"
   | "tool"
+  | "mcp_tool"
   | "output_event"
   | "prompt"
   | "llm_call";
@@ -171,6 +268,7 @@ export interface AgentDefinitionSummary {
   catalog_category_id?: string | null;
   catalog_subcategory_id?: string | null;
   catalog_tags: string[];
+  mcp_servers: string[];
   created_at: string;
   updated_at: string;
 }
@@ -229,6 +327,7 @@ export interface AgentDefinitionCreate {
   catalog_category_id?: string | null;
   catalog_subcategory_id?: string | null;
   catalog_tags?: string[];
+  mcp_servers?: string[];
 }
 
 export interface AgentDetail extends AgentSummary {
@@ -300,9 +399,15 @@ export interface KafkaTopicsResponse {
 
 export interface PipelineNodeDef {
   id: string;
-  kind: "source" | "agent" | "sink";
+  kind: "source" | "window" | "agent" | "sink";
   agent?: string | null;
   config?: Record<string, unknown>;
+}
+
+export interface PipelineExecutionStep {
+  kind: string;
+  name: string;
+  description: string;
 }
 
 export interface PipelineEdgeDef {

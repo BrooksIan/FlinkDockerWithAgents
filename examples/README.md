@@ -21,6 +21,8 @@ Catalog: [`agents/agent-catalog.yaml`](agents/agent-catalog.yaml) — categories
 |-------|------|--------------|-------------|
 | `workflow_counter` | workflow | `run_workflow_local.py` | `@action` + `@tool` — doubles integers |
 | `react_echo` | react | `run_react_local.py` | Tool-chaining lab (no LLM) |
+| `react_double_value` | react | `run_react_double_local.py` | LLM doubles numeric input (Designer settings) |
+| `react_skills_demo` | react | `run_react_skills_demo_local.py` | Native `@chat_model_setup` + math-calculator skill |
 
 ```bash
 apemosyne agent list

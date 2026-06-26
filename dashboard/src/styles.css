@@ -426,6 +426,10 @@ pre.yaml {
   border-color: #2d6a3f;
 }
 
+.studio-node.window {
+  border-color: #d97706;
+}
+
 .studio-node.sink {
   border-color: #7c3aed;
 }
@@ -444,6 +448,25 @@ pre.yaml {
   margin: 0.75rem 0 0.35rem;
   font-size: 0.85rem;
   color: var(--muted);
+}
+
+.designer-skill-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+.designer-skill-option {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+.designer-skill-option input {
+  margin-top: 0.15rem;
 }
 
 .studio-textarea {

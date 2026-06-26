@@ -254,6 +254,38 @@ def test_react_llm_settings_api(body: dict[str, Any] | None = None) -> dict[str,
         raise ValueError(str(exc)) from exc
 
 
+def mcp_catalog_api() -> dict[str, Any]:
+    from apemosyne.mcp.catalog import McpCatalogError, mcp_catalog_response
+
+    try:
+        return mcp_catalog_response()
+    except McpCatalogError as exc:
+        raise ValueError(str(exc)) from exc
+
+
+def list_mcp_instances_api() -> dict[str, Any]:
+    from apemosyne.mcp.instances import list_mcp_instances_api as list_instances
+
+    return list_instances()
+
+
+def upsert_mcp_instance_api(catalog_id: str, body: dict[str, Any]) -> dict[str, Any]:
+    from apemosyne.mcp.instances import upsert_mcp_instance
+
+    return upsert_mcp_instance(
+        catalog_id,
+        enabled=bool(body.get("enabled")),
+        secrets=body.get("secrets"),
+        config=body.get("config"),
+    )
+
+
+def test_mcp_instance_api(catalog_id: str, body: dict[str, Any] | None = None) -> dict[str, Any]:
+    from apemosyne.mcp.instances import test_mcp_instance
+
+    return test_mcp_instance(catalog_id, secrets=(body or {}).get("secrets"))
+
+
 def list_agent_definitions(*, limit: int = 100) -> list[dict[str, Any]]:
     from apemosyne.designer.definitions.service import default_agent_definition_service
 
@@ -282,6 +314,7 @@ def create_agent_definition(body: dict[str, Any]) -> dict[str, Any]:
         catalog_category_id=body.get("catalog_category_id"),
         catalog_subcategory_id=body.get("catalog_subcategory_id"),
         catalog_tags=body.get("catalog_tags"),
+        mcp_servers=body.get("mcp_servers"),
     )
 
 

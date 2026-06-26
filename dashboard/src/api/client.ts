@@ -20,6 +20,13 @@ import type {
   ReactLlmSettingsTestRequest,
   ReactLlmSettingsTestResult,
   ReactLlmSettingsUpdate,
+  DesignerSkill,
+  McpCatalog,
+  McpInstance,
+  McpInstanceTestRequest,
+  McpInstanceTestResult,
+  McpInstanceUpdate,
+  McpInstancesResponse,
   RunDetail,
   RunSummary,
 } from "./types";
@@ -73,6 +80,29 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body ?? {}),
     }),
+
+  designerSkills: () => request<DesignerSkill[]>("/v1/designer/skills"),
+
+  mcpCatalog: () => request<McpCatalog>("/v1/mcp/catalog"),
+
+  mcpInstances: () => request<McpInstancesResponse>("/v1/designer/mcp-instances"),
+
+  updateMcpInstance: (catalogId: string, body: McpInstanceUpdate) =>
+    request<McpInstance>(`/v1/designer/mcp-instances/${encodeURIComponent(catalogId)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+
+  testMcpInstance: (catalogId: string, body?: McpInstanceTestRequest) =>
+    request<McpInstanceTestResult>(
+      `/v1/designer/mcp-instances/${encodeURIComponent(catalogId)}/test`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body ?? {}),
+      },
+    ),
 
   agentDefinitions: () => request<AgentDefinition[]>("/v1/agent-definitions"),
 

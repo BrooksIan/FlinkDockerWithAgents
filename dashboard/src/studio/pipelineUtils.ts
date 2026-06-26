@@ -33,6 +33,22 @@ export function pipelineToFlow(
         },
       };
     }
+    if (n.kind === "window") {
+      const config = n.config || {};
+      return {
+        id: n.id,
+        type: "window",
+        position: pos,
+        data: {
+          label: "Session window",
+          keyField: (config.key_field as string) || "key",
+          gapPolicy: (config.gap_policy as string) || "default",
+          gapMs: typeof config.gap_ms === "number" ? config.gap_ms : 1000,
+          executionMode: (config.execution_mode as string) || "logic",
+          config,
+        },
+      };
+    }
     if (n.kind === "sink") {
       const config = n.config || {};
       const sinkType = config.sink_type === "kafka" ? "kafka" : "capture";
@@ -87,11 +103,20 @@ function linearChainNodes(nodes: Node[]): Node[] {
   const ordered = [...nodes].sort((a, b) => a.position.x - b.position.x || a.position.y - b.position.y);
   const source = ordered.find((n) => n.type === "source");
   const sink = ordered.find((n) => n.type === "sink");
+  const window = ordered.find((n) => n.type === "window");
   const agents = ordered.filter((n) => n.type === "agent");
-  return [source, ...agents, sink].filter(Boolean) as Node[];
+  return [source, window, ...agents, sink].filter(Boolean) as Node[];
 }
 
-/** Build a fresh Source → agents → Sink edge list (replaces stale wiring). */
+export function ensureLinearChainEdges(nodes: Node[], edges: Edge[]): Edge[] {
+  const pruned = pruneOrphanEdges(nodes, edges);
+  if (nodes.length >= 2 && pruned.length < nodes.length - 1) {
+    return buildLinearChainEdges(nodes);
+  }
+  return pruned;
+}
+
+/** Build source → window? → agents → sink edges (replaces stale wiring). */
 export function buildLinearChainEdges(nodes: Node[]): Edge[] {
   const chain = linearChainNodes(nodes);
   if (chain.length < 2) return [];
@@ -128,6 +153,20 @@ export function flowToPipeline(
           records: [{ key: "1", value: 3 }],
         } as Record<string, unknown>);
       return { id: n.id, kind: "source", config };
+    }
+    if (n.type === "window") {
+      const existing = (n.data as { config?: Record<string, unknown> }).config;
+      const config =
+        existing ||
+        ({
+          window_type: "dynamic_session",
+          key_field: "key",
+          gap_policy: "default",
+          gap_ms: 1000,
+          time_mode: "processing",
+          execution_mode: "logic",
+        } as Record<string, unknown>);
+      return { id: n.id, kind: "window", config };
     }
     if (n.type === "sink") {
       const existing = (n.data as { config?: Record<string, unknown> }).config;
@@ -235,6 +274,131 @@ export function emptyPipeline(): Partial<PipelineSummary> {
     nodes: [],
     edges: [],
     layout: {},
+  };
+}
+
+export function defaultSessionWindowPipeline(): Partial<PipelineSummary> {
+  return {
+    name: "Session window",
+    nodes: [
+      {
+        id: "src1",
+        kind: "source",
+        config: {
+          source_type: "records",
+          records: [
+            { key: "user-a", value: 1, timestamp: 100 },
+            { key: "user-a", value: 2, timestamp: 101 },
+            { key: "user-a", value: 3, timestamp: 102 },
+            { key: "user-b", value: 10, timestamp: 200 },
+            { key: "user-b", value: 11, timestamp: 201 },
+          ],
+        },
+      },
+      {
+        id: "win1",
+        kind: "window",
+        config: {
+          window_type: "dynamic_session",
+          key_field: "key",
+          gap_policy: "default",
+          gap_ms: 1000,
+          time_mode: "processing",
+          execution_mode: "logic",
+        },
+      },
+      { id: "agent_wc", kind: "agent", agent: "workflow_counter" },
+      { id: "sink1", kind: "sink", config: { sink_type: "capture" } },
+    ],
+    edges: [
+      { id: "e1", source: "src1", target: "win1" },
+      { id: "e2", source: "win1", target: "agent_wc" },
+      { id: "e3", source: "agent_wc", target: "sink1" },
+    ],
+    layout: {
+      src1: { x: 80, y: 200 },
+      win1: { x: 280, y: 200 },
+      agent_wc: { x: 480, y: 200 },
+      sink1: { x: 680, y: 200 },
+    },
+  };
+}
+
+export function defaultSessionDetectPipeline(): Partial<PipelineSummary> {
+  return {
+    name: "Session detect (Cowrie)",
+    nodes: [
+      {
+        id: "src1",
+        kind: "source",
+        config: {
+          source_type: "records",
+          records: [
+            {
+              eventid: "cowrie.login.failed",
+              src_ip: "10.0.0.42",
+              timestamp: 1719412800,
+              session: "sess-brute",
+            },
+            {
+              eventid: "cowrie.login.failed",
+              src_ip: "10.0.0.42",
+              timestamp: 1719412801,
+              session: "sess-brute",
+            },
+            {
+              eventid: "cowrie.login.failed",
+              src_ip: "10.0.0.42",
+              timestamp: 1719412802,
+              session: "sess-brute",
+            },
+            {
+              eventid: "cowrie.login.failed",
+              src_ip: "10.0.0.42",
+              timestamp: 1719412803,
+              session: "sess-brute",
+            },
+            {
+              eventid: "cowrie.login.failed",
+              src_ip: "10.0.0.42",
+              timestamp: 1719412804,
+              session: "sess-brute",
+            },
+            {
+              eventid: "cowrie.command.input",
+              src_ip: "10.0.0.99",
+              timestamp: 1719412810,
+              session: "sess-probe",
+              input: "uname -a",
+            },
+          ],
+        },
+      },
+      {
+        id: "win1",
+        kind: "window",
+        config: {
+          window_type: "dynamic_session",
+          key_field: "src_ip",
+          gap_policy: "session_detect",
+          time_mode: "processing",
+          execution_mode: "logic",
+        },
+      },
+      { id: "agent_sd", kind: "agent", agent: "session_detect" },
+      { id: "sink1", kind: "sink", config: { sink_type: "capture" } },
+    ],
+    edges: [
+      { id: "e1", source: "src1", target: "win1" },
+      { id: "e2", source: "win1", target: "agent_sd" },
+      { id: "e3", source: "agent_sd", target: "sink1" },
+    ],
+    layout: {
+      src1: { x: 80, y: 200 },
+      win1: { x: 280, y: 200 },
+      agent_sd: { x: 480, y: 200 },
+      sink1: { x: 680, y: 200 },
+    },
   };
 }
 

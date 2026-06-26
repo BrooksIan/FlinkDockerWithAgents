@@ -8,6 +8,13 @@ from apemosyne.agents.published_copy import is_published_agent_spec
 from apemosyne.agents.registry import AgentRegistryError, get_agent_spec
 from apemosyne.pipelines.models import Pipeline
 from apemosyne.pipelines.validate import validate_pipeline
+from apemosyne.pipelines.window_config import (
+    EXECUTION_AGENT_BRIDGE,
+    EXECUTION_LOGIC,
+    default_bridge_topic,
+    parse_window_config,
+    pipeline_window_node,
+)
 
 PUBLISHED_REACT_CLUSTER_WARNING = (
     "Published ReAct agents are not reliable on Flink cluster yet (known Pemja classloader issue). "
@@ -48,6 +55,8 @@ def validate_pipeline_cluster(pipeline: Pipeline) -> dict[str, Any]:
 
     source = next((n for n in pipeline.nodes if n.kind == "source"), None)
     sink = next((n for n in pipeline.nodes if n.kind == "sink"), None)
+    window_node = pipeline_window_node(pipeline)
+    window_config = parse_window_config(window_node.config if window_node else None)
 
     mode = "batch"
 
@@ -55,12 +64,39 @@ def validate_pipeline_cluster(pipeline: Pipeline) -> dict[str, Any]:
         errors.append("Pipeline must have a source node")
     else:
         source_type = str(source.config.get("source_type") or "records").strip().lower()
-        if source_type == "kafka":
+        if window_node is not None:
+            mode = "streaming_window"
+            if source_type == "kafka":
+                mode = "streaming_kafka_window"
+            elif not source.config.get("records"):
+                errors.append("Window cluster submit requires source records or Kafka source")
+        elif source_type == "kafka":
             errors.append(
-                "Cluster streaming from Kafka is not supported yet — use static records for batch cluster jobs"
+                "Cluster streaming from Kafka requires a window node — add a session window or use static records"
             )
         elif not source.config.get("records"):
             errors.append("Cluster submit requires source records")
+
+    if window_node is not None:
+        if window_config.execution_mode == EXECUTION_AGENT_BRIDGE:
+            mode = "streaming_window_bridge"
+            warnings.append(
+                f"Agent bridge mode submits two Flink jobs via Kafka topic "
+                f"{default_bridge_topic(pipeline.id, window_node.config)!r}"
+            )
+            try:
+                from apemosyne.kafka_sources import kafka_reachable
+
+                if not kafka_reachable():
+                    warnings.append(
+                        "Kafka broker unreachable — agent bridge requires Kafka: apemosyne kafka up"
+                    )
+            except Exception:
+                warnings.append("Could not verify Kafka broker reachability for agent bridge")
+        elif window_config.execution_mode == EXECUTION_LOGIC:
+            warnings.append(
+                "Cluster window uses logic-map mode (PyFlink window + agent rules) to avoid Pemja conflicts"
+            )
 
     if sink is None:
         errors.append("Pipeline must have a sink node")
@@ -72,7 +108,7 @@ def validate_pipeline_cluster(pipeline: Pipeline) -> dict[str, Any]:
                 from apemosyne.kafka_sources import DEFAULT_KAFKA_OUTPUT_TOPIC
 
                 topic = DEFAULT_KAFKA_OUTPUT_TOPIC
-            mode = "batch_kafka_sink"
+            mode = f"{mode}_kafka_sink" if mode != "batch" else "batch_kafka_sink"
             try:
                 from apemosyne.kafka_sources import kafka_reachable
 

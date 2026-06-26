@@ -17,15 +17,17 @@ import { useCallback, useEffect, useMemo, type DragEvent } from "react";
 import { AgentNode } from "./nodes/AgentNode";
 import { SinkNode } from "./nodes/SinkNode";
 import { SourceNode } from "./nodes/SourceNode";
+import { WindowNode } from "./nodes/WindowNode";
 
 const nodeTypes = {
   source: SourceNode,
+  window: WindowNode,
   agent: AgentNode,
   sink: SinkNode,
 };
 
 export type DroppedNodeSpec = {
-  kind: "source" | "agent" | "sink";
+  kind: "source" | "window" | "agent" | "sink";
   agent?: string;
   agentType?: string;
   description?: string;

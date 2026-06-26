@@ -10,6 +10,7 @@ _VALID_NODE_KINDS = {
     "input_event",
     "action",
     "tool",
+    "mcp_tool",
     "output_event",
     "prompt",
     "llm_call",
@@ -52,6 +53,7 @@ def validate_agent_definition(definition: AgentDefinition) -> dict[str, Any]:
     outputs = [n for n in definition.nodes if n.kind == "output_event"]
     actions = [n for n in definition.nodes if n.kind == "action"]
     tools = [n for n in definition.nodes if n.kind == "tool"]
+    mcp_tools = [n for n in definition.nodes if n.kind == "mcp_tool"]
 
     if len(inputs) != 1:
         errors.append("Agent must have exactly one input_event node")
@@ -60,14 +62,43 @@ def validate_agent_definition(definition: AgentDefinition) -> dict[str, Any]:
     if len(actions) != 1:
         errors.append("Agent must have exactly one action node")
 
-    if definition.type == "workflow" and not tools:
+    if definition.type == "workflow" and not tools and not mcp_tools:
         warnings.append("Workflow agent has no tool nodes")
+
+    attached = set(definition.mcp_servers or [])
+    for mcp_node in mcp_tools:
+        config = mcp_node.config or {}
+        server_ref = str(config.get("server_ref") or "").strip()
+        tool_name = str(config.get("tool_name") or "").strip()
+        if not server_ref:
+            errors.append(f"MCP tool node {mcp_node.id!r} requires server_ref")
+        elif attached and server_ref not in attached:
+            errors.append(
+                f"MCP tool node {mcp_node.id!r} references {server_ref!r} "
+                f"which is not attached to this agent"
+            )
+        if not tool_name:
+            errors.append(f"MCP tool node {mcp_node.id!r} requires tool_name")
 
     if definition.type == "react":
         prompts = [n for n in definition.nodes if n.kind == "prompt"]
         llm_nodes = [n for n in definition.nodes if n.kind == "llm_call"]
         if not prompts and not llm_nodes:
             warnings.append("ReAct agent has no prompt or llm_call nodes")
+        if llm_nodes:
+            from apemosyne.designer.skills_catalog import react_llm_config
+
+            llm_config = react_llm_config(llm_nodes[0])
+            if llm_config["mode"] == "flink_skills":
+                if not llm_config["skills"]:
+                    errors.append("Flink skills mode requires at least one skill on the llm_call node")
+                if not llm_config["allowed_commands"]:
+                    errors.append(
+                        "Flink skills mode requires allowed_commands on the llm_call node "
+                        "(select skills to auto-fill defaults)"
+                    )
+                if llm_config["use_platform_llm"] is False:
+                    warnings.append("Flink skills mode ignores use_platform_llm=false; native chat model is required")
 
     if errors:
         return {"valid": False, "errors": errors, "warnings": warnings}
@@ -98,7 +129,7 @@ def validate_agent_definition(definition: AgentDefinition) -> dict[str, Any]:
     if _has_cycle(tool_adjacency, list(node_ids)):
         errors.append("Agent graph contains a cycle")
 
-    for tool in tools:
+    for tool in tools + mcp_tools:
         callers = [
             e.source
             for e in definition.edges

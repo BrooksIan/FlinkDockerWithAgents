@@ -179,6 +179,7 @@ Agents are declared in [`examples/agents/agent-manifest.yaml`](../examples/agent
 | `workflow_counter` | workflow | Deterministic `@action` + `@tool` — doubles integers |
 | `react_echo` | react | Tool-chaining lab agent (no LLM) |
 | `react_double_value` | react | ReAct agent that doubles values via LLM (requires Settings LLM) |
+| `react_skills_demo` | react | Native Flink chat model + math-calculator skill (requires Settings LLM) |
 
 ```bash
 apemosyne agent list

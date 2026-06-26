@@ -18,6 +18,12 @@ agents:
     entry: examples.agents.react_double_value:ReactDoubleValueAgent
     runner: examples/agents/run_react_double_local.py
     cluster_script: examples/agents/run_react_double_cluster.py
+  react_skills_demo:
+    type: react
+    description: "Native Flink chat model with math-calculator skill (Designer LLM settings)"
+    entry: examples.agents.react_skills_demo:ReactSkillsDemoAgent
+    runner: examples/agents/run_react_skills_demo_local.py
+    cluster_script: examples/agents/run_react_skills_demo_cluster.py
   basicreact:
     type: react
     description: "ReAct agent with LLM prompt \u2014 configure LLM in Settings."

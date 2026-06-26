@@ -44,6 +44,7 @@ def _definition_to_dict(definition: AgentDefinition) -> dict[str, Any]:
         "catalog_category_id": definition.catalog_category_id,
         "catalog_subcategory_id": definition.catalog_subcategory_id,
         "catalog_tags": list(definition.catalog_tags),
+        "mcp_servers": list(definition.mcp_servers),
         "created_at": definition.created_at,
         "updated_at": definition.updated_at,
     }
@@ -95,6 +96,7 @@ class AgentDefinitionService:
         catalog_category_id: str | None = None,
         catalog_subcategory_id: str | None = None,
         catalog_tags: list[str] | None = None,
+        mcp_servers: list[str] | None = None,
     ) -> dict[str, Any]:
         definition_id = f"def_{uuid.uuid4().hex[:12]}"
         now = _utc_now()
@@ -115,6 +117,7 @@ class AgentDefinitionService:
                 "category_id": catalog_category_id,
                 "subcategory_id": catalog_subcategory_id,
                 "tags": catalog_tags or [],
+                "mcp_servers": mcp_servers or [],
             },
             created_at=now,
             updated_at=now,
@@ -141,6 +144,7 @@ class AgentDefinitionService:
                 "category_id": payload.get("catalog_category_id"),
                 "subcategory_id": payload.get("catalog_subcategory_id"),
                 "tags": list(payload.get("catalog_tags") or []),
+                "mcp_servers": list(payload.get("mcp_servers") or []),
             },
             created_at=now,
             updated_at=now,
@@ -180,6 +184,7 @@ class AgentDefinitionService:
             "category_id": definition.catalog_category_id,
             "subcategory_id": definition.catalog_subcategory_id,
             "tags": list(definition.catalog_tags),
+            "mcp_servers": list(definition.mcp_servers),
         }
         if "catalog_category_id" in body:
             catalog["category_id"] = body["catalog_category_id"]
@@ -187,6 +192,8 @@ class AgentDefinitionService:
             catalog["subcategory_id"] = body["catalog_subcategory_id"]
         if "catalog_tags" in body:
             catalog["tags"] = list(body["catalog_tags"] or [])
+        if "mcp_servers" in body:
+            catalog["mcp_servers"] = list(body["mcp_servers"] or [])
 
         updated = self._store.update(
             definition_id,

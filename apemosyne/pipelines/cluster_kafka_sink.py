@@ -38,6 +38,12 @@ def deliver_pipeline_kafka_sink(
     if sink_type != "kafka":
         return None
 
+    # Window/streaming runners embed FlinkKafkaProducer; batch agents jobs use post-submit delivery.
+    from apemosyne.pipelines.window_config import pipeline_window_node
+
+    if pipeline_window_node(pipeline) is not None:
+        return None
+
     output, _steps = run_pipeline_in_container(
         pipeline,
         profile=profile or DEFAULT_PROFILE,

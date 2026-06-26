@@ -129,6 +129,29 @@ categories:
             type: string
           agent:
             type: string
+    - id: react_skills_demo
+      manifest: react_skills_demo
+      display_name: ReAct Skills Demo
+      description: Native Flink chat model with the math-calculator skill. Loads SKILL.md
+        on demand and evaluates expressions via bc. Uses Designer LLM settings.
+      tags:
+      - demo
+      - react
+      - skills
+      - llm
+      input_schema:
+        type: object
+        properties:
+          message:
+            type: string
+            description: Arithmetic question for the model
+      output_schema:
+        type: object
+        properties:
+          answer:
+            type: string
+          agent:
+            type: string
     - id: basicreact
       manifest: basicreact
       display_name: BasicReAct

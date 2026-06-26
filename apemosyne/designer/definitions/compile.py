@@ -10,6 +10,7 @@ from typing import Any
 
 from apemosyne.designer.definitions.models import AgentDefinition, AgentDefinitionNode
 from apemosyne.designer.definitions.validate import validate_agent_definition
+from apemosyne.designer.skills_catalog import react_llm_config
 from apemosyne.paths import project_root
 from apemosyne.tools.builtins import get_builtin_tool
 
@@ -105,7 +106,11 @@ def _tools_for_action_optional(
         if edge.kind == "calls" and edge.source == action.id
     }
     by_id = {node.id: node for node in definition.nodes}
-    return [by_id[tid] for tid in tool_ids if tid in by_id and by_id[tid].kind == "tool"]
+    return [
+        by_id[tid]
+        for tid in tool_ids
+        if tid in by_id and by_id[tid].kind in ("tool", "mcp_tool")
+    ]
 
 
 def _react_prompts(prompt_node: AgentDefinitionNode | None) -> tuple[str, str]:
@@ -124,6 +129,129 @@ def _react_prompts(prompt_node: AgentDefinitionNode | None) -> tuple[str, str]:
     system = system or default_system
     user = user or default_user
     return _ensure_json_system_prompt(system), user
+
+
+def _react_skills_system_prompt(prompt_node: AgentDefinitionNode | None) -> str:
+    default_system = (
+        "You are a helpful assistant with access to Flink Agent skills. "
+        "When a skill applies, you must load it first with load_skill and strictly "
+        "follow its instructions."
+    )
+    if prompt_node is None:
+        return default_system
+    config = prompt_node.config or {}
+    system = str(config.get("system") or "").strip()
+    return system or default_system
+
+
+def _render_react_skills_agent_module(
+    *,
+    definition: AgentDefinition,
+    class_name: str,
+    agent_slug: str,
+    system_prompt: str,
+    skills: list[str],
+    allowed_commands: list[str],
+) -> str:
+    skills_literal = repr(list(skills))
+    commands_literal = repr(list(allowed_commands))
+    return textwrap.dedent(
+        f'''\
+        """Generated ReAct skills agent — {definition.name}."""
+
+        from __future__ import annotations
+
+        from flink_agents.api.agents.agent import Agent
+        from flink_agents.api.chat_message import ChatMessage, MessageRole
+        from flink_agents.api.decorators import (
+            action,
+            chat_model_connection,
+            chat_model_setup,
+            prompt,
+            skills,
+        )
+        from flink_agents.api.events.chat_event import ChatRequestEvent, ChatResponseEvent
+        from flink_agents.api.events.event import Event, InputEvent, OutputEvent
+        from flink_agents.api.prompts.prompt import Prompt
+        from flink_agents.api.resource import ResourceDescriptor
+        from flink_agents.api.runner_context import RunnerContext
+        from flink_agents.api.skills import Skills
+
+        from examples.agents.react_skills_paths import examples_skills_dir
+
+        _INPUT_EVENT = InputEvent.EVENT_TYPE
+        _SYSTEM_PROMPT = {system_prompt!r}
+
+
+        class {class_name}(Agent):
+            """{definition.description or definition.name}"""
+
+            @skills
+            @staticmethod
+            def platform_skills() -> Skills:
+                return Skills.from_local_dir(str(examples_skills_dir()))
+
+            @prompt
+            @staticmethod
+            def system_prompt() -> Prompt:
+                return Prompt.from_messages(
+                    messages=[
+                        ChatMessage(role=MessageRole.SYSTEM, content=_SYSTEM_PROMPT),
+                    ],
+                )
+
+            @chat_model_connection
+            @staticmethod
+            def designer_llm_connection() -> ResourceDescriptor:
+                from apemosyne.designer.flink_llm import react_llm_connection_descriptor
+
+                return react_llm_connection_descriptor()
+
+            @chat_model_setup
+            @staticmethod
+            def skills_model() -> ResourceDescriptor:
+                from apemosyne.designer.flink_llm import react_skills_chat_model_descriptor
+
+                return react_skills_chat_model_descriptor(
+                    connection="designer_llm_connection",
+                    prompt="system_prompt",
+                    skills={skills_literal},
+                    allowed_commands={commands_literal},
+                )
+
+            @action(_INPUT_EVENT)
+            @staticmethod
+            def process_input(event: Event, ctx: RunnerContext) -> None:
+                payload = InputEvent.from_event(event).input
+                if isinstance(payload, dict):
+                    question = str(
+                        payload.get("message") or payload.get("question") or payload
+                    )
+                else:
+                    question = str(payload)
+                ctx.send_event(
+                    ChatRequestEvent(
+                        model="skills_model",
+                        messages=[ChatMessage(role=MessageRole.USER, content=question)],
+                    )
+                )
+
+            @action(ChatResponseEvent.EVENT_TYPE)
+            @staticmethod
+            def process_chat_response(event: Event, ctx: RunnerContext) -> None:
+                chat_response = ChatResponseEvent.from_event(event)
+                answer = chat_response.response.content
+                ctx.send_event(
+                    OutputEvent(
+                        output={{
+                            "answer": answer,
+                            "result": answer,
+                            "agent": "{agent_slug}",
+                        }}
+                    )
+                )
+        '''
+    ).strip() + "\n"
 
 
 _JSON_RESPONSE_SUFFIX = (
@@ -150,12 +278,36 @@ def _compile_react(definition: AgentDefinition) -> list[CompiledArtifact]:
 
     prompt_node = prompt_nodes[0] if prompt_nodes else None
     llm_node = llm_nodes[0] if llm_nodes else None
-    use_platform_llm = True
-    if llm_node is not None:
-        use_platform_llm = bool((llm_node.config or {}).get("use_platform_llm", True))
-
+    llm_config = react_llm_config(llm_node)
+    use_platform_llm = llm_config["use_platform_llm"]
     class_name = _class_name(definition.name)
     agent_slug = _agent_slug(definition)
+
+    if llm_config["mode"] == "flink_skills":
+        system_prompt = _react_skills_system_prompt(prompt_node)
+        agent_py = _render_react_skills_agent_module(
+            definition=definition,
+            class_name=class_name,
+            agent_slug=agent_slug,
+            system_prompt=system_prompt,
+            skills=llm_config["skills"],
+            allowed_commands=llm_config["allowed_commands"],
+        )
+        manifest_snippet = _render_react_manifest_snippet(
+            definition, class_name, agent_slug
+        )
+        run_local = _render_react_run_local(
+            definition.id,
+            class_name,
+            definition,
+            skills_mode=True,
+        )
+        return [
+            CompiledArtifact("agent.py", agent_py),
+            CompiledArtifact("manifest_snippet.yaml", manifest_snippet),
+            CompiledArtifact("run_local.py", run_local),
+        ]
+
     system_prompt, user_prompt = _react_prompts(prompt_node)
 
     agent_logic = _render_react_logic_module(
@@ -343,12 +495,13 @@ def _render_react_agent_module(
     for tool in tools:
         body = _tool_body(tool)
         doc = _tool_description(tool)
+        param_type, return_type = _tool_signature(tool)
         tool_methods.append(
             textwrap.dedent(
                 f"""
                 @tool
                 @staticmethod
-                def {tool.name}(value: int) -> int:
+                def {tool.name}(value: {param_type}) -> {return_type}:
                     \"\"\"{doc}\"\"\"
                     {body}
                 """
@@ -448,10 +601,16 @@ def _render_react_manifest_snippet(
 
 
 def _render_react_run_local(
-    definition_id: str, class_name: str, definition: AgentDefinition
+    definition_id: str, class_name: str, definition: AgentDefinition, *, skills_mode: bool = False
 ) -> str:
-    required = definition.input_schema.get("required") or []
-    if "message" in required or "message" in (definition.input_schema.get("properties") or {}):
+    if skills_mode:
+        sample_records = (
+            '[{"key": "1", "message": "What is (2 + 3) * 4?"}, '
+            '{"key": "2", "message": "Compute 2 ^ 10."}]'
+        )
+    elif "message" in (definition.input_schema.get("required") or []) or "message" in (
+        definition.input_schema.get("properties") or {}
+    ):
         sample_records = (
             '[{"key": "1", "message": "Please double the input value 7"}, '
             '{"key": "2", "message": "process value 21", "value": 21}]'
@@ -563,7 +722,11 @@ def _tools_for_action(
         if edge.kind == "calls" and edge.source == action.id
     }
     by_id = {node.id: node for node in definition.nodes}
-    tools = [by_id[tid] for tid in tool_ids if tid in by_id]
+    tools = [
+        by_id[tid]
+        for tid in tool_ids
+        if tid in by_id and by_id[tid].kind in ("tool", "mcp_tool")
+    ]
     if not tools:
         raise CompileError(f"Action {action.name!r} must call at least one tool")
     return tools
@@ -593,6 +756,8 @@ def _class_name(name: str) -> str:
 
 
 def _tool_body(tool: AgentDefinitionNode) -> str:
+    if tool.kind == "mcp_tool":
+        return _mcp_tool_body(tool)
     config = tool.config or {}
     expression = str(config.get("expression") or "").strip()
     if expression:
@@ -605,13 +770,41 @@ def _tool_body(tool: AgentDefinitionNode) -> str:
     return str(builtin["body"])
 
 
+def _mcp_tool_body(tool: AgentDefinitionNode) -> str:
+    config = tool.config or {}
+    server_ref = str(config.get("server_ref") or "").strip()
+    tool_name = str(config.get("tool_name") or tool.name).strip()
+    arg_name = str(config.get("arg_name") or "ip").strip()
+    return textwrap.dedent(
+        f"""
+        from apemosyne.mcp.client import invoke_tool
+        return invoke_tool(
+            {server_ref!r},
+            {tool_name!r},
+            {{{arg_name!r}: str(value)}},
+        )
+        """
+    ).strip()
+
+
 def _tool_description(tool: AgentDefinitionNode) -> str:
+    if tool.kind == "mcp_tool":
+        config = tool.config or {}
+        server_ref = str(config.get("server_ref") or "").strip()
+        tool_name = str(config.get("tool_name") or tool.name).strip()
+        return f"MCP tool {tool_name} via {server_ref or 'server'}"
     config = tool.config or {}
     tool_ref = str(config.get("tool_ref") or tool.name).strip()
     try:
         return str(get_builtin_tool(tool_ref).get("description") or f"{tool.name} tool")
     except KeyError:
         return f"{tool.name} tool"
+
+
+def _tool_signature(tool: AgentDefinitionNode) -> tuple[str, str]:
+    if tool.kind == "mcp_tool":
+        return "str", "dict"
+    return "int", "int"
 
 
 def _output_mapping(
@@ -653,19 +846,51 @@ def _render_agent_module(
     for tool in tools:
         body = _tool_body(tool)
         doc = _tool_description(tool)
+        param_type, return_type = _tool_signature(tool)
         tool_methods.append(
             textwrap.dedent(
                 f"""
                 @tool
                 @staticmethod
-                def {tool.name}(value: int) -> int:
+                def {tool.name}(value: {param_type}) -> {return_type}:
                     \"\"\"{doc}\"\"\"
                     {body}
                 """
             ).strip()
         )
 
-    primary_tool = tools[0].name
+    primary_tool_node = tools[0]
+    primary_tool = primary_tool_node.name
+    input_extract = (
+        "n = _str_from_input(event)"
+        if primary_tool_node.kind == "mcp_tool"
+        else "n = _int_from_input(event)"
+    )
+    input_helpers = (
+        textwrap.dedent(
+            f'''
+            def _str_from_input(event: Event, *, field: str = "{input_field}") -> str:
+                payload = InputEvent.from_event(event).input
+                if isinstance(payload, dict):
+                    raw = payload.get(field, "")
+                else:
+                    raw = getattr(payload, field, payload)
+                return str(raw)
+            '''
+        ).strip()
+        if primary_tool_node.kind == "mcp_tool"
+        else textwrap.dedent(
+            f'''
+            def _int_from_input(event: Event, *, field: str = "{input_field}") -> int:
+                payload = InputEvent.from_event(event).input
+                if isinstance(payload, dict):
+                    raw = payload.get(field, 0)
+                else:
+                    raw = getattr(payload, field, payload)
+                return int(raw)
+            '''
+        ).strip()
+    )
     output_lines = _output_mapping(
         definition,
         tools=tools,
@@ -688,15 +913,7 @@ def _render_agent_module(
 
         _INPUT_EVENT = InputEvent.EVENT_TYPE
 
-
-        def _int_from_input(event: Event, *, field: str = "{input_field}") -> int:
-            payload = InputEvent.from_event(event).input
-            if isinstance(payload, dict):
-                raw = payload.get(field, 0)
-            else:
-                raw = getattr(payload, field, payload)
-            return int(raw)
-
+{input_helpers}
 
         class {class_name}(Agent):
             """{definition.description or definition.name}"""
@@ -706,7 +923,7 @@ def _render_agent_module(
             @action(_INPUT_EVENT)
             @staticmethod
             def {action.name}(event: Event, ctx: RunnerContext) -> None:
-                n = _int_from_input(event)
+                {input_extract}
                 result = {class_name}.{primary_tool}(n)
                 ctx.send_event(
                     OutputEvent(
@@ -729,17 +946,49 @@ def _render_actions_module(
     for tool in tools:
         body = _tool_body(tool)
         doc = _tool_description(tool)
+        param_type, return_type = _tool_signature(tool)
         tool_functions.append(
             textwrap.dedent(
                 f"""
-                def {tool.name}(value: int) -> int:
+                def {tool.name}(value: {param_type}) -> {return_type}:
                     \"\"\"{doc}\"\"\"
                     {body}
                 """
             ).strip()
         )
 
-    primary_tool = tools[0].name
+    primary_tool_node = tools[0]
+    primary_tool = primary_tool_node.name
+    input_extract = (
+        "n = _str_from_input(event)"
+        if primary_tool_node.kind == "mcp_tool"
+        else "n = _int_from_input(event)"
+    )
+    input_helper = (
+        textwrap.dedent(
+            f'''
+            def _str_from_input(event: Event, *, field: str = "{input_field}") -> str:
+                payload = InputEvent.from_event(event).input
+                if isinstance(payload, dict):
+                    raw = payload.get(field, "")
+                else:
+                    raw = getattr(payload, field, payload)
+                return str(raw)
+            '''
+        ).strip()
+        if primary_tool_node.kind == "mcp_tool"
+        else textwrap.dedent(
+            f'''
+            def _int_from_input(event: Event, *, field: str = "{input_field}") -> int:
+                payload = InputEvent.from_event(event).input
+                if isinstance(payload, dict):
+                    raw = payload.get(field, 0)
+                else:
+                    raw = getattr(payload, field, payload)
+                return int(raw)
+            '''
+        ).strip()
+    )
     output_lines = _output_mapping(
         definition,
         tools=tools,
@@ -761,17 +1010,11 @@ def _render_actions_module(
         {"\n\n".join(tool_functions)}
 
 
-        def _int_from_input(event: Event, *, field: str = "{input_field}") -> int:
-            payload = InputEvent.from_event(event).input
-            if isinstance(payload, dict):
-                raw = payload.get(field, 0)
-            else:
-                raw = getattr(payload, field, payload)
-            return int(raw)
+        {input_helper}
 
 
         def {action.name}(event: Event, ctx: RunnerContext) -> None:
-            n = _int_from_input(event)
+            {input_extract}
             result = {primary_tool}(n)
             ctx.send_event(
                 OutputEvent(

@@ -35,7 +35,7 @@ def _kafka_bootstrap() -> str:
 
 def _kafka_source(env, topic: str, bootstrap: str):
     from pyflink.common.serialization import SimpleStringSchema
-    from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer, KafkaOffsetsInitializer
+    from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer
 
     from examples.agents.session_window_fixtures import parse_kafka_line
 
@@ -48,7 +48,6 @@ def _kafka_source(env, topic: str, bootstrap: str):
         topics=topic,
         deserialization_schema=SimpleStringSchema(),
         properties=props,
-        starting_offsets_initializer=KafkaOffsetsInitializer.earliest(),
     )
 
     def _parse(raw: str) -> dict:
