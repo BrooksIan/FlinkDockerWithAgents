@@ -1,6 +1,6 @@
 # Agent Designer — implementation plan
 
-This document outlines a phased plan to build a **visual Agent Designer** in the Apemosyne dashboard, complementing the existing **Agent Catalog** (`examples/agents/agent-catalog.yaml`) and **Agentic Studio** (pipeline canvas).
+This document outlines a phased plan to build a **visual Agent Designer** in the Ratatoskr dashboard, complementing the existing **Agent Catalog** (`examples/agents/agent-catalog.yaml`) and **Agentic Studio** (pipeline canvas).
 
 ## Goals
 
@@ -27,7 +27,7 @@ The designer targets **workflow agents first**; ReAct agents (multi-step tool lo
 Platform-wide OpenAI-compatible settings for all ReAct agents:
 
 - **API:** `GET/PUT /v1/designer/llm-settings` — endpoint URL, model ID, API key (masked on read)
-- **Store:** `.apemosyne/designer.db` with env fallback (`APEMOSYNE_LLM_*`, `CLOUDERA_*`, `OPENAI_*`)
+- **Store:** `.ratatoskr/designer.db` with env fallback (`RATATOSKR_LLM_*`, `CLOUDERA_*`, `OPENAI_*`)
 - **UI:** Dashboard **Settings** page → **LLM connection** (endpoint, model, test)
 - **Catalog:** ReAct category marked `llm_required: true`
 
@@ -40,7 +40,7 @@ Platform-wide OpenAI-compatible settings for all ReAct agents:
 - `AgentDefinition` dataclass: id, name, type (`workflow`), version, description, graph (nodes/edges), generated artifacts paths.
 - Node kinds: `input_event`, `action`, `tool`, `output_event` (aligned with Flink Agents 0.3+ event types).
 - Edge kinds: `listens_to`, `calls`, `emits`.
-- SQLite store (mirror `apemosyne/pipelines/store.py` pattern): CRUD + list by category.
+- SQLite store (mirror `ratatoskr/pipelines/store.py` pattern): CRUD + list by category.
 - Validation: acyclic tool graph, exactly one primary action, required listen_to event type.
 
 **API**
@@ -83,8 +83,8 @@ InputEvent (value: int)
 **Implementation notes**
 
 - Start with **template-based codegen** (Jinja2 or string templates), not AST manipulation.
-- Tool bodies: inline Python expression or reference to a shared tool library (`apemosyne.tools.*`).
-- Keep generated files under `.apemosyne/agents/{id}/` until user explicitly publishes to `examples/agents/`.
+- Tool bodies: inline Python expression or reference to a shared tool library (`ratatoskr.tools.*`).
+- Keep generated files under `.ratatoskr/agents/{id}/` until user explicitly publishes to `examples/agents/`.
 
 ---
 
@@ -200,7 +200,7 @@ manifest: workflow_counter   # set after publish
 |----------|----------------|
 | Store definitions in SQLite or YAML files? | SQLite for drafts; YAML export on publish (consistent with pipelines) |
 | Inline tool code vs library-only? | Library-only for MVP; inline editor in Phase 5 |
-| Overwrite `examples/agents/` on publish? | No — write to `.apemosyne/agents/`; manual or gated promote |
+| Overwrite `examples/agents/` on publish? | No — write to `.ratatoskr/agents/`; manual or gated promote |
 | Designer route name? | `/designer` (nav item under Agents) |
 
 ---

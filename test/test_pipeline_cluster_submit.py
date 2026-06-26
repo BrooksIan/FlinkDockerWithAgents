@@ -10,7 +10,7 @@ import pytest
 
 
 def _batch_pipeline():
-    from apemosyne.pipelines.models import Pipeline, PipelineEdge, PipelineNode
+    from ratatoskr.pipelines.models import Pipeline, PipelineEdge, PipelineNode
 
     return Pipeline(
         id="pipe_cluster_test",
@@ -32,8 +32,8 @@ def _batch_pipeline():
 
 
 def test_validate_pipeline_cluster_rejects_kafka_source() -> None:
-    from apemosyne.pipelines.models import Pipeline, PipelineNode
-    from apemosyne.pipelines.validate_cluster import validate_pipeline_cluster
+    from ratatoskr.pipelines.models import Pipeline, PipelineNode
+    from ratatoskr.pipelines.validate_cluster import validate_pipeline_cluster
 
     pipeline = Pipeline(
         id="pipe_kafka",
@@ -55,8 +55,8 @@ def test_validate_pipeline_cluster_rejects_kafka_source() -> None:
 
 
 def test_validate_pipeline_cluster_allows_kafka_sink() -> None:
-    from apemosyne.pipelines.models import Pipeline, PipelineEdge, PipelineNode
-    from apemosyne.pipelines.validate_cluster import validate_pipeline_cluster
+    from ratatoskr.pipelines.models import Pipeline, PipelineEdge, PipelineNode
+    from ratatoskr.pipelines.validate_cluster import validate_pipeline_cluster
 
     pipeline = Pipeline(
         id="pipe_kafka_sink",
@@ -87,14 +87,14 @@ def test_validate_pipeline_cluster_allows_kafka_sink() -> None:
 def test_validate_pipeline_cluster_warns_published_react() -> None:
     from pathlib import Path
 
-    from apemosyne.pipelines.models import Pipeline, PipelineEdge, PipelineNode
-    from apemosyne.pipelines.validate_cluster import (
+    from ratatoskr.pipelines.models import Pipeline, PipelineEdge, PipelineNode
+    from ratatoskr.pipelines.validate_cluster import (
         PUBLISHED_REACT_CLUSTER_WARNING,
         validate_pipeline_cluster,
     )
 
     root = Path(__file__).resolve().parents[1]
-    if not (root / ".apemosyne/agents/def_a8888ce93ad3/agent.py").is_file():
+    if not (root / ".ratatoskr/agents/def_a8888ce93ad3/agent.py").is_file():
         return
 
     pipeline = Pipeline(
@@ -124,8 +124,8 @@ def test_validate_pipeline_includes_cluster_section() -> None:
     import tempfile
     from pathlib import Path
 
-    from apemosyne.pipelines.service import PipelineService, reset_pipeline_service_for_tests
-    from apemosyne.pipelines.store import PipelineStore
+    from ratatoskr.pipelines.service import PipelineService, reset_pipeline_service_for_tests
+    from ratatoskr.pipelines.store import PipelineStore
 
     reset_pipeline_service_for_tests()
     with tempfile.TemporaryDirectory() as tmp:
@@ -154,7 +154,7 @@ def test_validate_pipeline_includes_cluster_section() -> None:
 
 
 def test_generate_cluster_runner_workflow_counter() -> None:
-    from apemosyne.pipelines.cluster_codegen import cluster_job_name, generate_cluster_runner
+    from ratatoskr.pipelines.cluster_codegen import cluster_job_name, generate_cluster_runner
 
     pipeline = _batch_pipeline()
     script = generate_cluster_runner(pipeline)
@@ -167,11 +167,11 @@ def test_generate_cluster_runner_workflow_counter() -> None:
 def test_generate_cluster_runner_published_agent_import() -> None:
     from pathlib import Path
 
-    from apemosyne.pipelines.cluster_codegen import generate_cluster_runner
-    from apemosyne.pipelines.models import Pipeline, PipelineEdge, PipelineNode
+    from ratatoskr.pipelines.cluster_codegen import generate_cluster_runner
+    from ratatoskr.pipelines.models import Pipeline, PipelineEdge, PipelineNode
 
     root = Path(__file__).resolve().parents[1]
-    if not (root / ".apemosyne/agents/def_a8888ce93ad3/agent.py").is_file():
+    if not (root / ".ratatoskr/agents/def_a8888ce93ad3/agent.py").is_file():
         return
 
     pipeline = Pipeline(
@@ -192,13 +192,13 @@ def test_generate_cluster_runner_published_agent_import() -> None:
         ],
     )
     script = generate_cluster_runner(pipeline, root=root)
-    assert "from apemosyne_published_def_a8888ce93ad3 import BasicreactAgent" in script
+    assert "from ratatoskr_published_def_a8888ce93ad3 import BasicreactAgent" in script
     assert "published_shims" not in script
 
 
 def test_generate_cluster_runner_kafka_sink_default_topic() -> None:
-    from apemosyne.pipelines.cluster_codegen import generate_cluster_runner
-    from apemosyne.pipelines.models import Pipeline, PipelineEdge, PipelineNode
+    from ratatoskr.pipelines.cluster_codegen import generate_cluster_runner
+    from ratatoskr.pipelines.models import Pipeline, PipelineEdge, PipelineNode
 
     pipeline = Pipeline(
         id="pipe_ks_default",
@@ -224,8 +224,8 @@ def test_generate_cluster_runner_kafka_sink_default_topic() -> None:
 
 
 def test_generate_cluster_runner_kafka_sink() -> None:
-    from apemosyne.pipelines.cluster_codegen import generate_cluster_runner
-    from apemosyne.pipelines.models import Pipeline, PipelineEdge, PipelineNode
+    from ratatoskr.pipelines.cluster_codegen import generate_cluster_runner
+    from ratatoskr.pipelines.models import Pipeline, PipelineEdge, PipelineNode
 
     pipeline = Pipeline(
         id="pipe_ks",
@@ -256,8 +256,8 @@ def test_generate_cluster_runner_kafka_sink() -> None:
 
 
 def test_generate_cluster_runner_counter_echo_mapping() -> None:
-    from apemosyne.pipelines.cluster_codegen import generate_cluster_runner
-    from apemosyne.pipelines.models import Pipeline, PipelineEdge, PipelineNode
+    from ratatoskr.pipelines.cluster_codegen import generate_cluster_runner
+    from ratatoskr.pipelines.models import Pipeline, PipelineEdge, PipelineNode
 
     pipeline = Pipeline(
         id="pipe_ce",
@@ -293,20 +293,20 @@ def test_pipeline_cluster_submit_api_mocked() -> None:
     from dataclasses import asdict
     from unittest.mock import patch
 
-    os.environ.pop("APEMOSYNE_API_KEY", None)
+    os.environ.pop("RATATOSKR_API_KEY", None)
     from fastapi.testclient import TestClient
 
-    from apemosyne.api.app import create_app
-    from apemosyne.api.config import ApiSettings
-    from apemosyne.pipelines.cluster_submit import PipelineClusterSubmitResult
-    from apemosyne.pipelines.service import PipelineService, reset_pipeline_service_for_tests
-    from apemosyne.pipelines.store import PipelineStore
+    from ratatoskr.api.app import create_app
+    from ratatoskr.api.config import ApiSettings
+    from ratatoskr.pipelines.cluster_submit import PipelineClusterSubmitResult
+    from ratatoskr.pipelines.service import PipelineService, reset_pipeline_service_for_tests
+    from ratatoskr.pipelines.store import PipelineStore
 
     reset_pipeline_service_for_tests()
     pipeline = _batch_pipeline()
     with tempfile.TemporaryDirectory() as tmp:
         db = Path(tmp) / "pipelines.db"
-        os.environ["APEMOSYNE_PIPELINES_DB"] = str(db)
+        os.environ["RATATOSKR_PIPELINES_DB"] = str(db)
         service = PipelineService(PipelineStore(db))
         created = service.create(
             name=pipeline.name,
@@ -319,7 +319,7 @@ def test_pipeline_cluster_submit_api_mocked() -> None:
         )
 
         with patch(
-            "apemosyne.pipelines.service.submit_pipeline_cluster",
+            "ratatoskr.pipelines.service.submit_pipeline_cluster",
             return_value=PipelineClusterSubmitResult(
                 run_id="run_test123",
                 return_code=0,
@@ -335,7 +335,7 @@ def test_pipeline_cluster_submit_api_mocked() -> None:
         assert body["flink_job_id"] == "job_abc"
         assert body["status"] == "submitted"
 
-        del os.environ["APEMOSYNE_PIPELINES_DB"]
+        del os.environ["RATATOSKR_PIPELINES_DB"]
         reset_pipeline_service_for_tests()
 
 

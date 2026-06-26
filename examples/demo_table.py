@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PyFlink Table API smoke demo (runs inside TaskManager via ``apemosyne demo table``)."""
+"""PyFlink Table API smoke demo (runs inside TaskManager via ``ratatoskr demo table``)."""
 
 from __future__ import annotations
 

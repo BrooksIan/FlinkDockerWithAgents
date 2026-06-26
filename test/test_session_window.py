@@ -55,7 +55,7 @@ def test_summarize_session_shape() -> None:
 
 
 def test_session_detect_in_manifest() -> None:
-    from apemosyne.agents.registry import load_agent_registry
+    from ratatoskr.agents.registry import load_agent_registry
 
     registry = load_agent_registry()
     spec = registry.agents["session_detect"]

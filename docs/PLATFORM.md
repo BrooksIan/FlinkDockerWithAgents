@@ -1,4 +1,4 @@
-# Apemosyne platform — Flink Agents control plane
+# Ratatoskr platform — Flink Agents control plane
 
 This document describes the **generic Flink Agents platform** in this workspace: CLI lifecycle, registered agents, the **Control API**, and the [dashboard](../dashboard/README.md). It does not cover the optional [honeypot](../honeypot/README.md) subproject.
 
@@ -8,8 +8,8 @@ This document describes the **generic Flink Agents platform** in this workspace:
 Developer / Dashboard
         │
         ▼
-  Apemosyne CLI ──────────────┐
-  (apemosyne agent …)         │
+  Ratatoskr CLI ──────────────┐
+  (ratatoskr agent …)         │
         │                     ▼
         │              Control API :8090
         │              (FastAPI, optional)
@@ -35,15 +35,15 @@ No API key required for local development.
 
 ```bash
 pip install -e .
-apemosyne build
-apemosyne up                    # default: minimal Flink stack
-apemosyne kafka up              # Studio Kafka for pipeline sources/sinks
+ratatoskr build
+ratatoskr up                    # default: minimal Flink stack
+ratatoskr kafka up              # Studio Kafka for pipeline sources/sinks
 ```
 
 Recommended `.env` for Studio (copy from [`.env.example`](../.env.example)):
 
 ```bash
-APEMOSYNE_PROFILE=minimal
+RATATOSKR_PROFILE=minimal
 FLINK_REST_PORT=8082
 KAFKA_BOOTSTRAP_SERVERS=localhost:9094
 ```
@@ -57,7 +57,7 @@ After editing runtime code or the Dockerfile:
 **Terminal 2 — Control API:**
 
 ```bash
-apemosyne api start
+ratatoskr api start
 ```
 
 **Try it:**
@@ -71,23 +71,23 @@ open http://127.0.0.1:8090/docs    # Swagger UI
 **Run agents:**
 
 ```bash
-apemosyne agent list
-apemosyne agent run workflow_counter --local
-apemosyne agent submit workflow_counter
-apemosyne agent status
+ratatoskr agent list
+ratatoskr agent run workflow_counter --local
+ratatoskr agent submit workflow_counter
+ratatoskr agent status
 ```
 
 Flink Web UI (minimal): http://localhost:8082
 
 ### Startup modes
 
-Presets in `apemosyne/manifests/startup-modes.yaml`:
+Presets in `ratatoskr/manifests/startup-modes.yaml`:
 
 | Mode | Command | Stack |
 |------|---------|-------|
-| `flink` (default) | `apemosyne up` | Minimal JM + TM |
-| `platform` | `apemosyne up --mode platform` | Same + documents API URL |
-| `honeypot` | `apemosyne up --mode honeypot` | Full Cowrie pipeline (optional) |
+| `flink` (default) | `ratatoskr up` | Minimal JM + TM |
+| `platform` | `ratatoskr up --mode platform` | Same + documents API URL |
+| `honeypot` | `ratatoskr up --mode honeypot` | Full Cowrie pipeline (optional) |
 
 ## Control API
 
@@ -138,32 +138,32 @@ Presets in `apemosyne/manifests/startup-modes.yaml`:
 ### CLI
 
 ```bash
-apemosyne api start              # uvicorn on :8090
-apemosyne api url
-apemosyne api openapi -o openapi.json
-apemosyne api check              # probe /v1/health
+ratatoskr api start              # uvicorn on :8090
+ratatoskr api url
+ratatoskr api openapi -o openapi.json
+ratatoskr api check              # probe /v1/health
 ```
 
 ### Environment variables
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `APEMOSYNE_API_HOST` | `127.0.0.1` | API bind address |
-| `APEMOSYNE_API_PORT` | `8090` | API port |
-| `APEMOSYNE_API_KEY` | *(unset)* | Shared secret; when set, protected routes need `X-API-Key` header |
+| `RATATOSKR_API_HOST` | `127.0.0.1` | API bind address |
+| `RATATOSKR_API_PORT` | `8090` | API port |
+| `RATATOSKR_API_KEY` | *(unset)* | Shared secret; when set, protected routes need `X-API-Key` header |
 | `FLINK_REST_ADDRESS` | `localhost` | Flink JobManager host for API/CLI |
 | `FLINK_REST_PORT` | `8082` (minimal) / `8081` (full) | Host Flink REST / Web UI port |
-| `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9094` | Studio Kafka (`apemosyne kafka up`) |
-| `APEMOSYNE_PROFILE` | `minimal` | Compose profile for agent/pipeline cluster submit |
-| `APEMOSYNE_LOG_JSON` | `0` | `1` = structured JSON logs from API |
+| `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9094` | Studio Kafka (`ratatoskr kafka up`) |
+| `RATATOSKR_PROFILE` | `minimal` | Compose profile for agent/pipeline cluster submit |
+| `RATATOSKR_LOG_JSON` | `0` | `1` = structured JSON logs from API |
 
-**Local dev:** leave `APEMOSYNE_API_KEY` unset. All routes are open.
+**Local dev:** leave `RATATOSKR_API_KEY` unset. All routes are open.
 
 **Exposed / shared API:** set a long random value and pass it on every protected request:
 
 ```bash
-export APEMOSYNE_API_KEY="your-secret"
-apemosyne api start
+export RATATOSKR_API_KEY="your-secret"
+ratatoskr api start
 
 curl -H "X-API-Key: your-secret" http://127.0.0.1:8090/v1/agents
 ```
@@ -182,12 +182,12 @@ Agents are declared in [`examples/agents/agent-manifest.yaml`](../examples/agent
 | `react_skills_demo` | react | Native Flink chat model + math-calculator skill (requires Settings LLM) |
 
 ```bash
-apemosyne agent list
-apemosyne agent describe workflow_counter
-apemosyne agent run workflow_counter --local
-apemosyne agent run workflow_counter --cluster
-apemosyne agent submit workflow_counter
-apemosyne agent cancel <job-id>
+ratatoskr agent list
+ratatoskr agent describe workflow_counter
+ratatoskr agent run workflow_counter --local
+ratatoskr agent run workflow_counter --cluster
+ratatoskr agent submit workflow_counter
+ratatoskr agent cancel <job-id>
 ```
 
 To add an agent:
@@ -195,39 +195,39 @@ To add an agent:
 1. Add `examples/agents/my_agent.py` (Flink Agents `Agent` subclass).
 2. Add local/cluster runner scripts.
 3. Register in `agent-manifest.yaml` (optional `flink_yaml:` for Flink Agents YAML definition).
-4. Optionally add a demo entry in `apemosyne/manifests/demo-files.yaml`.
+4. Optionally add a demo entry in `ratatoskr/manifests/demo-files.yaml`.
 
 ## Observability
 
 | Signal | How |
 |--------|-----|
-| Health | `GET /v1/health` or `apemosyne doctor` |
-| Prometheus | `GET /metrics` (`apemosyne_flink_reachable`, request counters, …) |
+| Health | `GET /v1/health` or `ratatoskr doctor` |
+| Prometheus | `GET /metrics` (`ratatoskr_flink_reachable`, request counters, …) |
 | Flink UI (minimal) | http://localhost:8082 |
 | Flink UI (honeypot) | http://localhost:8081 |
-| Verify | `apemosyne verify --tier quick\|standard\|full` |
+| Verify | `ratatoskr verify --tier quick\|standard\|full` |
 
-`apemosyne doctor` checks agent manifest, Docker (warn), Flink REST, and API settings. Warnings for missing image/containers/API key are normal in local dev.
+`ratatoskr doctor` checks agent manifest, Docker (warn), Flink REST, and API settings. Warnings for missing image/containers/API key are normal in local dev.
 
 ## Compose profiles
 
 | Profile | File | Services |
 |---------|------|----------|
 | `minimal` (default) | `docker-compose.yml` | JobManager + TaskManager |
-| `kafka` | `docker-compose.kafka.yml` | Studio Zookeeper + Kafka (`apemosyne kafka up`) |
+| `kafka` | `docker-compose.kafka.yml` | Studio Zookeeper + Kafka (`ratatoskr kafka up`) |
 | `full` | `honeypot/docker-compose.yml` | Cowrie + Kafka + pipeline + dashboard |
 
 ```bash
-apemosyne up                  # minimal (default)
-apemosyne kafka up            # Studio Kafka (independent of honeypot)
-apemosyne up --profile full   # honeypot (optional)
-apemosyne down
-apemosyne status
+ratatoskr up                  # minimal (default)
+ratatoskr kafka up            # Studio Kafka (independent of honeypot)
+ratatoskr up --profile full   # honeypot (optional)
+ratatoskr down
+ratatoskr status
 ```
 
 ### Studio cluster restart
 
-Use after pulling changes or editing `apemosyne/` pipeline/runtime code:
+Use after pulling changes or editing `ratatoskr/` pipeline/runtime code:
 
 ```bash
 ./scripts/restart-studio-cluster.sh              # Flink + Kafka + sync code + bootstrap JARs
@@ -236,11 +236,11 @@ Use after pulling changes or editing `apemosyne/` pipeline/runtime code:
 ./scripts/restart-studio-cluster.sh --smoke      # + cluster launch smoke job
 ```
 
-Implementation: [`apemosyne/runtime/studio_cluster_sync.py`](../apemosyne/runtime/studio_cluster_sync.py) copies runtime modules into JobManager and TaskManager, then runs `bootstrap_cluster_containers()` (Flink Agents thin JAR layout for Pemja).
+Implementation: [`ratatoskr/runtime/studio_cluster_sync.py`](../ratatoskr/runtime/studio_cluster_sync.py) copies runtime modules into JobManager and TaskManager, then runs `bootstrap_cluster_containers()` (Flink Agents thin JAR layout for Pemja).
 
 ## Verification tiers
 
-Defined in `apemosyne/manifests/verify-tiers.yaml`:
+Defined in `ratatoskr/manifests/verify-tiers.yaml`:
 
 | Tier | Includes |
 |------|----------|
@@ -250,10 +250,10 @@ Defined in `apemosyne/manifests/verify-tiers.yaml`:
 | `nightly` | Extended repeat checks |
 
 ```bash
-apemosyne verify --tier quick
-apemosyne test validate        # file layout only
-apemosyne test launch          # Flink Agents import smoke
-apemosyne test launch --cluster
+ratatoskr verify --tier quick
+ratatoskr test validate        # file layout only
+ratatoskr test launch          # Flink Agents import smoke
+ratatoskr test launch --cluster
 ```
 
 Honeypot tests (`phase1`, `phase2`, `production`, …) require `honeypot/` and `--profile full`.
@@ -263,11 +263,11 @@ Honeypot tests (`phase1`, `phase2`, `production`, …) require `honeypot/` and `
 Web UI in [`dashboard/`](../dashboard/README.md) — React + Vite, talks to Control API only.
 
 ```bash
-apemosyne up
+ratatoskr up
 ./scripts/dev-start.sh          # API :8090 + dashboard :3000
 ```
 
-Or manually: `apemosyne api start` then `cd dashboard && npm run dev`.
+Or manually: `ratatoskr api start` then `cd dashboard && npm run dev`.
 
 | Route | Description |
 |-------|-------------|
@@ -287,7 +287,7 @@ Full page reference: [dashboard/README.md](../dashboard/README.md).
 
 ### Agent Designer
 
-Visual editor for **workflow** and **ReAct** agents. Definitions persist in `.apemosyne/designer.db`; compiled artifacts go to `.apemosyne/agents/{definition_id}/`.
+Visual editor for **workflow** and **ReAct** agents. Definitions persist in `.ratatoskr/designer.db`; compiled artifacts go to `.ratatoskr/agents/{definition_id}/`.
 
 - **Runtime vs designer:** `GET /v1/agents/{name}/definition` returns manifest Flink YAML for registered agents. `GET /v1/agent-definitions/{id}` returns the designer graph — different stores, different IDs.
 - **Compile:** `POST /v1/agent-definitions/{id}/compile` generates Python modules, Flink YAML, manifest snippet, and a local runner.
@@ -305,7 +305,7 @@ Compose **linear multi-agent pipelines** visually (Source → Agent → … → 
 4. **Validate**, then **Run locally** or **Run on Flink cluster** — creates a run with per-agent spans on `/runs/:id`.
 5. Double-click an agent node to view its internal action/tool graph (read-only).
 
-Pipelines persist in `.apemosyne/pipelines.db`. Cluster submit targets the **minimal** Flink stack on host port **8082** (not honeypot `:8081`).
+Pipelines persist in `.ratatoskr/pipelines.db`. Cluster submit targets the **minimal** Flink stack on host port **8082** (not honeypot `:8081`).
 
 | Capability | Local run | Cluster submit |
 |------------|-----------|----------------|
@@ -315,9 +315,9 @@ Pipelines persist in `.apemosyne/pipelines.db`. Cluster submit targets the **min
 | Kafka sink | Yes | Yes (Flink Agents sink agent; default topic `workflow.test.output`) |
 | Published ReAct agents | Yes | Warn-only (Pemja unreliable on cluster) |
 
-**Prerequisites for cluster submit:** `apemosyne up`, `apemosyne kafka up`, `./scripts/restart-studio-cluster.sh` after code updates. Check **Settings → Cluster readiness** in the dashboard.
+**Prerequisites for cluster submit:** `ratatoskr up`, `ratatoskr kafka up`, `./scripts/restart-studio-cluster.sh` after code updates. Check **Settings → Cluster readiness** in the dashboard.
 
-Codegen writes `.apemosyne/pipelines/{id}/run_cluster.py`; submit copies artifacts to JobManager and runs `flink run`.
+Codegen writes `.ratatoskr/pipelines/{id}/run_cluster.py`; submit copies artifacts to JobManager and runs `flink run`.
 
 **OpenAPI client codegen:**
 
@@ -329,8 +329,8 @@ Codegen writes `.apemosyne/pipelines/{id}/run_cluster.py`; submit copies artifac
 
 ## Dashboard integration (API consumers)
 
-1. Run `apemosyne api start` (and `apemosyne up` for Flink).
-2. Export OpenAPI: `apemosyne api openapi -o openapi.json`.
+1. Run `ratatoskr api start` (and `ratatoskr up` for Flink).
+2. Export OpenAPI: `ratatoskr api openapi -o openapi.json`.
 3. Generate a client (TypeScript, etc.) from `/openapi.json`.
 4. Poll `GET /v1/health` for status; use `GET /v1/agents` and `POST /v1/agents/{name}/submit` for operations.
 5. Add `X-API-Key` when you deploy beyond localhost.
@@ -341,5 +341,5 @@ Codegen writes `.apemosyne/pipelines/{id}/run_cluster.py`; submit copies artifac
 - [AGENT_DESIGNER_PLAN.md](AGENT_DESIGNER_PLAN.md) — Agent Designer phases and API
 - [FLINK_AGENTS.md](FLINK_AGENTS.md) — workflow vs ReAct concepts
 - [../examples/README.md](../examples/README.md) — example agents and demos
-- [../apemosyne/README.md](../apemosyne/README.md) — CLI package layout
+- [../ratatoskr/README.md](../ratatoskr/README.md) — CLI package layout
 - [../honeypot/README.md](../honeypot/README.md) — optional Cowrie reference pipeline

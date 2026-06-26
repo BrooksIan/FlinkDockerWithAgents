@@ -9,7 +9,7 @@ from pathlib import Path
 def _ensure_repo_on_path() -> None:
     here = Path(__file__).resolve()
     for parent in here.parents:
-        if (parent / "apemosyne" / "runtime").is_dir():
+        if (parent / "ratatoskr" / "runtime").is_dir():
             root = str(parent)
             if root not in sys.path:
                 sys.path.insert(0, root)
@@ -18,7 +18,7 @@ def _ensure_repo_on_path() -> None:
 
 _ensure_repo_on_path()
 
-from apemosyne.runtime.cluster_launch_test import bootstrap_runtime, run_cluster_launch
+from ratatoskr.runtime.cluster_launch_test import bootstrap_runtime, run_cluster_launch
 
 __all__ = ["bootstrap_runtime", "run_cluster_launch"]
 

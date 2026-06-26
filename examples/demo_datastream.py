@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PyFlink DataStream smoke demo (runs inside TaskManager via ``apemosyne demo datastream``)."""
+"""PyFlink DataStream smoke demo (runs inside TaskManager via ``ratatoskr demo datastream``)."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ def main() -> None:
         .map(lambda value: value * 2, output_type="INT")
         .print()
     )
-    env.execute("apemosyne-datastream-demo")
+    env.execute("ratatoskr-datastream-demo")
 
 
 if __name__ == "__main__":

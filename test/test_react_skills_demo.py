@@ -24,8 +24,8 @@ def test_skills_dir_and_skill_file() -> None:
 
 
 def test_registry_and_catalog() -> None:
-    from apemosyne.agents.catalog import load_agent_catalog
-    from apemosyne.agents.registry import load_agent_registry
+    from ratatoskr.agents.catalog import load_agent_catalog
+    from ratatoskr.agents.registry import load_agent_registry
 
     registry = load_agent_registry()
     assert "react_skills_demo" in registry.agents
@@ -44,12 +44,12 @@ def test_registry_and_catalog() -> None:
 
 
 def test_flink_llm_requires_settings() -> None:
-    from apemosyne.designer.flink_llm import require_react_llm_settings
-    from apemosyne.designer.llm_client import LlmNotConfiguredError
-    from apemosyne.designer.llm_settings import reset_designer_store_for_tests
+    from ratatoskr.designer.flink_llm import require_react_llm_settings
+    from ratatoskr.designer.llm_client import LlmNotConfiguredError
+    from ratatoskr.designer.llm_settings import reset_designer_store_for_tests
 
     reset_designer_store_for_tests()
-    db_path = Path(__file__).resolve().parents[1] / ".apemosyne" / "designer.db"
+    db_path = Path(__file__).resolve().parents[1] / ".ratatoskr" / "designer.db"
     if db_path.is_file():
         db_path.unlink()
 
@@ -58,9 +58,9 @@ def test_flink_llm_requires_settings() -> None:
     saved = {
         key: os.environ.pop(key, None)
         for key in (
-            "APEMOSYNE_LLM_ENDPOINT_URL",
-            "APEMOSYNE_LLM_MODEL_ID",
-            "APEMOSYNE_LLM_API_KEY",
+            "RATATOSKR_LLM_ENDPOINT_URL",
+            "RATATOSKR_LLM_MODEL_ID",
+            "RATATOSKR_LLM_API_KEY",
             "CLOUDERA_AI_BASE_URL",
             "CLOUDERA_MODEL_ID",
             "CLOUDERA_JWT_TOKEN",

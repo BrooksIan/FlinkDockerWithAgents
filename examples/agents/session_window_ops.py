@@ -5,7 +5,7 @@ Cowrie/session_detect helpers remain in ``examples/agents`` for optional demos.
 
 from __future__ import annotations
 
-from apemosyne.pipelines.window_ops import (
+from ratatoskr.pipelines.window_ops import (
     FixedGapExtractor,
     GenericSessionSummaryFunction,
     PolicyGapExtractor,

@@ -658,15 +658,15 @@ def render_ai_agent_detection_dashboard(
         )
         st.markdown("**Quick demo — inject a fast LLM-style session:**")
         st.code(
-            "apemosyne utils simulate-attacks --e2e --scenario fast_llm_agent_session",
+            "ratatoskr utils simulate-attacks --e2e --scenario fast_llm_agent_session",
             language="bash",
         )
         st.code(
-            "apemosyne utils simulate-attacks --e2e --scenario actor_classify_suite",
+            "ratatoskr utils simulate-attacks --e2e --scenario actor_classify_suite",
             language="bash",
         )
         st.caption(
-            "Or run unit tests: `apemosyne test actor-classify` · "
+            "Or run unit tests: `ratatoskr test actor-classify` · "
             "Then set sidebar **Data source** to **Both** and refresh."
         )
 
@@ -722,7 +722,7 @@ def render_ai_agent_detection_dashboard(
     else:
         st.info(
             f"No scores from Kafka topic `{_KAFKA_SESSION_ACTOR_TOPIC}`. "
-            "Run `apemosyne utils simulate-attacks --e2e --scenario fast_llm_agent_session` "
+            "Run `ratatoskr utils simulate-attacks --e2e --scenario fast_llm_agent_session` "
             "or enable **Both** as the data source."
         )
 

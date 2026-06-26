@@ -3,7 +3,7 @@
 Ensure Cowrie Phase 1 / 1.5 / 2 Flink streaming jobs are RUNNING on the compose cluster.
 
 Used by ``flink-pipeline-supervisor`` (and legacy per-phase sidecars) and by
-``apemosyne ensure-flink-jobs``.
+``ratatoskr ensure-flink-jobs``.
 
 Each sidecar supervises its phase and upstream dependencies, then watches for
 missing or failed jobs (e.g. after JobManager restart) and re-submits them.

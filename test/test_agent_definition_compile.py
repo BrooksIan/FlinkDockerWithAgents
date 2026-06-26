@@ -9,20 +9,20 @@ from pathlib import Path
 
 
 def test_compile_double_value_definition() -> None:
-    from apemosyne.designer.definitions.compile import compile_agent_definition
-    from apemosyne.designer.definitions.models import agent_definition_from_dict
-    from apemosyne.designer.definitions.seed import double_value_definition_payload
-    from apemosyne.designer.definitions.service import (
+    from ratatoskr.designer.definitions.compile import compile_agent_definition
+    from ratatoskr.designer.definitions.models import agent_definition_from_dict
+    from ratatoskr.designer.definitions.seed import double_value_definition_payload
+    from ratatoskr.designer.definitions.service import (
         AgentDefinitionService,
         reset_agent_definition_service_for_tests,
     )
-    from apemosyne.designer.definitions.store import AgentDefinitionStore
+    from ratatoskr.designer.definitions.store import AgentDefinitionStore
 
     reset_agent_definition_service_for_tests()
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         db = root / "designer.db"
-        os.environ["APEMOSYNE_DESIGNER_DB"] = str(db)
+        os.environ["RATATOSKR_DESIGNER_DB"] = str(db)
         store = AgentDefinitionStore(db)
         service = AgentDefinitionService(store)
         service.create_from_payload(double_value_definition_payload())
@@ -33,7 +33,7 @@ def test_compile_double_value_definition() -> None:
         result = compile_agent_definition(definition, root=root, write_files=True)
         assert result.agent_slug == "workflow_counter"
         assert result.class_name == "DoubleValueAgent"
-        assert (root / ".apemosyne" / "agents" / "def_double_value_v1" / "agent.py").is_file()
+        assert (root / ".ratatoskr" / "agents" / "def_double_value_v1" / "agent.py").is_file()
 
         agent_py = next(a for a in result.files if a.path == "agent.py").content
         assert "class DoubleValueAgent" in agent_py
@@ -51,23 +51,23 @@ def test_compile_double_value_definition() -> None:
         assert compile_via_service["definition"]["status"] == "compiled"
         assert len(compile_via_service["files"]) == 5
 
-        os.environ.pop("APEMOSYNE_DESIGNER_DB", None)
+        os.environ.pop("RATATOSKR_DESIGNER_DB", None)
         reset_agent_definition_service_for_tests()
 
 
 def test_compile_api_endpoint() -> None:
     from fastapi.testclient import TestClient
 
-    from apemosyne.api.app import create_app
-    from apemosyne.api.config import ApiSettings
-    from apemosyne.designer.definitions.seed import DOUBLE_VALUE_ID
-    from apemosyne.designer.definitions.service import reset_agent_definition_service_for_tests
+    from ratatoskr.api.app import create_app
+    from ratatoskr.api.config import ApiSettings
+    from ratatoskr.designer.definitions.seed import DOUBLE_VALUE_ID
+    from ratatoskr.designer.definitions.service import reset_agent_definition_service_for_tests
 
     reset_agent_definition_service_for_tests()
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         db = root / "designer.db"
-        os.environ["APEMOSYNE_DESIGNER_DB"] = str(db)
+        os.environ["RATATOSKR_DESIGNER_DB"] = str(db)
 
         client = TestClient(create_app(ApiSettings(api_key=None)))
         client.get("/v1/agent-definitions")
@@ -81,13 +81,13 @@ def test_compile_api_endpoint() -> None:
         assert "agent.py" in paths
         assert "agent.yaml" in paths
 
-        os.environ.pop("APEMOSYNE_DESIGNER_DB", None)
+        os.environ.pop("RATATOSKR_DESIGNER_DB", None)
         reset_agent_definition_service_for_tests()
 
 
 def test_compile_react_definition() -> None:
-    from apemosyne.designer.definitions.compile import compile_agent_definition
-    from apemosyne.designer.definitions.models import agent_definition_from_dict
+    from ratatoskr.designer.definitions.compile import compile_agent_definition
+    from ratatoskr.designer.definitions.models import agent_definition_from_dict
 
     definition = agent_definition_from_dict(
         {
@@ -171,8 +171,8 @@ def test_compile_react_definition() -> None:
 
 
 def test_compile_rejects_invalid_definition() -> None:
-    from apemosyne.designer.definitions.compile import CompileError, compile_agent_definition
-    from apemosyne.designer.definitions.models import agent_definition_from_dict
+    from ratatoskr.designer.definitions.compile import CompileError, compile_agent_definition
+    from ratatoskr.designer.definitions.models import agent_definition_from_dict
 
     definition = agent_definition_from_dict(
         {

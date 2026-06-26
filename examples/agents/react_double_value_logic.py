@@ -52,7 +52,7 @@ def parse_llm_double_payload(content: str, *, value_hint: int | None = None) -> 
 
 def llm_double(message: str, value_hint: int | None) -> dict[str, Any]:
     """Direct OpenAI call — host/testing fallback when Flink chat model is unavailable."""
-    from apemosyne.designer.llm_client import chat_completion_json
+    from ratatoskr.designer.llm_client import chat_completion_json
 
     from examples.agents.react_double_value_prompt import DOUBLE_VALUE_SYSTEM, DOUBLE_VALUE_USER
 
@@ -68,7 +68,7 @@ def llm_double(message: str, value_hint: int | None) -> dict[str, Any]:
 
 def double_value_from_message(message: str, *, value_hint: int | None = None) -> dict[str, Any]:
     """Extract numeric input and return input/doubled (LLM when configured, else fallback)."""
-    from apemosyne.designer.llm_settings import get_react_llm_settings
+    from ratatoskr.designer.llm_settings import get_react_llm_settings
 
     settings = get_react_llm_settings()
     if settings.is_complete():

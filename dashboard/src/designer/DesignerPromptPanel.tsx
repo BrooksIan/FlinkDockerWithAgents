@@ -12,6 +12,7 @@ interface Props {
   nodes: Node[];
   onUpdateNode: (nodeId: string, patch: { name?: string; config?: Record<string, unknown> }) => void;
   onAddPrompt: () => void;
+  onApplySkillsRecipe?: () => void;
 }
 
 function promptNode(nodes: Node[]): Node | undefined {
@@ -64,7 +65,7 @@ export function PromptUserPreview({ userTemplate }: { userTemplate: string }) {
   );
 }
 
-export function DesignerPromptPanel({ nodes, onUpdateNode, onAddPrompt }: Props) {
+export function DesignerPromptPanel({ nodes, onUpdateNode, onAddPrompt, onApplySkillsRecipe }: Props) {
   const node = promptNode(nodes);
 
   if (!node) {
@@ -92,8 +93,11 @@ export function DesignerPromptPanel({ nodes, onUpdateNode, onAddPrompt }: Props)
 
   function applyRecipe(recipe: PromptRecipe) {
     onUpdateNode(node!.id, {
-      config: { ...config, system: recipe.system, user: recipe.user },
+      config: { ...config, system: recipe.system, user: recipe.user, template: recipe.id },
     });
+    if (recipe.id === "skills_math") {
+      onApplySkillsRecipe?.();
+    }
   }
 
   return (

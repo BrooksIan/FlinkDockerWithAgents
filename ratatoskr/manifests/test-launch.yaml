@@ -1,0 +1,14 @@
+# Files copied for ``ratatoskr test launch`` (container / cluster modes).
+files:
+  - local: test/test_launch_flink_agents.py
+    remote: /opt/flink/test_launch_flink_agents.py
+  - local: ratatoskr/runtime/cluster_launch_test.py
+    remote: /opt/flink/ratatoskr/runtime/cluster_launch_test.py
+  - local: ratatoskr/runtime/cluster_launch_agent.py
+    remote: /opt/flink/ratatoskr/runtime/cluster_launch_agent.py
+  - local: ratatoskr/runtime/flink_cluster_submit.py
+    remote: /opt/flink/ratatoskr/runtime/flink_cluster_submit.py
+  - local: ratatoskr/runtime/__init__.py
+    remote: /opt/flink/ratatoskr/runtime/__init__.py
+  - local: ratatoskr/__init__.py
+    remote: /opt/flink/ratatoskr/__init__.py

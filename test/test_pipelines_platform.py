@@ -9,8 +9,8 @@ from pathlib import Path
 
 
 def test_pipeline_store_crud() -> None:
-    from apemosyne.pipelines.service import PipelineService, reset_pipeline_service_for_tests
-    from apemosyne.pipelines.store import PipelineStore
+    from ratatoskr.pipelines.service import PipelineService, reset_pipeline_service_for_tests
+    from ratatoskr.pipelines.store import PipelineStore
 
     reset_pipeline_service_for_tests()
     with tempfile.TemporaryDirectory() as tmp:
@@ -51,8 +51,8 @@ def test_pipeline_store_crud() -> None:
 
 
 def test_pipeline_validation_errors() -> None:
-    from apemosyne.pipelines.models import Pipeline, PipelineEdge, PipelineNode
-    from apemosyne.pipelines.validate import validate_pipeline
+    from ratatoskr.pipelines.models import Pipeline, PipelineEdge, PipelineNode
+    from ratatoskr.pipelines.validate import validate_pipeline
 
     bad = Pipeline(
         id="pipe_bad",
@@ -69,8 +69,8 @@ def test_pipeline_validation_errors() -> None:
 
 
 def test_pipeline_validation_strips_orphan_edges() -> None:
-    from apemosyne.pipelines.models import Pipeline, PipelineEdge, PipelineNode
-    from apemosyne.pipelines.validate import validate_pipeline
+    from ratatoskr.pipelines.models import Pipeline, PipelineEdge, PipelineNode
+    from ratatoskr.pipelines.validate import validate_pipeline
 
     pipeline = Pipeline(
         id="pipe_orphan",
@@ -98,7 +98,7 @@ def test_pipeline_validation_strips_orphan_edges() -> None:
 
 
 def test_agent_graph_introspect() -> None:
-    from apemosyne.pipelines.introspect import agent_graph
+    from ratatoskr.pipelines.introspect import agent_graph
 
     graph = agent_graph("workflow_counter")
     assert graph["agent"] == "workflow_counter"
@@ -110,7 +110,7 @@ def test_agent_graph_introspect() -> None:
 
 
 def test_apply_edge_mapping() -> None:
-    from apemosyne.pipelines.executor import apply_edge_mapping
+    from ratatoskr.pipelines.executor import apply_edge_mapping
 
     out = apply_edge_mapping(
         [{"key": "1", "output": {"doubled": 6, "agent": "workflow_counter"}}],
@@ -121,18 +121,18 @@ def test_apply_edge_mapping() -> None:
 
 
 def test_pipelines_api_routes() -> None:
-    os.environ.pop("APEMOSYNE_API_KEY", None)
+    os.environ.pop("RATATOSKR_API_KEY", None)
     from fastapi.testclient import TestClient
 
-    from apemosyne.api.app import create_app
-    from apemosyne.api.config import ApiSettings
-    from apemosyne.pipelines.service import PipelineService, reset_pipeline_service_for_tests
-    from apemosyne.pipelines.store import PipelineStore
+    from ratatoskr.api.app import create_app
+    from ratatoskr.api.config import ApiSettings
+    from ratatoskr.pipelines.service import PipelineService, reset_pipeline_service_for_tests
+    from ratatoskr.pipelines.store import PipelineStore
 
     reset_pipeline_service_for_tests()
     with tempfile.TemporaryDirectory() as tmp:
         db = Path(tmp) / "pipelines.db"
-        os.environ["APEMOSYNE_PIPELINES_DB"] = str(db)
+        os.environ["RATATOSKR_PIPELINES_DB"] = str(db)
         service = PipelineService(PipelineStore(db))
         created = service.create(name="API test", nodes=[], edges=[])
 
@@ -162,7 +162,7 @@ def test_pipelines_api_routes() -> None:
         assert created_via_api.status_code == 200
         assert created_via_api.json()["name"] == "POST test"
 
-        del os.environ["APEMOSYNE_PIPELINES_DB"]
+        del os.environ["RATATOSKR_PIPELINES_DB"]
         reset_pipeline_service_for_tests()
 
 
@@ -170,21 +170,21 @@ def test_pipeline_local_run_optional() -> None:
     """Run Counter→Echo via host or JobManager container."""
     import tempfile
 
-    from apemosyne.pipelines.executor import flink_agents_available
-    from apemosyne.pipelines.service import PipelineService, reset_pipeline_service_for_tests
-    from apemosyne.pipelines.store import PipelineStore
-    from apemosyne.runs.service import RunService, reset_run_service_for_tests
-    from apemosyne.runs.store import RunStore
+    from ratatoskr.pipelines.executor import flink_agents_available
+    from ratatoskr.pipelines.service import PipelineService, reset_pipeline_service_for_tests
+    from ratatoskr.pipelines.store import PipelineStore
+    from ratatoskr.runs.service import RunService, reset_run_service_for_tests
+    from ratatoskr.runs.store import RunStore
 
     reset_pipeline_service_for_tests()
     reset_run_service_for_tests()
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        os.environ["APEMOSYNE_PIPELINES_DB"] = str(root / "pipelines.db")
-        os.environ["APEMOSYNE_RUNS_DB"] = str(root / "runs.db")
+        os.environ["RATATOSKR_PIPELINES_DB"] = str(root / "pipelines.db")
+        os.environ["RATATOSKR_RUNS_DB"] = str(root / "runs.db")
 
         pipe_svc = PipelineService(PipelineStore(root / "pipelines.db"))
-        from apemosyne.pipelines.service import seed_counter_echo_pipeline
+        from ratatoskr.pipelines.service import seed_counter_echo_pipeline
 
         pipeline = seed_counter_echo_pipeline(pipe_svc)
         try:
@@ -203,19 +203,19 @@ def test_pipeline_local_run_optional() -> None:
         assert detail["status"] == "finished"
         assert len(detail["spans"]) >= 1
 
-        del os.environ["APEMOSYNE_PIPELINES_DB"]
-        del os.environ["APEMOSYNE_RUNS_DB"]
+        del os.environ["RATATOSKR_PIPELINES_DB"]
+        del os.environ["RATATOSKR_RUNS_DB"]
         reset_pipeline_service_for_tests()
         reset_run_service_for_tests()
 
 
 def test_kafka_topics_api() -> None:
-    os.environ.pop("APEMOSYNE_API_KEY", None)
+    os.environ.pop("RATATOSKR_API_KEY", None)
     from fastapi.testclient import TestClient
 
-    from apemosyne.api.app import create_app
-    from apemosyne.api.config import ApiSettings
-    from apemosyne.kafka_sources import known_pipeline_topics, list_kafka_sources
+    from ratatoskr.api.app import create_app
+    from ratatoskr.api.config import ApiSettings
+    from ratatoskr.kafka_sources import known_pipeline_topics, list_kafka_sources
 
     topics = known_pipeline_topics()
     assert "cowrie.events" in topics
@@ -235,8 +235,8 @@ def test_kafka_topics_api() -> None:
 
 
 def test_kafka_source_validation() -> None:
-    from apemosyne.pipelines.models import Pipeline, PipelineEdge, PipelineNode
-    from apemosyne.pipelines.validate import validate_pipeline
+    from ratatoskr.pipelines.models import Pipeline, PipelineEdge, PipelineNode
+    from ratatoskr.pipelines.validate import validate_pipeline
 
     ok = Pipeline(
         id="pipe_kafka",
@@ -277,8 +277,8 @@ def test_kafka_source_validation() -> None:
 
 
 def test_kafka_sink_validation() -> None:
-    from apemosyne.pipelines.models import Pipeline, PipelineEdge, PipelineNode
-    from apemosyne.pipelines.validate import validate_pipeline
+    from ratatoskr.pipelines.models import Pipeline, PipelineEdge, PipelineNode
+    from ratatoskr.pipelines.validate import validate_pipeline
 
     ok = Pipeline(
         id="pipe_kafka_sink",

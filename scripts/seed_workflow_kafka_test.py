@@ -23,7 +23,7 @@ def main() -> int:
     if str(repo) not in sys.path:
         sys.path.insert(0, str(repo))
 
-    from apemosyne.kafka_sources import kafka_bootstrap_servers, publish_topic_records
+    from ratatoskr.kafka_sources import kafka_bootstrap_servers, publish_topic_records
 
     bootstrap = kafka_bootstrap_servers()
     count = publish_topic_records(INPUT_TOPIC, DEFAULT_RECORDS)

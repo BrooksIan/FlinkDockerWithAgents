@@ -72,7 +72,7 @@ export function RunsPage() {
         </table>
         {runs.length === 0 && !loading && (
           <p className="muted">
-            No runs yet. Try <code>apemosyne agent run workflow_counter --local</code>.
+            No runs yet. Try <code>ratatoskr agent run workflow_counter --local</code>.
           </p>
         )}
       </div>

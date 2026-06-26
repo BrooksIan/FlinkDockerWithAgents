@@ -10,9 +10,9 @@ from pathlib import Path
 def _check_paths(root: Path) -> list[str]:
     required = [
         (root / "docker-compose.yml", "minimal Flink compose"),
-        (root / "apemosyne/manifests/startup-modes.yaml", "startup modes"),
-        (root / "apemosyne/manifests/verify-tiers.yaml", "verify tiers"),
-        (root / "apemosyne/manifests/demo-files.yaml", "demo catalog"),
+        (root / "ratatoskr/manifests/startup-modes.yaml", "startup modes"),
+        (root / "ratatoskr/manifests/verify-tiers.yaml", "verify tiers"),
+        (root / "ratatoskr/manifests/demo-files.yaml", "demo catalog"),
         (root / "examples/demo_datastream.py", "datastream demo"),
     ]
     missing = [label for path, label in required if not path.is_file()]
@@ -22,7 +22,7 @@ def _check_paths(root: Path) -> list[str]:
 def main() -> int:
     root = Path(__file__).resolve().parents[1]
     print("=" * 60)
-    print("Apemosyne workspace smoke test")
+    print("Ratatoskr workspace smoke test")
     print("=" * 60)
 
     missing = _check_paths(root)
@@ -32,12 +32,12 @@ def main() -> int:
         return 1
     print("OK  workspace layout")
 
-    from apemosyne._bootstrap import install_aliases
+    from ratatoskr._bootstrap import install_aliases
 
     install_aliases()
-    from apemosyne import paths
-    from apemosyne.manifests import load_demo_catalog, load_verify_tiers
-    from apemosyne.startup_modes import load_startup_modes
+    from ratatoskr import paths
+    from ratatoskr.manifests import load_demo_catalog, load_verify_tiers
+    from ratatoskr.startup_modes import load_startup_modes
 
     assert paths.manifests_dir().is_dir()
     catalog = load_demo_catalog(root=root)

@@ -6,7 +6,7 @@ export function Layout() {
   return (
     <div className="layout">
       <nav className="nav">
-        <h1>Apemosyne</h1>
+        <h1>Ratatoskr</h1>
         <p className="sub">Flink Agents</p>
         <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : "")}>
           Overview

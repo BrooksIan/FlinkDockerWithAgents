@@ -12,7 +12,7 @@ if str(_ROOT) not in sys.path:
 
 
 def test_skill_catalog_lists_math_calculator() -> None:
-    from apemosyne.designer.skills_catalog import list_skill_catalog
+    from ratatoskr.designer.skills_catalog import list_skill_catalog
 
     entries = list_skill_catalog(root=_ROOT)
     ids = {entry.id for entry in entries}
@@ -22,8 +22,8 @@ def test_skill_catalog_lists_math_calculator() -> None:
 
 
 def test_react_llm_config_defaults_commands() -> None:
-    from apemosyne.designer.definitions.models import AgentDefinitionNode
-    from apemosyne.designer.skills_catalog import react_llm_config
+    from ratatoskr.designer.definitions.models import AgentDefinitionNode
+    from ratatoskr.designer.skills_catalog import react_llm_config
 
     node = AgentDefinitionNode(
         id="llm1",
@@ -39,8 +39,8 @@ def test_react_llm_config_defaults_commands() -> None:
 
 
 def test_compile_react_skills_definition() -> None:
-    from apemosyne.designer.definitions.compile import compile_agent_definition
-    from apemosyne.designer.definitions.models import agent_definition_from_dict
+    from ratatoskr.designer.definitions.compile import compile_agent_definition
+    from ratatoskr.designer.definitions.models import agent_definition_from_dict
 
     definition = agent_definition_from_dict(
         {
@@ -128,8 +128,8 @@ def test_compile_react_skills_definition() -> None:
 def test_designer_skills_api() -> None:
     from fastapi.testclient import TestClient
 
-    from apemosyne.api.app import create_app
-    from apemosyne.api.config import ApiSettings
+    from ratatoskr.api.app import create_app
+    from ratatoskr.api.config import ApiSettings
 
     client = TestClient(create_app(ApiSettings(api_key=None)))
     resp = client.get("/v1/designer/skills")

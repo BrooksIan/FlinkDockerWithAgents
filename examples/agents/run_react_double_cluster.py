@@ -41,7 +41,7 @@ def main() -> None:
     )
     out = keyed.apply(ReactDoubleValueAgent()).to_datastream()
     out.print()
-    agents_env.execute("Apemosyne React Double Value")
+    agents_env.execute("Ratatoskr React Double Value")
 
 
 if __name__ == "__main__":

@@ -7,14 +7,14 @@ cd "$ROOT"
 
 "$ROOT/scripts/dev-stop.sh"
 
-if [ -f "$ROOT/.venv/bin/apemosyne" ]; then
-  APEMOSYNE="$ROOT/.venv/bin/apemosyne"
+if [ -f "$ROOT/.venv/bin/ratatoskr" ]; then
+  RATATOSKR="$ROOT/.venv/bin/ratatoskr"
 else
-  APEMOSYNE=apemosyne
+  RATATOSKR=ratatoskr
 fi
 
 echo "Starting Control API on :8090 (loads .env automatically)..."
-"$APEMOSYNE" api start &
+"$RATATOSKR" api start &
 API_PID=$!
 sleep 2
 

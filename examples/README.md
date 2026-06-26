@@ -2,14 +2,14 @@
 
 Generic demos and **registered agents** for the minimal Flink stack — no honeypot dependencies.
 
-Part of the [Apemosyne](../README.md) workspace. Platform guide: [docs/PLATFORM.md](../docs/PLATFORM.md).
+Part of the [Ratatoskr](../README.md) workspace. Platform guide: [docs/PLATFORM.md](../docs/PLATFORM.md).
 
 ## Prerequisites
 
 ```bash
 pip install -e .
-apemosyne build
-apemosyne up              # default: minimal JobManager + TaskManager
+ratatoskr build
+ratatoskr up              # default: minimal JobManager + TaskManager
 ```
 
 ## Registered agents
@@ -25,11 +25,11 @@ Catalog: [`agents/agent-catalog.yaml`](agents/agent-catalog.yaml) — categories
 | `react_skills_demo` | react | `run_react_skills_demo_local.py` | Native `@chat_model_setup` + math-calculator skill |
 
 ```bash
-apemosyne agent list
-apemosyne agent describe workflow_counter
-apemosyne agent run workflow_counter --local
-apemosyne agent submit workflow_counter   # needs Flink cluster up
-apemosyne agent status
+ratatoskr agent list
+ratatoskr agent describe workflow_counter
+ratatoskr agent run workflow_counter --local
+ratatoskr agent submit workflow_counter   # needs Flink cluster up
+ratatoskr agent status
 ```
 
 ### Source layout
@@ -61,16 +61,16 @@ agents:
     cluster_script: examples/agents/run_my_agent_cluster.py
 ```
 
-4. Optionally add a demo in `apemosyne/manifests/demo-files.yaml`.
+4. Optionally add a demo in `ratatoskr/manifests/demo-files.yaml`.
 
 ## Demos (TaskManager)
 
 | Demo | Command | Description |
 |------|---------|-------------|
-| Datastream | `apemosyne demo datastream` | PyFlink DataStream smoke |
-| Table | `apemosyne demo table` | Table API smoke |
-| Workflow | `apemosyne demo workflow` | `workflow_counter` local runner |
-| ReAct lab | `apemosyne demo react` | `react_echo` local runner |
+| Datastream | `ratatoskr demo datastream` | PyFlink DataStream smoke |
+| Table | `ratatoskr demo table` | Table API smoke |
+| Workflow | `ratatoskr demo workflow` | `workflow_counter` local runner |
+| ReAct lab | `ratatoskr demo react` | `react_echo` local runner |
 
 Legacy PyFlink-only scripts in this directory:
 
@@ -78,7 +78,7 @@ Legacy PyFlink-only scripts in this directory:
 
 ## Control API
 
-With `apemosyne api start` running:
+With `ratatoskr api start` running:
 
 ```bash
 curl http://127.0.0.1:8090/v1/agents
@@ -86,15 +86,15 @@ curl http://127.0.0.1:8090/v1/agents/workflow_counter
 curl -X POST http://127.0.0.1:8090/v1/agents/workflow_counter/submit
 ```
 
-Local dev: no `APEMOSYNE_API_KEY` required.
+Local dev: no `RATATOSKR_API_KEY` required.
 
 ## Cowrie / security demos (optional)
 
 Honeypot demos live under [`honeypot/demo/`](../honeypot/demo/):
 
 ```bash
-apemosyne up --profile full
-apemosyne demo cowrie
+ratatoskr up --profile full
+ratatoskr demo cowrie
 ```
 
 See [honeypot/README.md](../honeypot/README.md).

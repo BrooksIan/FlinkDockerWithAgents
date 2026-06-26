@@ -7,18 +7,18 @@ import os
 
 
 def test_openapi_and_health() -> None:
-    os.environ.pop("APEMOSYNE_API_KEY", None)
+    os.environ.pop("RATATOSKR_API_KEY", None)
     from fastapi.testclient import TestClient
 
-    from apemosyne.api.app import create_app
-    from apemosyne.api.config import ApiSettings
+    from ratatoskr.api.app import create_app
+    from ratatoskr.api.config import ApiSettings
 
     settings = ApiSettings(api_key=None, flink_rest_host="127.0.0.1", flink_rest_port=1)
     client = TestClient(create_app(settings))
 
     root = client.get("/")
     assert root.status_code == 200
-    assert root.json()["service"] == "apemosyne-api"
+    assert root.json()["service"] == "ratatoskr-api"
 
     spec = client.get("/openapi.json")
     assert spec.status_code == 200
@@ -33,14 +33,14 @@ def test_openapi_and_health() -> None:
 
     metrics = client.get("/metrics")
     assert metrics.status_code == 200
-    assert b"apemosyne_api_requests_total" in metrics.content
+    assert b"ratatoskr_api_requests_total" in metrics.content
 
 
 def test_cluster_status_route() -> None:
     from fastapi.testclient import TestClient
 
-    from apemosyne.api.app import create_app
-    from apemosyne.api.config import ApiSettings
+    from ratatoskr.api.app import create_app
+    from ratatoskr.api.config import ApiSettings
 
     client = TestClient(create_app(ApiSettings(api_key=None, flink_rest_host="127.0.0.1", flink_rest_port=1)))
     response = client.get("/v1/cluster/status")
@@ -59,8 +59,8 @@ def test_cluster_status_route() -> None:
 def test_api_key_auth() -> None:
     from fastapi.testclient import TestClient
 
-    from apemosyne.api.app import create_app
-    from apemosyne.api.config import ApiSettings
+    from ratatoskr.api.app import create_app
+    from ratatoskr.api.config import ApiSettings
 
     settings = ApiSettings(api_key="test-secret", flink_rest_host="127.0.0.1", flink_rest_port=1)
     client = TestClient(create_app(settings))
@@ -81,8 +81,8 @@ def test_api_key_auth() -> None:
 def test_agent_describe_route() -> None:
     from fastapi.testclient import TestClient
 
-    from apemosyne.api.app import create_app
-    from apemosyne.api.config import ApiSettings
+    from ratatoskr.api.app import create_app
+    from ratatoskr.api.config import ApiSettings
 
     client = TestClient(create_app(ApiSettings(api_key=None)))
     detail = client.get("/v1/agents/workflow_counter")
@@ -93,8 +93,8 @@ def test_agent_describe_route() -> None:
 def test_agent_definition_route() -> None:
     from fastapi.testclient import TestClient
 
-    from apemosyne.api.app import create_app
-    from apemosyne.api.config import ApiSettings
+    from ratatoskr.api.app import create_app
+    from ratatoskr.api.config import ApiSettings
 
     client = TestClient(create_app(ApiSettings(api_key=None)))
     detail = client.get("/v1/agents/workflow_counter/definition")
@@ -108,8 +108,8 @@ def test_agent_definition_route() -> None:
 def test_events_sse() -> None:
     import asyncio
 
-    from apemosyne.api.config import ApiSettings
-    from apemosyne.api.events import event_stream
+    from ratatoskr.api.config import ApiSettings
+    from ratatoskr.api.events import event_stream
 
     async def first_event() -> str:
         settings = ApiSettings(api_key=None, flink_rest_host="127.0.0.1", flink_rest_port=1)
@@ -124,8 +124,8 @@ def test_events_sse() -> None:
 def test_events_sse_route_registered() -> None:
     from fastapi.testclient import TestClient
 
-    from apemosyne.api.app import create_app
-    from apemosyne.api.config import ApiSettings
+    from ratatoskr.api.app import create_app
+    from ratatoskr.api.config import ApiSettings
 
     client = TestClient(create_app(ApiSettings(api_key=None)))
     spec = client.get("/openapi.json").json()

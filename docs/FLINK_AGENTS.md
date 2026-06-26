@@ -1,6 +1,6 @@
 # Apache Flink Agents — Workflow vs ReAct
 
-A practical review of the two agent paradigms in [Apache Flink Agents](https://github.com/apache/flink-agents) (release 0.3), with diagrams and guidance from the **Apemosyne** workspace (including the [honeypot](../honeypot/README.md) reference pipeline).
+A practical review of the two agent paradigms in [Apache Flink Agents](https://github.com/apache/flink-agents) (release 0.3), with diagrams and guidance from the **Ratatoskr** workspace (including the [honeypot](../honeypot/README.md) reference pipeline).
 
 **Related docs**
 
@@ -322,18 +322,18 @@ Policy code is shared; alerts should match on core fields. See [PRODUCTION_ARCHI
 
 ```bash
 pip install -e .
-apemosyne build
-apemosyne up --profile full
+ratatoskr build
+ratatoskr up --profile full
 
 # Workflow path (Phase 2)
-apemosyne test phase2 --e2e
+ratatoskr test phase2 --e2e
 
 # ReAct enrichment (Phase 3; needs Cloudera creds in .env)
-apemosyne test phase3 --e2e
-apemosyne test react --compare
+ratatoskr test phase3 --e2e
+ratatoskr test react --compare
 
 # Full production routing
-apemosyne test production --e2e
+ratatoskr test production --e2e
 ```
 
 Demos (when present under `honeypot/demo/` or `examples/`):

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stop local Apemosyne dev processes (API + dashboard).
+# Stop local Ratatoskr dev processes (API + dashboard).
 set -euo pipefail
 
 for port in 8090 8091 3000 5173; do

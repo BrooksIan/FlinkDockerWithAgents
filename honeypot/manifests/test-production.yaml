@@ -1,4 +1,4 @@
-# Files copied for ``apemosyne test production`` on the JobManager.
+# Files copied for ``ratatoskr test production`` on the JobManager.
 files:
   - local: test/test_production_pipeline.py
     remote: /opt/flink/test_production_pipeline.py

@@ -5,7 +5,7 @@ Each dataset uses a Kafka message key typical of real stream processing
 (partition key / entity id) plus a JSON value payload.
 
 Usage:
-  apemosyne kafka up
+  ratatoskr kafka up
   python scripts/publish_workflow_kafka_data.py --list
   python scripts/publish_workflow_kafka_data.py --dataset iot
   python scripts/publish_workflow_kafka_data.py --dataset all
@@ -197,7 +197,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--bootstrap",
         default=None,
-        help="Kafka bootstrap servers (default: auto-detect via apemosyne)",
+        help="Kafka bootstrap servers (default: auto-detect via ratatoskr)",
     )
     parser.add_argument(
         "--delay",
@@ -221,7 +221,7 @@ def _publish_with_delay(
     bootstrap: str | None,
     delay_sec: float,
 ) -> int:
-    from apemosyne.kafka_sources import publish_topic_records
+    from ratatoskr.kafka_sources import publish_topic_records
 
     if delay_sec <= 0:
         return publish_topic_records(topic, records, bootstrap=bootstrap)
@@ -249,7 +249,7 @@ def main(argv: list[str] | None = None) -> int:
     if str(repo) not in sys.path:
         sys.path.insert(0, str(repo))
 
-    from apemosyne.kafka_sources import kafka_bootstrap_servers
+    from ratatoskr.kafka_sources import kafka_bootstrap_servers
 
     names = list(DATASETS.keys()) if args.dataset == "all" else [args.dataset]
     bootstrap = args.bootstrap or kafka_bootstrap_servers()

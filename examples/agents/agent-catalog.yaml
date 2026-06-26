@@ -36,8 +36,8 @@ categories:
     - id: session_detect
       manifest: session_detect
       display_name: Session Detect
-      description: Classify closed src_ip sessions from dynamic Flink windows and block
-        on high/critical severity.
+      description: Classify closed src_ip sessions from dynamic Flink windows and
+        block on high/critical severity.
       tags:
       - demo
       - security
@@ -171,6 +171,31 @@ categories:
         type: object
         properties:
           message:
+            type: string
+          result:
+            type: string
+          agent:
+            type: string
+    - id: gen_ae8f2dde763f
+      manifest: gen_ae8f2dde763f
+      display_name: react1
+      description: "ReAct agent with native Flink skills \u2014 configure LLM in Settings."
+      tags:
+      - custom
+      - skills
+      - designer
+      input_schema:
+        type: object
+        required:
+        - message
+        properties:
+          message:
+            type: string
+            description: Question or task for the agent
+      output_schema:
+        type: object
+        properties:
+          answer:
             type: string
           result:
             type: string

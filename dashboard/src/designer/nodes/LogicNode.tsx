@@ -1,6 +1,7 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { AgentNodeKind } from "../../api/types";
 import { kindLabel } from "../definitionUtils";
+import { llmCallSubtitle } from "../llmCallConfig";
 
 export type LogicNodeData = {
   label: string;
@@ -13,7 +14,7 @@ export function LogicNode({ data, selected, type }: NodeProps) {
   const d = data as LogicNodeData;
   const kind = (type as AgentNodeKind) || d.kind;
   const showTarget = kind !== "input_event";
-  const showSource = kind !== "output_event" && kind !== "tool";
+  const showSource = kind !== "output_event" && kind !== "tool" && kind !== "mcp_tool";
 
   return (
     <div className={`studio-node designer-node ${kind} ${selected ? "selected" : ""}`}>
@@ -34,11 +35,22 @@ export function LogicNode({ data, selected, type }: NodeProps) {
             {(d.config?.expression as string) || (d.config?.tool_ref as string) || "tool"}
           </div>
         )}
+        {kind === "mcp_tool" && (
+          <div className="studio-node-sub muted">
+            {String(d.config?.tool_name || "mcp")} · {String(d.config?.server_ref || "server")}
+          </div>
+        )}
         {kind === "prompt" && (
           <div className="studio-node-sub muted designer-node-prompt-preview">
             {String(d.config?.system || "No system prompt yet").slice(0, 48)}
             {String(d.config?.system || "").length > 48 ? "…" : ""}
           </div>
+        )}
+        {kind === "llm_call" && (
+          <div className="studio-node-sub muted">{llmCallSubtitle(d.config || {})}</div>
+        )}
+        {kind === "action" && (
+          <div className="studio-node-sub muted">orchestrates flow</div>
         )}
       </div>
       {showSource && (
@@ -59,7 +71,7 @@ export function LogicNode({ data, selected, type }: NodeProps) {
           isConnectable
         />
       )}
-      {kind === "tool" && (
+      {kind === "tool" || kind === "mcp_tool" ? (
         <Handle
           id="in-call"
           type="target"
@@ -67,7 +79,7 @@ export function LogicNode({ data, selected, type }: NodeProps) {
           className="studio-handle designer-handle-tool"
           isConnectable
         />
-      )}
+      ) : null}
     </div>
   );
 }

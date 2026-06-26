@@ -21,6 +21,7 @@ const nodeTypes = {
   input_event: LogicNode,
   action: LogicNode,
   tool: LogicNode,
+  mcp_tool: LogicNode,
   output_event: LogicNode,
   prompt: LogicNode,
   llm_call: LogicNode,

@@ -7,12 +7,12 @@ import sys
 from pathlib import Path
 
 _DEFINITION_ID = "def_a8888ce93ad3"
-_MODULE_NAME = f"apemosyne_published_{_DEFINITION_ID}"
+_MODULE_NAME = f"ratatoskr_published_{_DEFINITION_ID}"
 
 
 def _load_class():
     repo = Path(__file__).resolve().parents[3]
-    module_path = repo / ".apemosyne" / "agents" / _DEFINITION_ID / "agent.py"
+    module_path = repo / ".ratatoskr" / "agents" / _DEFINITION_ID / "agent.py"
     spec = importlib.util.spec_from_file_location(_MODULE_NAME, module_path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Cannot load published agent from {module_path}")

@@ -21,18 +21,18 @@ def _setup_repo(root: Path) -> None:
 
 
 def test_publish_workflow_definition() -> None:
-    from apemosyne.designer.definitions.service import (
+    from ratatoskr.designer.definitions.service import (
         AgentDefinitionService,
         reset_agent_definition_service_for_tests,
     )
-    from apemosyne.designer.definitions.store import AgentDefinitionStore
+    from ratatoskr.designer.definitions.store import AgentDefinitionStore
 
     reset_agent_definition_service_for_tests()
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         _setup_repo(root)
         db = root / "designer.db"
-        os.environ["APEMOSYNE_DESIGNER_DB"] = str(db)
+        os.environ["RATATOSKR_DESIGNER_DB"] = str(db)
 
         store = AgentDefinitionStore(db)
         service = AgentDefinitionService(store)
@@ -99,12 +99,12 @@ def test_publish_workflow_definition() -> None:
         assert published["definition"]["manifest_name"] == "publish_test_agent"
         assert (root / published["shim_path"]).is_file()
 
-        from apemosyne.agents.registry import load_agent_registry
+        from ratatoskr.agents.registry import load_agent_registry
 
         registry = load_agent_registry(root=root, validate=False)
         assert "publish_test_agent" in registry.agents
 
-        from apemosyne.agents.catalog import load_agent_catalog
+        from ratatoskr.agents.catalog import load_agent_catalog
 
         catalog = load_agent_catalog(root=root, validate=True)
         manifests = {
@@ -115,18 +115,18 @@ def test_publish_workflow_definition() -> None:
         }
         assert "publish_test_agent" in manifests
 
-        from apemosyne.agents.published_copy import published_agent_artifact_pairs
-        from apemosyne.agents.registry import load_agent_registry
+        from ratatoskr.agents.published_copy import published_agent_artifact_pairs
+        from ratatoskr.agents.registry import load_agent_registry
 
         registry = load_agent_registry(root=root, validate=False)
         spec = registry.agents["publish_test_agent"]
         artifact_pairs = published_agent_artifact_pairs(root, spec)
-        assert any(".apemosyne/agents/" in remote for _, remote in artifact_pairs)
+        assert any(".ratatoskr/agents/" in remote for _, remote in artifact_pairs)
 
         republished = service.publish(definition_id, root=root)
         assert republished["manifest_name"] == "publish_test_agent"
 
-        os.environ.pop("APEMOSYNE_DESIGNER_DB", None)
+        os.environ.pop("RATATOSKR_DESIGNER_DB", None)
         reset_agent_definition_service_for_tests()
 
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Export OpenAPI from Apemosyne and optionally generate TypeScript types.
+# Export OpenAPI from Ratatoskr and optionally generate TypeScript types.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -10,13 +10,13 @@ cd "${ROOT}"
 
 mkdir -p "${OUT_DIR}"
 
-if command -v apemosyne >/dev/null 2>&1; then
-  apemosyne api openapi -o "${OPENAPI}"
-elif [[ -x "${ROOT}/.venv/bin/apemosyne" ]]; then
-  "${ROOT}/.venv/bin/apemosyne" api openapi -o "${OPENAPI}"
+if command -v ratatoskr >/dev/null 2>&1; then
+  ratatoskr api openapi -o "${OPENAPI}"
+elif [[ -x "${ROOT}/.venv/bin/ratatoskr" ]]; then
+  "${ROOT}/.venv/bin/ratatoskr" api openapi -o "${OPENAPI}"
 else
   python3 -c "
-from apemosyne.api.app import create_app
+from ratatoskr.api.app import create_app
 import json
 from pathlib import Path
 p = Path('${OPENAPI}')

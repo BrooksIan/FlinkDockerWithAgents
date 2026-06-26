@@ -1,5 +1,5 @@
 # Minimal Flink Agents stack — JobManager + TaskManager only.
-# Image: apemosyne build  (or set FLINK_AGENT_IMAGE in .env)
+# Image: ratatoskr build  (or set FLINK_AGENT_IMAGE in .env)
 x-flink-agent-image: &flink-agent-image
   image: ${FLINK_AGENT_IMAGE:-agent_flink_image:latest}
 

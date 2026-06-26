@@ -2,4 +2,4 @@
 # Kept as a pointer for older docs and bookmarks.
 #
 #   docker compose -f honeypot/docker-compose.yml up -d
-#   apemosyne up --profile full
+#   ratatoskr up --profile full

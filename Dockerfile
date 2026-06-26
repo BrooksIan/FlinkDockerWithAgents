@@ -1,4 +1,4 @@
-# Build: apemosyne build [git-ref]
+# Build: ratatoskr build [git-ref]
 # Produces agent_flink_image:latest with PyFlink + Flink Agents Python wheel.
 ARG FLINK_AGENTS_VERSION=release-0.3
 
@@ -45,9 +45,9 @@ RUN git clone --depth 1 --branch "${FLINK_AGENTS_VERSION}" https://github.com/ap
 
 COPY examples/demo_datastream.py examples/demo_table.py examples/demo_datastream_local.py /opt/flink/
 COPY examples/agents /opt/flink/examples/agents
-COPY apemosyne/__init__.py apemosyne/constants.py apemosyne/paths.py apemosyne/docker_utils.py apemosyne/kafka_sources.py /opt/flink/apemosyne/
-COPY apemosyne/agents/__init__.py apemosyne/agents/published_copy.py /opt/flink/apemosyne/agents/
-COPY apemosyne/runtime /opt/flink/apemosyne/runtime
-RUN chown -R flink:flink /opt/flink/examples /opt/flink/apemosyne /opt/flink/pythonpath
+COPY ratatoskr/__init__.py ratatoskr/constants.py ratatoskr/paths.py ratatoskr/docker_utils.py ratatoskr/kafka_sources.py /opt/flink/ratatoskr/
+COPY ratatoskr/agents/__init__.py ratatoskr/agents/published_copy.py /opt/flink/ratatoskr/agents/
+COPY ratatoskr/runtime /opt/flink/ratatoskr/runtime
+RUN chown -R flink:flink /opt/flink/examples /opt/flink/ratatoskr /opt/flink/pythonpath
 
 USER flink

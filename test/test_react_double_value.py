@@ -29,8 +29,8 @@ def test_double_value_fallback_from_hint() -> None:
 
 
 def test_registry_and_catalog() -> None:
-    from apemosyne.agents.catalog import load_agent_catalog
-    from apemosyne.agents.registry import load_agent_registry
+    from ratatoskr.agents.catalog import load_agent_catalog
+    from ratatoskr.agents.registry import load_agent_registry
 
     registry = load_agent_registry()
     assert "react_double_value" in registry.agents

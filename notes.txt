@@ -11,3 +11,17 @@ After Dockerfile/runtime edits:
 Quick code-only sync (cluster already running):
 
 ./scripts/restart-studio-cluster.sh --sync-only
+
+./scripts/dev-start.sh
+./scripts/dev-stop.sh
+
+
+# List datasets
+python scripts/publish_workflow_kafka_data.py --list
+# Publish one dataset
+python scripts/publish_workflow_kafka_data.py --dataset iot
+python scripts/publish_workflow_kafka_data.py --dataset security
+# Publish everything
+python scripts/publish_workflow_kafka_data.py --dataset all
+# Simulate a live stream (0.5s between messages)
+python scripts/publish_workflow_kafka_data.py --dataset clickstream --delay 0.5

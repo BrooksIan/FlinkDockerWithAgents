@@ -14,17 +14,25 @@ interface Props {
 
 export function AgentDefinitionList({ onSelect, onCompiled }: Props) {
   const [definitions, setDefinitions] = useState<AgentDefinition[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [validatingId, setValidatingId] = useState<string | null>(null);
   const [compilingId, setCompilingId] = useState<string | null>(null);
   const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [validation, setValidation] = useState<AgentDefinitionValidation | null>(null);
 
-  useEffect(() => {
+  function reload() {
+    setLoading(true);
     api
       .agentDefinitions()
       .then(setDefinitions)
-      .catch((e) => setError(String(e)));
+      .catch((e) => setError(String(e)))
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    reload();
   }, []);
 
   async function handleValidate(id: string) {
@@ -76,6 +84,20 @@ export function AgentDefinitionList({ onSelect, onCompiled }: Props) {
     }
   }
 
+  async function handleDelete(id: string, name: string) {
+    if (!window.confirm(`Delete agent definition "${name}"? This cannot be undone.`)) return;
+    setDeletingId(id);
+    setError(null);
+    try {
+      await api.deleteAgentDefinition(id);
+      setDefinitions((current) => current.filter((item) => item.id !== id));
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   function statusBadgeClass(status: string): string {
     if (status === "published") return "ok";
     if (status === "compiled") return "ok";
@@ -95,8 +117,10 @@ export function AgentDefinitionList({ onSelect, onCompiled }: Props) {
 
       {error && <p className="error">{error}</p>}
 
-      {definitions.length === 0 ? (
+      {loading ? (
         <p className="muted">Loading definitions…</p>
+      ) : definitions.length === 0 ? (
+        <p className="muted">No agent definitions yet. Create one to get started.</p>
       ) : (
         <ul className="designer-definition-list">
           {definitions.map((def) => (
@@ -158,6 +182,14 @@ export function AgentDefinitionList({ onSelect, onCompiled }: Props) {
                   onClick={() => onSelect?.(def)}
                 >
                   Inspect JSON
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={deletingId === def.id}
+                  onClick={() => handleDelete(def.id, def.name)}
+                >
+                  {deletingId === def.id ? "Deleting…" : "Delete"}
                 </button>
               </div>
             </li>

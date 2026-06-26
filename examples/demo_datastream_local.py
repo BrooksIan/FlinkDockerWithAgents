@@ -7,7 +7,7 @@ import sys
 
 
 def main() -> int:
-    print("Apemosyne local demo smoke")
+    print("Ratatoskr local demo smoke")
     try:
         import flink_agents  # noqa: F401
     except ImportError:

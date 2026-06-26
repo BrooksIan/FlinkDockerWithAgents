@@ -59,7 +59,7 @@ def publish_demo_events(
     *,
     bootstrap: str | None = None,
 ) -> int:
-    from apemosyne.kafka_sources import publish_topic_records
+    from ratatoskr.kafka_sources import publish_topic_records
 
     records = [{"key": e["src_ip"], "value": e} for e in demo_session_events()]
     publish_topic_records(topic, records, bootstrap=bootstrap)

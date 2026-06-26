@@ -19,13 +19,13 @@ def _bootstrap_paths() -> None:
     if str(repo) not in sys.path:
         sys.path.insert(0, str(repo))
     try:
-        from apemosyne._bootstrap import install_aliases
-        from apemosyne.paths import configure_runtime_sys_path
+        from ratatoskr._bootstrap import install_aliases
+        from ratatoskr.paths import configure_runtime_sys_path
 
         install_aliases()
         configure_runtime_sys_path(repo, include_honeypot=False)
     except ImportError:
-        runtime = repo / "apemosyne"
+        runtime = repo / "ratatoskr"
         if runtime.is_dir() and str(repo) not in sys.path:
             sys.path.insert(0, str(repo))
 
@@ -45,7 +45,7 @@ def _smoke_pyflink() -> None:
 
 
 def _run_cluster() -> int:
-    from apemosyne.runtime import cluster_launch_test
+    from ratatoskr.runtime import cluster_launch_test
 
     return cluster_launch_test.run_cluster_launch()
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 
 def test_load_agent_catalog() -> None:
-    from apemosyne.agents.catalog import load_agent_catalog
+    from ratatoskr.agents.catalog import load_agent_catalog
 
     catalog = load_agent_catalog()
     assert len(catalog.categories) >= 2
@@ -20,8 +20,8 @@ def test_load_agent_catalog() -> None:
 def test_catalog_api_route() -> None:
     from fastapi.testclient import TestClient
 
-    from apemosyne.api.app import create_app
-    from apemosyne.api.config import ApiSettings
+    from ratatoskr.api.app import create_app
+    from ratatoskr.api.config import ApiSettings
 
     client = TestClient(create_app(ApiSettings(api_key=None)))
     resp = client.get("/v1/agents/catalog")
@@ -47,7 +47,7 @@ def test_catalog_api_route() -> None:
 
 
 def test_list_agents_includes_catalog_metadata() -> None:
-    from apemosyne.api.services import list_agents
+    from ratatoskr.api.services import list_agents
 
     agents = {a["name"]: a for a in list_agents()}
     wc = agents["workflow_counter"]

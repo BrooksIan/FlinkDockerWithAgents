@@ -41,7 +41,7 @@ def main() -> None:
     )
     out = keyed.apply(ReactEchoAgent()).to_datastream()
     out.print()
-    agents_env.execute("Apemosyne React Echo")
+    agents_env.execute("Ratatoskr React Echo")
 
 
 if __name__ == "__main__":

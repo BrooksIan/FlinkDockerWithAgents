@@ -117,14 +117,14 @@ Legacy (opt-in only): `docker compose --profile legacy up -d kafka-flink-job` �
 Verify the production split:
 
 ```bash
-apemosyne test phase1          # submit normalize job, wait for RUNNING
-apemosyne test phase1 --e2e    # publish test event, verify cowrie.normalized schema
-apemosyne test phase2          # submit workflow job, wait for RUNNING
-apemosyne test phase2 --e2e    # publish normalized test event, verify cowrie.alerts
-apemosyne test phase3          # smoke: ReAct augmentor imports + Cloudera config
-apemosyne test phase3 --e2e    # Cloudera ReAct on sample event + cowrie.react_alerts
-apemosyne test production          # smoke: topic routing + hot-path policy
-apemosyne test production --e2e  # one event → cowrie.alerts + cowrie.react_alerts (if Cloudera)
+ratatoskr test phase1          # submit normalize job, wait for RUNNING
+ratatoskr test phase1 --e2e    # publish test event, verify cowrie.normalized schema
+ratatoskr test phase2          # submit workflow job, wait for RUNNING
+ratatoskr test phase2 --e2e    # publish normalized test event, verify cowrie.alerts
+ratatoskr test phase3          # smoke: ReAct augmentor imports + Cloudera config
+ratatoskr test phase3 --e2e    # Cloudera ReAct on sample event + cowrie.react_alerts
+ratatoskr test production          # smoke: topic routing + hot-path policy
+ratatoskr test production --e2e  # one event → cowrie.alerts + cowrie.react_alerts (if Cloudera)
 python3 test/test_cowrie_security_alert.py
 python3 test/test_react_dashboard_bridge.py
 python3 test/test_react_counter_attack_executor.py

@@ -43,7 +43,7 @@ def main() -> None:
     )
     out = keyed.apply(ReactSkillsDemoAgent()).to_datastream()
     out.print()
-    agents_env.execute("Apemosyne React Skills Demo")
+    agents_env.execute("Ratatoskr React Skills Demo")
 
 
 if __name__ == "__main__":

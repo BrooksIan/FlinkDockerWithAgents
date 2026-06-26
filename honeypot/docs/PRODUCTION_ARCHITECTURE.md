@@ -165,7 +165,7 @@ Phase 2 selects its Flink graph via `cowrie_pipeline.resolve_phase2_engine()`:
 
 - **GO for production:** keep `COWRIE_PHASE2_ENGINE=pure_python` (compose default).
 - **Local parity:** `python3 test/test_phase2_engine.py` (or `./scripts/verify_sprint_b.sh` in Docker) compares core alert fields between map UDF and Flink Agents local runner.
-- **Cluster spike:** set `COWRIE_PHASE2_ENGINE=flink_agents` on `kafka-workflow-processor`, recreate the sidecar, then `apemosyne test phase2 --e2e`. If the job fails to RUNNING or alerts stall, stay on `pure_python` and treat `flink_agents` as experimental until classloader issues are resolved upstream.
+- **Cluster spike:** set `COWRIE_PHASE2_ENGINE=flink_agents` on `kafka-workflow-processor`, recreate the sidecar, then `ratatoskr test phase2 --e2e`. If the job fails to RUNNING or alerts stall, stay on `pure_python` and treat `flink_agents` as experimental until classloader issues are resolved upstream.
 
 Policy for both engines lives in `cowrie_policy.py` / `cowrie_workflow_detect.py` — the flag only changes *how* detection is wired in Flink, not the rules.
 
@@ -189,9 +189,9 @@ bash scripts/verify_sprint_c.sh              # + Phase 3 summary agent (Sprint C
 With full stack:
 
 ```bash
-apemosyne test production
-apemosyne test production --e2e
-apemosyne test react --compare
+ratatoskr test production
+ratatoskr test production --e2e
+ratatoskr test react --compare
 ```
 
 Roadmap (Sprint C–D): [SPRINT_ROADMAP.md](SPRINT_ROADMAP.md)

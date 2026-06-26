@@ -32,8 +32,8 @@ def _run_host_fallback() -> list[dict]:
     print(
         "Note: flink_agents is not installed on the host. "
         "Running session_detect_logic directly (same rules as the agent).\n"
-        "For the full AgentsExecutionEnvironment path: apemosyne build && "
-        "apemosyne agent submit session_detect\n"
+        "For the full AgentsExecutionEnvironment path: ratatoskr build && "
+        "ratatoskr agent submit session_detect\n"
     )
     return [process_session_summary(summary) for summary in demo_session_summaries()]
 

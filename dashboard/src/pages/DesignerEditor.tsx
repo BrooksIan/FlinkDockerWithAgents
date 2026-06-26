@@ -15,12 +15,18 @@ import type {
   AgentDefinition,
   AgentDefinitionCompileResult,
   AgentDefinitionValidation,
+  McpCatalog,
+  ReactLlmSettings,
 } from "../api/types";
 import { CompilePreviewPanel } from "../components/CompilePreviewPanel";
+import { ToastStack, useToastStack } from "../components/ToastStack";
 import { DesignerCanvas } from "../designer/DesignerCanvas";
 import { DesignerInspector } from "../designer/DesignerInspector";
 import { DesignerPalette } from "../designer/DesignerPalette";
 import { DesignerPromptPanel } from "../designer/DesignerPromptPanel";
+import { DesignerPublishSteps } from "../designer/DesignerPublishSteps";
+import { DesignerReadinessBanner } from "../designer/DesignerReadinessBanner";
+import { DesignerValidationBar } from "../designer/DesignerValidationBar";
 import {
   autoWireAgentGraph,
   connectDesignerEdge,
@@ -33,9 +39,17 @@ import {
 } from "../designer/definitionUtils";
 import { defaultPromptConfig } from "../designer/promptDefaults";
 
+const SKILLS_MATH_LLM_CONFIG = {
+  use_platform_llm: true,
+  mode: "flink_skills",
+  skills: ["math-calculator"],
+  allowed_commands: ["echo", "bc"],
+};
+
 export function DesignerEditorPage() {
   const { id } = useParams<{ id: string }>();
   const [definition, setDefinition] = useState<AgentDefinition | null>(null);
+  const [loading, setLoading] = useState(true);
   const [nodes, setNodes] = useNodesState<Node>([]);
   const [edges, setEdges] = useEdgesState<Edge>([]);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
@@ -45,8 +59,11 @@ export function DesignerEditorPage() {
   const [error, setError] = useState<string | null>(null);
   const [agentName, setAgentName] = useState("");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
-  const [busy, setBusy] = useState<"validate" | "compile" | "publish" | null>(null);
-  const [publishMessage, setPublishMessage] = useState<string | null>(null);
+  const [busy, setBusy] = useState<"validate" | "compile" | "publish" | "run" | null>(null);
+  const [mcpInstances, setMcpInstances] = useState<import("../api/types").McpInstance[]>([]);
+  const [mcpCatalog, setMcpCatalog] = useState<McpCatalog | null>(null);
+  const [llmSettings, setLlmSettings] = useState<ReactLlmSettings | null>(null);
+  const { toasts, push, dismiss } = useToastStack();
   const saveTimer = useRef<number | null>(null);
   const nameSaveTimer = useRef<number | null>(null);
 
@@ -59,6 +76,7 @@ export function DesignerEditorPage() {
 
   useEffect(() => {
     if (!id) return;
+    setLoading(true);
     api
       .getDesignerDefinition(id)
       .then((def) => {
@@ -67,8 +85,16 @@ export function DesignerEditorPage() {
         const flow = definitionToFlow(def);
         setNodes(flow.nodes);
         setEdges(flow.edges);
+        setError(null);
       })
-      .catch((e) => setError(String(e)));
+      .catch((e) => setError(String(e)))
+      .finally(() => setLoading(false));
+    api
+      .mcpInstances()
+      .then((response) => setMcpInstances(response.instances))
+      .catch(() => setMcpInstances([]));
+    api.mcpCatalog().then(setMcpCatalog).catch(() => setMcpCatalog(null));
+    api.reactLlmSettings().then(setLlmSettings).catch(() => setLlmSettings(null));
   }, [id, setNodes, setEdges]);
 
   const persist = useCallback(
@@ -207,6 +233,38 @@ export function DesignerEditorPage() {
     handleAddNode({ kind: "prompt", name: "prompt", config: defaultPromptConfig() });
   }
 
+  function handleApplySkillsRecipe() {
+    const llmNode = nodes.find((n) => n.type === "llm_call");
+    if (llmNode) {
+      const data = llmNode.data as Record<string, unknown>;
+      const config = (data.config as Record<string, unknown>) || {};
+      handleUpdateNode(llmNode.id, { config: { ...config, ...SKILLS_MATH_LLM_CONFIG } });
+    } else {
+      handleAddNode({
+        kind: "llm_call",
+        name: "llm",
+        config: SKILLS_MATH_LLM_CONFIG,
+      });
+    }
+    push("Skills recipe applied — LLM node set to Flink skills mode", "ok");
+  }
+
+  function handleUpdateDefinition(patch: Partial<AgentDefinition>) {
+    if (!id || !definition) return;
+    setSaveState("saving");
+    api
+      .updateDesignerDefinition(id, patch)
+      .then((updated) => {
+        setDefinition(updated);
+        setSaveState("saved");
+        setError(null);
+      })
+      .catch((e) => {
+        setError(String(e));
+        setSaveState("idle");
+      });
+  }
+
   function handleUpdateNode(nodeId: string, patch: { name?: string; config?: Record<string, unknown> }) {
     const next = nodes.map((n) => {
       if (n.id !== nodeId) return n;
@@ -254,6 +312,7 @@ export function DesignerEditorPage() {
     setEdges(nextEdges);
     scheduleSave(nodes, nextEdges);
     setError(null);
+    push("Auto-wired graph edges", "info");
   }
 
   async function handleValidate() {
@@ -264,11 +323,14 @@ export function DesignerEditorPage() {
       await persist(nodes, edges);
       const result = await api.validateAgentDefinition(id);
       setValidation(result);
-      if (!result.valid) {
-        setError(result.errors.join(" · "));
+      if (result.valid) {
+        push("Graph validation passed", "ok");
+      } else {
+        push(`Validation failed: ${result.errors[0] || "see panel"}`, "error");
       }
     } catch (e) {
       setError(String(e));
+      push(String(e), "error");
     } finally {
       setBusy(null);
     }
@@ -276,17 +338,26 @@ export function DesignerEditorPage() {
 
   async function handleCompile() {
     if (!id) return;
+    if (validation && !validation.valid) {
+      push("Fix validation errors before compiling", "error");
+      return;
+    }
     setBusy("compile");
     setError(null);
-    setPublishMessage(null);
     try {
       await persist(nodes, edges);
       const result = await api.compileAgentDefinition(id);
       setCompileResult(result);
       if (result.definition) setDefinition(result.definition);
       setValidation(result.validation);
+      if (result.validation.valid) {
+        push(`Compiled to ${result.output_dir}`, "ok");
+      } else {
+        push("Compile finished with validation warnings", "error");
+      }
     } catch (e) {
       setError(String(e));
+      push(String(e), "error");
     } finally {
       setBusy(null);
     }
@@ -294,18 +365,47 @@ export function DesignerEditorPage() {
 
   async function handlePublish() {
     if (!id) return;
+    if (validation && !validation.valid) {
+      push("Validate the graph before publishing", "error");
+      return;
+    }
     setBusy("publish");
     setError(null);
-    setPublishMessage(null);
     try {
       await persist(nodes, edges);
       const result = await api.publishAgentDefinition(id);
       if (result.definition) setDefinition(result.definition);
-      setPublishMessage(
-        `Added to catalog as ${result.manifest_name} — visible in Agents and Studio palette.`,
+      push(
+        `Added to catalog as ${result.manifest_name} — visible in Agents and Studio palette`,
+        "ok",
       );
     } catch (e) {
       setError(String(e));
+      push(String(e), "error");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function handleRunLocal() {
+    if (!id) return;
+    if (definition?.type === "react" && llmSettings && !llmSettings.configured) {
+      push("Configure LLM settings before test run", "error");
+      return;
+    }
+    setBusy("run");
+    setError(null);
+    try {
+      await persist(nodes, edges);
+      const result = await api.runAgentDefinitionLocal(id);
+      if (result.return_code === 0) {
+        push(`Local test run finished (run ${result.run_id})`, "ok");
+      } else {
+        push(`Local test run failed with exit code ${result.return_code}`, "error");
+      }
+    } catch (e) {
+      setError(String(e));
+      push(String(e), "error");
     } finally {
       setBusy(null);
     }
@@ -313,8 +413,12 @@ export function DesignerEditorPage() {
 
   if (!id) return null;
 
+  const compileBlocked = validation !== null && !validation.valid;
+  const busyAny = busy !== null;
+
   return (
     <div className="studio-page designer-editor-page">
+      <ToastStack toasts={toasts} onDismiss={dismiss} />
       <p>
         <Link to="/designer">← Designer</Link>
       </p>
@@ -326,7 +430,7 @@ export function DesignerEditorPage() {
               className="designer-agent-name-input"
               type="text"
               value={agentName}
-              placeholder={definition ? "Untitled agent" : "Loading…"}
+              placeholder={loading ? "Loading…" : "Untitled agent"}
               disabled={!definition}
               maxLength={120}
               onChange={(e) => handleNameChange(e.target.value)}
@@ -353,30 +457,57 @@ export function DesignerEditorPage() {
         </div>
       </div>
       {error && <p className="error">{error}</p>}
-      {publishMessage && <p className="badge ok">{publishMessage}</p>}
+      {loading && <p className="muted">Loading agent definition…</p>}
+
+      <DesignerReadinessBanner
+        definitionType={definition?.type}
+        llmSettings={llmSettings}
+        nodes={nodes}
+        mcpAttachedCount={definition?.mcp_servers?.length ?? 0}
+      />
+
+      <DesignerPublishSteps
+        status={definition?.status}
+        validationValid={validation?.valid ?? null}
+        hasCompile={compileResult !== null}
+        manifestName={definition?.manifest_name}
+      />
+
+      <DesignerValidationBar
+        validation={validation}
+        busy={busy === "validate"}
+        compileBlocked={compileBlocked}
+        onValidate={handleValidate}
+      />
 
       <div className="designer-toolbar card">
-        <button type="button" className="secondary" onClick={handleAutoWire}>
+        <button type="button" className="secondary" onClick={handleAutoWire} disabled={busyAny}>
           Auto-wire
         </button>
-        <button type="button" className="secondary" disabled={busy !== null} onClick={handleValidate}>
-          {busy === "validate" ? "Validating…" : "Validate"}
-        </button>
-        <button type="button" disabled={busy !== null} onClick={handleCompile}>
+        <button type="button" disabled={busyAny || compileBlocked} onClick={handleCompile}>
           {busy === "compile" ? "Compiling…" : "Compile"}
         </button>
-        <button type="button" className="secondary" disabled={busy !== null} onClick={handlePublish}>
+        <button
+          type="button"
+          className="secondary"
+          disabled={busyAny || compileBlocked}
+          onClick={handlePublish}
+        >
           {busy === "publish" ? "Publishing…" : "Add to catalog"}
+        </button>
+        <button
+          type="button"
+          className="secondary"
+          disabled={busyAny}
+          onClick={handleRunLocal}
+          title="Compile if needed, then run the generated local runner"
+        >
+          {busy === "run" ? "Running…" : "Test run locally"}
         </button>
         {definition?.manifest_name && (
           <Link to={`/agents/${definition.manifest_name}`} className="secondary-link">
             View in catalog
           </Link>
-        )}
-        {validation && (
-          <span className={`badge ${validation.valid ? "ok" : "warn"}`} style={{ marginLeft: "0.5rem" }}>
-            {validation.valid ? "Valid graph" : "Invalid graph"}
-          </span>
         )}
       </div>
 
@@ -385,11 +516,17 @@ export function DesignerEditorPage() {
           nodes={nodes}
           onUpdateNode={handleUpdateNode}
           onAddPrompt={handleAddPromptNode}
+          onApplySkillsRecipe={handleApplySkillsRecipe}
         />
       )}
 
       <div className="studio-layout">
-        <DesignerPalette agentType={definition?.type || "workflow"} onAdd={handleAddNode} />
+        <DesignerPalette
+          agentType={definition?.type || "workflow"}
+          mcpInstances={mcpInstances}
+          mcpAttached={definition?.mcp_servers || []}
+          onAdd={handleAddNode}
+        />
         <DesignerCanvas
           nodes={nodes}
           edges={edges}
@@ -404,8 +541,12 @@ export function DesignerEditorPage() {
           }}
         />
         <DesignerInspector
+          definition={definition}
+          mcpInstances={mcpInstances}
+          mcpCatalog={mcpCatalog}
           selectedNode={selectedNode}
           selectedEdge={selectedEdge}
+          onUpdateDefinition={handleUpdateDefinition}
           onUpdateNode={handleUpdateNode}
           onUpdateEdge={handleUpdateEdge}
           onDeleteNode={handleDeleteNode}

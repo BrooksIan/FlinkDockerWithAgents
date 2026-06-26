@@ -9,22 +9,22 @@ from pathlib import Path
 
 
 def test_double_value_seed_and_validate() -> None:
-    from apemosyne.designer.definitions.models import agent_definition_from_dict
-    from apemosyne.designer.definitions.seed import (
+    from ratatoskr.designer.definitions.models import agent_definition_from_dict
+    from ratatoskr.designer.definitions.seed import (
         DOUBLE_VALUE_ID,
         double_value_definition_payload,
     )
-    from apemosyne.designer.definitions.service import (
+    from ratatoskr.designer.definitions.service import (
         AgentDefinitionService,
         reset_agent_definition_service_for_tests,
     )
-    from apemosyne.designer.definitions.store import AgentDefinitionStore
-    from apemosyne.designer.definitions.validate import validate_agent_definition
+    from ratatoskr.designer.definitions.store import AgentDefinitionStore
+    from ratatoskr.designer.definitions.validate import validate_agent_definition
 
     reset_agent_definition_service_for_tests()
     with tempfile.TemporaryDirectory() as tmp:
         db = Path(tmp) / "designer.db"
-        os.environ["APEMOSYNE_DESIGNER_DB"] = str(db)
+        os.environ["RATATOSKR_DESIGNER_DB"] = str(db)
         store = AgentDefinitionStore(db)
         service = AgentDefinitionService(store)
 
@@ -45,22 +45,22 @@ def test_double_value_seed_and_validate() -> None:
         direct = agent_definition_from_dict(payload)
         assert validate_agent_definition(direct)["valid"] is True
 
-        os.environ.pop("APEMOSYNE_DESIGNER_DB", None)
+        os.environ.pop("RATATOSKR_DESIGNER_DB", None)
         reset_agent_definition_service_for_tests()
 
 
 def test_agent_definitions_api_crud() -> None:
     from fastapi.testclient import TestClient
 
-    from apemosyne.api.app import create_app
-    from apemosyne.api.config import ApiSettings
-    from apemosyne.designer.definitions.seed import DOUBLE_VALUE_ID
-    from apemosyne.designer.definitions.service import reset_agent_definition_service_for_tests
+    from ratatoskr.api.app import create_app
+    from ratatoskr.api.config import ApiSettings
+    from ratatoskr.designer.definitions.seed import DOUBLE_VALUE_ID
+    from ratatoskr.designer.definitions.service import reset_agent_definition_service_for_tests
 
     reset_agent_definition_service_for_tests()
     with tempfile.TemporaryDirectory() as tmp:
         db = Path(tmp) / "designer.db"
-        os.environ["APEMOSYNE_DESIGNER_DB"] = str(db)
+        os.environ["RATATOSKR_DESIGNER_DB"] = str(db)
         client = TestClient(create_app(ApiSettings(api_key=None)))
 
         listed = client.get("/v1/agent-definitions")
@@ -100,13 +100,13 @@ def test_agent_definitions_api_crud() -> None:
         assert deleted.status_code == 200
         assert client.get(f"/v1/agent-definitions/{new_id}").status_code == 404
 
-        os.environ.pop("APEMOSYNE_DESIGNER_DB", None)
+        os.environ.pop("RATATOSKR_DESIGNER_DB", None)
         reset_agent_definition_service_for_tests()
 
 
 def test_validation_detects_missing_action() -> None:
-    from apemosyne.designer.definitions.models import agent_definition_from_dict
-    from apemosyne.designer.definitions.validate import validate_agent_definition
+    from ratatoskr.designer.definitions.models import agent_definition_from_dict
+    from ratatoskr.designer.definitions.validate import validate_agent_definition
 
     definition = agent_definition_from_dict(
         {

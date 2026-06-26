@@ -2,7 +2,7 @@
 
 **Real-time threat detection and automated response using Apache Flink Agents with [Cowrie](https://github.com/cowrie/cowrie).**
 
-This directory is an **optional subproject** in the [Apemosyne](../README.md) workspace. For the generic Flink Agents CLI, Control API, and example agents (no Cowrie), see [docs/PLATFORM.md](../docs/PLATFORM.md).
+This directory is an **optional subproject** in the [Ratatoskr](../README.md) workspace. For the generic Flink Agents CLI, Control API, and example agents (no Cowrie), see [docs/PLATFORM.md](../docs/PLATFORM.md).
 
 ## Architecture
 
@@ -28,9 +28,9 @@ From the **repository root**:
 
 ```bash
 pip install -e .
-apemosyne build
-apemosyne up --profile full
-apemosyne dashboard
+ratatoskr build
+ratatoskr up --profile full
+ratatoskr dashboard
 ```
 
 Compose file: `honeypot/docker-compose.yml`.
@@ -69,17 +69,17 @@ Compose file: `honeypot/docker-compose.yml`.
 ## CLI commands
 
 ```bash
-apemosyne up --profile full
-apemosyne test phase1 [--e2e]
-apemosyne test phase2 [--e2e]
-apemosyne test actor-classify [--e2e]
-apemosyne test phase3 [--e2e]
-apemosyne test production [--e2e]
-apemosyne utils simulate-attacks --e2e
-apemosyne verify --tier nightly
+ratatoskr up --profile full
+ratatoskr test phase1 [--e2e]
+ratatoskr test phase2 [--e2e]
+ratatoskr test actor-classify [--e2e]
+ratatoskr test phase3 [--e2e]
+ratatoskr test production [--e2e]
+ratatoskr utils simulate-attacks --e2e
+ratatoskr verify --tier nightly
 ```
 
-Phase 3 e2e needs `CLOUDERA_AI_BASE_URL` and `CLOUDERA_JWT_TOKEN` in repo `.env` (then `apemosyne sync-env`).
+Phase 3 e2e needs `CLOUDERA_AI_BASE_URL` and `CLOUDERA_JWT_TOKEN` in repo `.env` (then `ratatoskr sync-env`).
 
 ## Screenshots
 
@@ -96,7 +96,7 @@ Phase 3 e2e needs `CLOUDERA_AI_BASE_URL` and `CLOUDERA_JWT_TOKEN` in repo `.env`
 
 ```bash
 cp .env.example .env          # repo root
-apemosyne sync-env --recreate
+ratatoskr sync-env --recreate
 ```
 
 ## Documentation
@@ -107,4 +107,4 @@ apemosyne sync-env --recreate
 
 ## Parent project
 
-Shared CLI and generic demos: **[../README.md](../README.md)** (Apemosyne)
+Shared CLI and generic demos: **[../README.md](../README.md)** (Ratatoskr)

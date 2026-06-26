@@ -5,7 +5,7 @@ from __future__ import annotations
 
 
 def _generic_window_pipeline():
-    from apemosyne.pipelines.models import Pipeline, PipelineEdge, PipelineNode
+    from ratatoskr.pipelines.models import Pipeline, PipelineEdge, PipelineNode
 
     return Pipeline(
         id="pipe_window_generic",
@@ -46,7 +46,7 @@ def _generic_window_pipeline():
 
 
 def _session_detect_pipeline():
-    from apemosyne.pipelines.models import Pipeline, PipelineEdge, PipelineNode
+    from ratatoskr.pipelines.models import Pipeline, PipelineEdge, PipelineNode
 
     return Pipeline(
         id="pipe_window_test",
@@ -88,7 +88,7 @@ def _session_detect_pipeline():
 
 
 def test_validate_pipeline_accepts_generic_window_topology() -> None:
-    from apemosyne.pipelines.validate import validate_pipeline
+    from ratatoskr.pipelines.validate import validate_pipeline
 
     result = validate_pipeline(_generic_window_pipeline())
     assert result["valid"] is True
@@ -96,15 +96,15 @@ def test_validate_pipeline_accepts_generic_window_topology() -> None:
 
 
 def test_validate_pipeline_accepts_window_topology() -> None:
-    from apemosyne.pipelines.validate import validate_pipeline
+    from ratatoskr.pipelines.validate import validate_pipeline
 
     result = validate_pipeline(_session_detect_pipeline())
     assert result["valid"] is True
 
 
 def test_validate_pipeline_rejects_window_after_agent() -> None:
-    from apemosyne.pipelines.models import Pipeline, PipelineEdge, PipelineNode
-    from apemosyne.pipelines.validate import validate_pipeline
+    from ratatoskr.pipelines.models import Pipeline, PipelineEdge, PipelineNode
+    from ratatoskr.pipelines.validate import validate_pipeline
 
     pipeline = Pipeline(
         id="bad",
@@ -126,7 +126,7 @@ def test_validate_pipeline_rejects_window_after_agent() -> None:
 
 
 def test_window_local_emits_generic_summaries() -> None:
-    from apemosyne.pipelines.window_local import apply_window_node
+    from ratatoskr.pipelines.window_local import apply_window_node
 
     events = _generic_window_pipeline().nodes[0].config["records"]
     summaries = apply_window_node(events, _generic_window_pipeline().nodes[1].config)
@@ -136,7 +136,7 @@ def test_window_local_emits_generic_summaries() -> None:
 
 
 def test_window_local_emits_session_detect_summaries() -> None:
-    from apemosyne.pipelines.window_local import apply_window_node
+    from ratatoskr.pipelines.window_local import apply_window_node
     from examples.agents.session_window_policy import SEVERITY_CRITICAL, classify_session
 
     events = _session_detect_pipeline().nodes[0].config["records"]
@@ -150,7 +150,7 @@ def test_window_local_emits_session_detect_summaries() -> None:
 def test_generate_cluster_runner_generic_window_compiles() -> None:
     import ast
 
-    from apemosyne.pipelines.cluster_codegen import generate_cluster_runner
+    from ratatoskr.pipelines.cluster_codegen import generate_cluster_runner
 
     script = generate_cluster_runner(_generic_window_pipeline())
     ast.parse(script)
@@ -162,7 +162,7 @@ def test_generate_cluster_runner_generic_window_compiles() -> None:
 def test_generate_cluster_runner_window_logic_compiles() -> None:
     import ast
 
-    from apemosyne.pipelines.cluster_codegen import generate_cluster_runner
+    from ratatoskr.pipelines.cluster_codegen import generate_cluster_runner
 
     script = generate_cluster_runner(_session_detect_pipeline())
     ast.parse(script)
@@ -173,7 +173,7 @@ def test_generate_cluster_runner_window_logic_compiles() -> None:
 
 
 def test_validate_pipeline_warns_mismatched_session_detect_policy() -> None:
-    from apemosyne.pipelines.validate import validate_pipeline
+    from ratatoskr.pipelines.validate import validate_pipeline
 
     pipeline = _generic_window_pipeline()
     pipeline.nodes[1].config["gap_policy"] = "session_detect"
@@ -183,7 +183,7 @@ def test_validate_pipeline_warns_mismatched_session_detect_policy() -> None:
 
 
 def test_validate_pipeline_cluster_window_records() -> None:
-    from apemosyne.pipelines.validate_cluster import validate_pipeline_cluster
+    from ratatoskr.pipelines.validate_cluster import validate_pipeline_cluster
 
     result = validate_pipeline_cluster(_session_detect_pipeline())
     assert result["valid"] is True
@@ -191,8 +191,8 @@ def test_validate_pipeline_cluster_window_records() -> None:
 
 
 def test_validate_pipeline_cluster_kafka_requires_window() -> None:
-    from apemosyne.pipelines.models import Pipeline, PipelineNode
-    from apemosyne.pipelines.validate_cluster import validate_pipeline_cluster
+    from ratatoskr.pipelines.models import Pipeline, PipelineNode
+    from ratatoskr.pipelines.validate_cluster import validate_pipeline_cluster
 
     pipeline = Pipeline(
         id="pipe_kafka",
@@ -213,8 +213,8 @@ def test_validate_pipeline_cluster_kafka_requires_window() -> None:
 
 
 def test_validate_pipeline_reports_disconnected_window() -> None:
-    from apemosyne.pipelines.models import Pipeline, PipelineEdge, PipelineNode
-    from apemosyne.pipelines.validate import validate_pipeline
+    from ratatoskr.pipelines.models import Pipeline, PipelineEdge, PipelineNode
+    from ratatoskr.pipelines.validate import validate_pipeline
 
     pipeline = Pipeline(
         id="pipe_disconnected",

@@ -1,6 +1,6 @@
-# Apemosyne Dashboard
+# Ratatoskr Dashboard
 
-Web UI for the **Apemosyne Control API** — monitor Flink Agents, compose pipelines, design agents visually, and inspect runs. No honeypot dependencies.
+Web UI for the **Ratatoskr Control API** — monitor Flink Agents, compose pipelines, design agents visually, and inspect runs. No honeypot dependencies.
 
 ## Prerequisites
 
@@ -8,12 +8,12 @@ From the repo root:
 
 ```bash
 pip install -e .
-apemosyne build
-apemosyne up                    # JobManager + TaskManager (Flink UI :8082)
-apemosyne kafka up              # Studio Kafka (:9094) — for pipeline Kafka sinks
+ratatoskr build
+ratatoskr up                    # JobManager + TaskManager (Flink UI :8082)
+ratatoskr kafka up              # Studio Kafka (:9094) — for pipeline Kafka sinks
 ```
 
-Copy [`.env.example`](../.env.example) to `.env` with `APEMOSYNE_PROFILE=minimal`, `FLINK_REST_PORT=8082`, and `KAFKA_BOOTSTRAP_SERVERS=localhost:9094`.
+Copy [`.env.example`](../.env.example) to `.env` with `RATATOSKR_PROFILE=minimal`, `FLINK_REST_PORT=8082`, and `KAFKA_BOOTSTRAP_SERVERS=localhost:9094`.
 
 After pulling changes or editing cluster runtime code:
 
@@ -30,7 +30,7 @@ Or restart only dev services (cluster already running):
 API docs: http://127.0.0.1:8090/docs  
 Dashboard: http://localhost:3000
 
-Local dev: leave `APEMOSYNE_API_KEY` unset so all routes are open.
+Local dev: leave `RATATOSKR_API_KEY` unset so all routes are open.
 
 ## Run
 
@@ -55,7 +55,7 @@ Stops API + dashboard:
 **Manual** (two terminals):
 
 ```bash
-apemosyne api start
+ratatoskr api start
 ```
 
 ```bash
@@ -75,7 +75,7 @@ Vite proxies `/v1`, `/metrics`, and `/openapi.json` to the API on `:8090`.
 | `VITE_API_BASE_URL` | `""` (use proxy) | API base when not using the Vite dev proxy |
 | `VITE_API_KEY` | unset | `X-API-Key` header when API auth is enabled |
 
-LLM settings for ReAct agents are stored server-side (`.apemosyne/designer.db`), not in dashboard env vars. Configure them under **Settings** in the UI.
+LLM settings for ReAct agents are stored server-side (`.ratatoskr/designer.db`), not in dashboard env vars. Configure them under **Settings** in the UI.
 
 ## Pages
 
@@ -112,7 +112,7 @@ Build **workflow** and **ReAct** agents on a [React Flow](https://reactflow.dev/
 
 1. Open **Designer** → **Create agent** (Workflow or ReAct template).
 2. Edit nodes and edges on `/designer/:id` — auto-save, validate, compile.
-3. **Compile** generates artifacts under `.apemosyne/agents/{definition_id}/` (Python, Flink YAML, manifest snippet, local runner).
+3. **Compile** generates artifacts under `.ratatoskr/agents/{definition_id}/` (Python, Flink YAML, manifest snippet, local runner).
 
 ReAct agents require an LLM. Configure endpoint, model, and API key under **Settings** before running pipelines in LLM mode.
 
@@ -128,7 +128,7 @@ Compose **linear multi-agent pipelines** (Source → Agent → … → Sink):
 - **Run locally** — in-process execution; links to `/runs/:id`
 - **Run on Flink cluster** — batch submit to minimal stack (`:8082`); Kafka sink default topic `workflow.test.output`
 
-Pipelines persist in `.apemosyne/pipelines.db`. Cluster runs need Studio Kafka (`apemosyne kafka up`) and a healthy minimal Flink stack — use `./scripts/restart-studio-cluster.sh` after code updates.
+Pipelines persist in `.ratatoskr/pipelines.db`. Cluster runs need Studio Kafka (`ratatoskr kafka up`) and a healthy minimal Flink stack — use `./scripts/restart-studio-cluster.sh` after code updates.
 
 Published ReAct agents show a **cluster warning** (Pemja classloader); prefer built-in workflow agents or local run for designer ReAct pipelines.
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Restart the Studio minimal Flink cluster + Kafka after code/image updates.
 #
-# Typical use after pulling changes or editing apemosyne pipeline/runtime code:
+# Typical use after pulling changes or editing ratatoskr pipeline/runtime code:
 #   ./scripts/restart-studio-cluster.sh
 #   ./scripts/restart-studio-cluster.sh --build --smoke
 #   ./scripts/restart-studio-cluster.sh --sync-only   # hot-sync code, no container restart
@@ -26,7 +26,7 @@ Usage: ./scripts/restart-studio-cluster.sh [options]
 Restart the Studio stack used for pipeline cluster runs:
   - minimal Flink (JobManager + TaskManager on FLINK_REST_PORT, default 8082)
   - Studio Kafka (localhost:9094)
-  - sync apemosyne runtime + pipeline code into containers
+  - sync ratatoskr runtime + pipeline code into containers
   - bootstrap Flink Agents thin JARs (Pemja classloader fix)
 
 Options:
@@ -40,10 +40,10 @@ Options:
   -h, --help    Show this help
 
 Environment (from .env):
-  APEMOSYNE_PROFILE=minimal
+  RATATOSKR_PROFILE=minimal
   FLINK_REST_PORT=8082
   KAFKA_BOOTSTRAP_SERVERS=localhost:9094
-  APEMOSYNE_API_PORT=8090
+  RATATOSKR_API_PORT=8090
 
 After restart:
   Flink UI:    http://localhost:8082
@@ -74,10 +74,10 @@ if [ -f "$ROOT/.env" ]; then
   set +a
 fi
 
-export APEMOSYNE_PROFILE="${APEMOSYNE_PROFILE:-minimal}"
+export RATATOSKR_PROFILE="${RATATOSKR_PROFILE:-minimal}"
 export FLINK_REST_PORT="${FLINK_REST_PORT:-8082}"
 export KAFKA_BOOTSTRAP_SERVERS="${KAFKA_BOOTSTRAP_SERVERS:-localhost:9094}"
-export APEMOSYNE_API_PORT="${APEMOSYNE_API_PORT:-8090}"
+export RATATOSKR_API_PORT="${RATATOSKR_API_PORT:-8090}"
 export DASHBOARD_PORT
 
 start_dashboard() {
@@ -85,28 +85,28 @@ start_dashboard() {
     echo "  Installing dashboard dependencies..."
     (cd "$ROOT/dashboard" && npm install)
   fi
-  mkdir -p "$ROOT/.apemosyne"
+  mkdir -p "$ROOT/.ratatoskr"
   echo "  Starting dashboard on :${DASHBOARD_PORT}..."
   (
     cd "$ROOT/dashboard"
     nohup npm run dev -- --host 127.0.0.1 --port "$DASHBOARD_PORT" \
-      >"$ROOT/.apemosyne/dashboard-dev.log" 2>&1 &
-    echo $! >"$ROOT/.apemosyne/dashboard.pid"
+      >"$ROOT/.ratatoskr/dashboard-dev.log" 2>&1 &
+    echo $! >"$ROOT/.ratatoskr/dashboard.pid"
   )
   sleep 2
   if curl -sf --max-time 5 "http://127.0.0.1:${DASHBOARD_PORT}/" >/dev/null; then
     echo "  Dashboard ready: http://localhost:${DASHBOARD_PORT}"
   else
-    echo "  Dashboard starting — log: .apemosyne/dashboard-dev.log" >&2
+    echo "  Dashboard starting — log: .ratatoskr/dashboard-dev.log" >&2
   fi
 }
 
-if [ -x "$ROOT/.venv/bin/apemosyne" ]; then
-  run_apemosyne() { "$ROOT/.venv/bin/apemosyne" "$@"; }
+if [ -x "$ROOT/.venv/bin/ratatoskr" ]; then
+  run_ratatoskr() { "$ROOT/.venv/bin/ratatoskr" "$@"; }
 elif [ -x "$ROOT/.venv/bin/python" ]; then
-  run_apemosyne() { "$ROOT/.venv/bin/python" -m apemosyne.main "$@"; }
+  run_ratatoskr() { "$ROOT/.venv/bin/python" -m ratatoskr.main "$@"; }
 else
-  run_apemosyne() { apemosyne "$@"; }
+  run_ratatoskr() { ratatoskr "$@"; }
 fi
 
 if [ -x "$ROOT/.venv/bin/python" ]; then
@@ -116,7 +116,7 @@ else
 fi
 
 echo "=== Studio cluster restart ==="
-echo "  profile:  $APEMOSYNE_PROFILE"
+echo "  profile:  $RATATOSKR_PROFILE"
 echo "  Flink UI: http://localhost:${FLINK_REST_PORT}"
 echo "  Kafka:    ${KAFKA_BOOTSTRAP_SERVERS}"
 echo ""
@@ -124,21 +124,21 @@ echo ""
 if ! $SYNC_ONLY; then
   if $BUILD; then
     echo "[1/5] Building Flink Agents image..."
-    run_apemosyne build
+    run_ratatoskr build
   else
     echo "[1/5] Skipping image build (pass --build to rebuild)"
   fi
 
   echo "[2/5] Restarting minimal Flink stack (force recreate)..."
-  run_apemosyne down --profile minimal 2>/dev/null || true
+  run_ratatoskr down --profile minimal 2>/dev/null || true
   docker compose -f "$ROOT/docker-compose.yml" up -d --force-recreate --remove-orphans
   echo "  waiting 15s for JobManager health..."
   sleep 15
 
   if ! $SKIP_KAFKA; then
     echo "[3/5] Restarting Studio Kafka..."
-    run_apemosyne kafka down 2>/dev/null || true
-    run_apemosyne kafka up --wait 12
+    run_ratatoskr kafka down 2>/dev/null || true
+    run_ratatoskr kafka up --wait 12
   else
     echo "[3/5] Skipping Kafka (--no-kafka)"
   fi
@@ -149,9 +149,9 @@ fi
 echo "[4/5] Syncing code + bootstrapping cluster runtime..."
 if $SMOKE; then SMOKE_FLAG=True; else SMOKE_FLAG=False; fi
 "$PYTHON" - <<PY
-from apemosyne.env import load_workspace_env
+from ratatoskr.env import load_workspace_env
 load_workspace_env()
-from apemosyne.runtime.studio_cluster_sync import restart_studio_cluster
+from ratatoskr.runtime.studio_cluster_sync import restart_studio_cluster
 restart_studio_cluster(smoke=${SMOKE_FLAG})
 PY
 
@@ -159,12 +159,12 @@ if $RESTART_API || $START_DASHBOARD; then
   echo "[5/5] Restarting dev services..."
   "$ROOT/scripts/dev-stop.sh"
   if $RESTART_API; then
-    run_apemosyne api start &
+    run_ratatoskr api start &
     sleep 2
-    if curl -sf --max-time 5 "http://127.0.0.1:${APEMOSYNE_API_PORT}/v1/health" >/dev/null; then
-      echo "  API healthy on :${APEMOSYNE_API_PORT}"
+    if curl -sf --max-time 5 "http://127.0.0.1:${RATATOSKR_API_PORT}/v1/health" >/dev/null; then
+      echo "  API healthy on :${RATATOSKR_API_PORT}"
     else
-      echo "  API not healthy yet — check: curl http://127.0.0.1:${APEMOSYNE_API_PORT}/v1/health" >&2
+      echo "  API not healthy yet — check: curl http://127.0.0.1:${RATATOSKR_API_PORT}/v1/health" >&2
     fi
   fi
   if $START_DASHBOARD; then
@@ -178,7 +178,7 @@ echo ""
 echo "=== Ready ==="
 echo "  Flink UI:    http://localhost:${FLINK_REST_PORT}"
 echo "  Kafka:       ${KAFKA_BOOTSTRAP_SERVERS}"
-echo "  Control API: http://127.0.0.1:${APEMOSYNE_API_PORT}/docs"
+echo "  Control API: http://127.0.0.1:${RATATOSKR_API_PORT}/docs"
 if $START_DASHBOARD; then
   echo "  Dashboard:   http://localhost:${DASHBOARD_PORT}"
 else

@@ -1,12 +1,12 @@
-# Apemosyne
+# Ratatoskr
 
 **Build, run, and verify [Apache Flink Agents](https://github.com/apache/flink-agents) on Docker — with a CLI, registered agents, and a Control API for dashboards.**
 
-This repository is a **multi-project workspace** centered on the **Apemosyne** CLI:
+This repository is a **multi-project workspace** centered on the **Ratatoskr** CLI:
 
 | Path | Description |
 |------|-------------|
-| [`apemosyne/`](apemosyne/README.md) | CLI + Control API (`apemosyne`) |
+| [`ratatoskr/`](ratatoskr/README.md) | CLI + Control API (`ratatoskr`) |
 | [`examples/`](examples/README.md) | Generic Flink Agents demos and agent registry |
 | [`docs/`](docs/README.md) | Guides (workflow vs ReAct, platform API) |
 | [`honeypot/`](honeypot/README.md) | Optional Cowrie honeypot reference pipeline |
@@ -17,18 +17,18 @@ This repository is a **multi-project workspace** centered on the **Apemosyne** C
 
 ```bash
 pip install -e .
-apemosyne build
-apemosyne up                    # minimal: JobManager + TaskManager (default)
-apemosyne kafka up              # Studio Kafka (pipeline sources/sinks on :9094)
+ratatoskr build
+ratatoskr up                    # minimal: JobManager + TaskManager (default)
+ratatoskr kafka up              # Studio Kafka (pipeline sources/sinks on :9094)
 ```
 
 Copy [`.env.example`](.env.example) to `.env` for Studio defaults:
 
 ```bash
-APEMOSYNE_PROFILE=minimal
+RATATOSKR_PROFILE=minimal
 FLINK_REST_PORT=8082
 KAFKA_BOOTSTRAP_SERVERS=localhost:9094
-APEMOSYNE_API_PORT=8090
+RATATOSKR_API_PORT=8090
 ```
 
 **After code or image updates**, restart the Studio cluster (Flink + Kafka + sync runtime into containers):
@@ -43,7 +43,7 @@ APEMOSYNE_API_PORT=8090
 **Terminal 2 — Control API** (for dashboard development; no API key in local dev):
 
 ```bash
-apemosyne api start
+ratatoskr api start
 curl http://127.0.0.1:8090/v1/health
 curl http://127.0.0.1:8090/v1/agents
 ```
@@ -51,11 +51,11 @@ curl http://127.0.0.1:8090/v1/agents
 **Agents:**
 
 ```bash
-apemosyne agent list
-apemosyne agent run workflow_counter --local
-apemosyne agent submit workflow_counter
-apemosyne doctor
-apemosyne verify --tier quick
+ratatoskr agent list
+ratatoskr agent run workflow_counter --local
+ratatoskr agent submit workflow_counter
+ratatoskr doctor
+ratatoskr verify --tier quick
 ```
 
 ## Dashboard (web UI)
@@ -82,8 +82,8 @@ See [dashboard/README.md](dashboard/README.md) and [docs/PLATFORM.md](docs/PLATF
 ## Quick start (optional honeypot)
 
 ```bash
-apemosyne up --profile full    # Cowrie + Kafka + dashboard
-apemosyne dashboard
+ratatoskr up --profile full    # Cowrie + Kafka + dashboard
+ratatoskr dashboard
 ```
 
 See [honeypot/README.md](honeypot/README.md).
@@ -92,7 +92,7 @@ See [honeypot/README.md](honeypot/README.md).
 
 ```text
 .
-├── apemosyne/                 # CLI package + api/ + agents/ + runtime/
+├── ratatoskr/                 # CLI package + api/ + agents/ + runtime/
 ├── examples/
 │   └── agents/                # workflow_counter, react_echo + manifest
 ├── docs/                      # FLINK_AGENTS.md, PLATFORM.md
@@ -112,31 +112,31 @@ See [honeypot/README.md](honeypot/README.md).
 
 ```bash
 # Stack
-apemosyne build [git-ref]
-apemosyne up [--profile minimal|full] [--mode flink|platform|honeypot]
-apemosyne down
-apemosyne kafka up|down|status   # Studio Kafka (docker-compose.kafka.yml)
-apemosyne doctor
+ratatoskr build [git-ref]
+ratatoskr up [--profile minimal|full] [--mode flink|platform|honeypot]
+ratatoskr down
+ratatoskr kafka up|down|status   # Studio Kafka (docker-compose.kafka.yml)
+ratatoskr doctor
 
 # Studio cluster (after pulling or editing runtime code)
 ./scripts/restart-studio-cluster.sh [--build] [--smoke] [--dev|--api|--dashboard] [--sync-only]
 
 # Agents
-apemosyne agent list|describe|run|submit|status|cancel
+ratatoskr agent list|describe|run|submit|status|cancel
 
 # Control API
-apemosyne api start|url|openapi|check
+ratatoskr api start|url|openapi|check
 
 # Demos & verify
-apemosyne demo workflow|react|datastream|table
-apemosyne verify --tier quick|standard|full|nightly
-apemosyne test launch [--cluster]
-apemosyne test validate
+ratatoskr demo workflow|react|datastream|table
+ratatoskr verify --tier quick|standard|full|nightly
+ratatoskr test launch [--cluster]
+ratatoskr test validate
 ```
 
 Honeypot-only tests (`phase1`–`phase3`, `production`) run when `honeypot/` is present and `--profile full` is used.
 
-Full command reference: [apemosyne/README.md](apemosyne/README.md)
+Full command reference: [ratatoskr/README.md](ratatoskr/README.md)
 
 ## Prerequisites
 
@@ -144,7 +144,7 @@ Full command reference: [apemosyne/README.md](apemosyne/README.md)
 - Python 3.10+
 - Git (image build clones `apache/flink-agents`)
 
-Optional: copy [`.env.example`](.env.example) to `.env` for API/Flink overrides. **Local dev:** leave `APEMOSYNE_API_KEY` unset.
+Optional: copy [`.env.example`](.env.example) to `.env` for API/Flink overrides. **Local dev:** leave `RATATOSKR_API_KEY` unset.
 
 ## Documentation
 
@@ -154,7 +154,7 @@ Optional: copy [`.env.example`](.env.example) to `.env` for API/Flink overrides.
 | [dashboard/README.md](dashboard/README.md) | Dashboard pages, dev setup, project structure |
 | [docs/AGENT_DESIGNER_PLAN.md](docs/AGENT_DESIGNER_PLAN.md) | Visual agent authoring and codegen roadmap |
 | [docs/FLINK_AGENTS.md](docs/FLINK_AGENTS.md) | Workflow vs ReAct agents |
-| [apemosyne/README.md](apemosyne/README.md) | CLI package layout |
+| [ratatoskr/README.md](ratatoskr/README.md) | CLI package layout |
 | [examples/README.md](examples/README.md) | Example agents and demos |
 | [honeypot/README.md](honeypot/README.md) | Cowrie cybersecurity demo (optional) |
 

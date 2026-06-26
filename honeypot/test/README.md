@@ -27,14 +27,14 @@ python3 honeypot/test/test_cowrie_policy.py
 Require a running full stack:
 
 ```bash
-apemosyne up --profile full
-apemosyne test phase1 --e2e
+ratatoskr up --profile full
+ratatoskr test phase1 --e2e
 ```
 
 Or via verify:
 
 ```bash
-apemosyne verify --tier nightly
+ratatoskr verify --tier nightly
 ```
 
 ## Script-style tests

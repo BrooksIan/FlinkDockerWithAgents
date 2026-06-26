@@ -8,7 +8,7 @@ import os
 
 def test_rest_ports_prefers_studio_before_env() -> None:
     os.environ["FLINK_REST_PORT"] = "8081"
-    from apemosyne.api import flink_client
+    from ratatoskr.api import flink_client
 
     ports = flink_client._rest_ports_to_try()
     assert ports[0] == 8082
@@ -17,7 +17,7 @@ def test_rest_ports_prefers_studio_before_env() -> None:
 
 def test_get_job_falls_back_to_studio_port(monkeypatch) -> None:
     os.environ["FLINK_REST_PORT"] = "8081"
-    from apemosyne.api import flink_client
+    from ratatoskr.api import flink_client
 
     calls: list[int] = []
 

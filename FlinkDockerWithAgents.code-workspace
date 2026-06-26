@@ -2,7 +2,7 @@
 	"folders": [
 		{
 			"path": ".",
-			"name": "Apemosyne"
+			"name": "Ratatoskr"
 		}
 	],
 	"settings": {
@@ -141,7 +141,7 @@
 			{
 				"label": "Start honeypot stack",
 				"type": "shell",
-				"command": "apemosyne up --profile full",
+				"command": "ratatoskr up --profile full",
 				"group": "build",
 				"presentation": {
 					"reveal": "always",
@@ -152,7 +152,7 @@
 			{
 				"label": "Stop All Services",
 				"type": "shell",
-				"command": "apemosyne down",
+				"command": "ratatoskr down",
 				"group": "build",
 				"presentation": {
 					"reveal": "always",
@@ -163,7 +163,7 @@
 			{
 				"label": "View Service Logs",
 				"type": "shell",
-				"command": "apemosyne logs -f",
+				"command": "ratatoskr logs -f",
 				"group": "test",
 				"presentation": {
 					"reveal": "always",
@@ -229,7 +229,7 @@
 			{
 				"label": "Check Docker Containers",
 				"type": "shell",
-				"command": "apemosyne status",
+				"command": "ratatoskr status",
 				"group": "test",
 				"presentation": {
 					"reveal": "always",

@@ -1,5 +1,5 @@
 # Image: default agent_flink_image:latest (Flink Agents main / 0.3-SNAPSHOT).
-# Pin stable line: apemosyne build release-0.2.1 then set FLINK_AGENT_IMAGE in .env
+# Pin stable line: ratatoskr build release-0.2.1 then set FLINK_AGENT_IMAGE in .env
 x-flink-agent-image: &flink-agent-image
   image: ${FLINK_AGENT_IMAGE:-agent_flink_image:latest}
 

@@ -20,7 +20,7 @@ def _bootstrap() -> None:
 
 def main() -> None:
     _bootstrap()
-    from apemosyne.runtime.flink_agents_bootstrap import patch_flink_agents_version
+    from ratatoskr.runtime.flink_agents_bootstrap import patch_flink_agents_version
 
     patch_flink_agents_version()
     from pyflink.datastream import StreamExecutionEnvironment
@@ -40,7 +40,7 @@ def main() -> None:
     )
     out = keyed.apply(CounterAgent()).to_datastream()
     out.print()
-    agents_env.execute("Apemosyne Workflow Counter")
+    agents_env.execute("Ratatoskr Workflow Counter")
 
 
 if __name__ == "__main__":

@@ -30,8 +30,8 @@ def _bootstrap_paths() -> None:
     if repo not in sys.path:
         sys.path.insert(0, repo)
     try:
-        from apemosyne._bootstrap import install_aliases
-        from apemosyne.paths import configure_runtime_sys_path
+        from ratatoskr._bootstrap import install_aliases
+        from ratatoskr.paths import configure_runtime_sys_path
 
         install_aliases()
         configure_runtime_sys_path()

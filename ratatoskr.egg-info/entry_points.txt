@@ -1,0 +1,2 @@
+[console_scripts]
+ratatoskr = ratatoskr.main:main

@@ -1,10 +1,10 @@
 # Studio Kafka — Zookeeper + broker for pipeline sources/sinks.
 # Independent of honeypot (ports 9094 / 2182 vs honeypot 9093 / 2181).
 #
-#   apemosyne kafka up
+#   ratatoskr kafka up
 #   KAFKA_BOOTSTRAP_SERVERS=localhost:9094
 #
-name: apemosyne-kafka
+name: ratatoskr-kafka
 
 services:
   zookeeper:

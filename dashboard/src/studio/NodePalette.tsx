@@ -126,12 +126,12 @@ export function NodePalette({
       {kafkaReachable === false && kafkaTopics.length > 0 && (
         <p className="muted" style={{ fontSize: "0.8rem" }}>
           Broker offline — topic list may be stale until{" "}
-          <code>apemosyne up --profile full</code> is healthy.
+          <code>ratatoskr up --profile full</code> is healthy.
         </p>
       )}
       {kafkaTopics.length === 0 && (
         <p className="muted" style={{ fontSize: "0.8rem" }}>
-          Kafka topics unavailable. Start the full stack: <code>apemosyne up --profile full</code>
+          Kafka topics unavailable. Start the full stack: <code>ratatoskr up --profile full</code>
         </p>
       )}
 

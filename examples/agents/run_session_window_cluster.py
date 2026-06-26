@@ -24,7 +24,7 @@ def _truthy(name: str, default: str = "0") -> bool:
 
 
 def _kafka_bootstrap() -> str:
-    from apemosyne.kafka_sources import cluster_kafka_bootstrap_servers
+    from ratatoskr.kafka_sources import cluster_kafka_bootstrap_servers
 
     return (
         os.environ.get("KAFKA_BOOTSTRAP_SERVERS")
@@ -41,7 +41,7 @@ def _kafka_source(env, topic: str, bootstrap: str):
 
     props = {
         "bootstrap.servers": bootstrap,
-        "group.id": os.environ.get("SESSION_WINDOW_KAFKA_GROUP", "apemosyne-session-window"),
+        "group.id": os.environ.get("SESSION_WINDOW_KAFKA_GROUP", "ratatoskr-session-window"),
         "auto.offset.reset": os.environ.get("SESSION_WINDOW_KAFKA_OFFSET", "earliest"),
     }
     consumer = FlinkKafkaConsumer(
@@ -64,7 +64,7 @@ def main() -> None:
     from pyflink.datastream import StreamExecutionEnvironment
     from pyflink.datastream.window import DynamicProcessingTimeSessionWindows
 
-    from apemosyne.runtime.kafka_jars import attach_kafka_jars
+    from ratatoskr.runtime.kafka_jars import attach_kafka_jars
     from examples.agents.session_detect_logic import process_session_summary
     from examples.agents.session_window_fixtures import DEMO_TOPIC, demo_session_events
     from examples.agents.session_window_ops import CowrieActivityGapExtractor, SessionSummaryFunction
@@ -90,7 +90,7 @@ def main() -> None:
     )
     out.print()
 
-    job_name = "Apemosyne Session Window Detect"
+    job_name = "Ratatoskr Session Window Detect"
     if use_kafka:
         job_name += f" (Kafka:{topic})"
     env.execute(job_name)

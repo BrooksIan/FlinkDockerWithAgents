@@ -17,6 +17,7 @@ export function CompilePreviewPanel({ result }: Props) {
     );
   }
 
+  const validation = result.validation;
   const files = result.files ?? [];
   const selected = files.find((file) => file.path === activePath) ?? files[0];
 
@@ -30,6 +31,23 @@ export function CompilePreviewPanel({ result }: Props) {
         Output: <code>{result.output_dir}</code> · class <code>{result.class_name}</code> · slug{" "}
         <code>{result.agent_slug}</code>
       </p>
+      {validation && (
+        <div style={{ marginBottom: "0.75rem" }}>
+          <span className={`badge ${validation.valid ? "ok" : "bad"}`}>
+            {validation.valid ? "Compile validation OK" : "Compile validation issues"}
+          </span>
+          {validation.errors.map((entry) => (
+            <p key={entry} className="error" style={{ margin: "0.35rem 0" }}>
+              {entry}
+            </p>
+          ))}
+          {validation.warnings.map((entry) => (
+            <p key={entry} className="muted" style={{ margin: "0.35rem 0" }}>
+              {entry}
+            </p>
+          ))}
+        </div>
+      )}
       <div className="compile-file-tabs">
         {files.map((file) => (
           <button

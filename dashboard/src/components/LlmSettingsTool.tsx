@@ -179,7 +179,7 @@ export function LlmSettingsTool({ settings, onSaved }: Props) {
         <summary className="muted">Environment variable fallback</summary>
         <p className="muted">
           If designer settings are unset, the platform reads{" "}
-          <code>APEMOSYNE_LLM_*</code>, <code>CLOUDERA_AI_BASE_URL</code>,{" "}
+          <code>RATATOSKR_LLM_*</code>, <code>CLOUDERA_AI_BASE_URL</code>,{" "}
           <code>CLOUDERA_MODEL_ID</code>, and <code>CLOUDERA_JWT_TOKEN</code> from{" "}
           <code>.env</code>.
         </p>

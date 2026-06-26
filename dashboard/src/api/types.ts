@@ -160,6 +160,7 @@ export interface McpCatalogServer {
   default_instance_id: string;
   category_id: string;
   category_label: string;
+  source?: "builtin" | "custom" | string;
 }
 
 export interface McpCatalogCategory {
@@ -212,6 +213,18 @@ export interface McpInstanceTestResult {
   tool?: string;
   message: string;
   result: Record<string, unknown>;
+}
+
+export interface McpCatalogServerCreate {
+  id?: string | null;
+  display_name: string;
+  description?: string;
+  transport?: string;
+  docs_url?: string | null;
+  tool_name?: string | null;
+  tool_description?: string | null;
+  secret_name?: string | null;
+  secret_label?: string | null;
 }
 
 export type LlmCallMode = "simple" | "flink_skills";
@@ -312,6 +325,14 @@ export interface AgentDefinitionPublishResult {
   shim_path: string;
   status: string;
   definition?: AgentDefinition;
+}
+
+export interface AgentDefinitionRunResult {
+  run_id: string;
+  return_code: number;
+  mode: "manifest" | "compiled";
+  agent?: string;
+  definition_id?: string;
 }
 
 export interface AgentDefinitionCreate {

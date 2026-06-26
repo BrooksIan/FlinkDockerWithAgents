@@ -19,15 +19,14 @@ export function DesignerPage() {
       .catch((e) => setError(String(e)));
   }, []);
 
-  const reactCategory = catalog?.categories.find((c) => c.id === "react");
-
   return (
     <>
       <h2>Agent Designer</h2>
       <div className="designer-page-header">
         <p className="muted" style={{ margin: 0 }}>
           Compose workflow and ReAct agents visually. ReAct agents require an LLM — configure
-          defaults in <Link to="/settings">Settings</Link>.
+          defaults in <Link to="/settings">Settings</Link>. Attach MCP servers there too; enabled
+          instances appear in the canvas palette and inspector.
         </p>
         <CreateAgentButton onError={setError} />
       </div>
@@ -45,30 +44,34 @@ export function DesignerPage() {
         <section className="designer-section">
           <h3>Catalog preview</h3>
           <div className="card">
-            {reactCategory ? (
-              <>
-                <p>
-                  <strong>{reactCategory.label}</strong>
-                  {reactCategory.llm_required && (
-                    <span className="badge warn" style={{ marginLeft: "0.5rem" }}>
-                      LLM required
-                    </span>
-                  )}
-                </p>
-                <p className="muted">{reactCategory.description}</p>
-                <ul className="designer-catalog-list">
-                  {reactCategory.subcategories.flatMap((sub) =>
-                    sub.agents.map((agent) => (
-                      <li key={agent.id}>
-                        <Link to={`/agents/${agent.manifest}`}>{agent.display_name}</Link>
-                        <span className="muted"> — {agent.description}</span>
-                      </li>
-                    )),
-                  )}
-                </ul>
-              </>
-            ) : (
+            {!catalog ? (
               <p className="muted">Loading catalog…</p>
+            ) : catalog.categories.length === 0 ? (
+              <p className="muted">No catalog categories yet.</p>
+            ) : (
+              catalog.categories.map((category) => (
+                <div key={category.id} className="designer-catalog-category">
+                  <p style={{ margin: 0 }}>
+                    <strong>{category.label}</strong>
+                    {category.llm_required && (
+                      <span className="badge warn" style={{ marginLeft: "0.5rem" }}>
+                        LLM required
+                      </span>
+                    )}
+                  </p>
+                  <p className="muted">{category.description}</p>
+                  <ul className="designer-catalog-list">
+                    {category.subcategories.flatMap((sub) =>
+                      sub.agents.map((agent) => (
+                        <li key={agent.id}>
+                          <Link to={`/agents/${agent.manifest}`}>{agent.display_name}</Link>
+                          <span className="muted"> — {agent.description}</span>
+                        </li>
+                      )),
+                    )}
+                  </ul>
+                </div>
+              ))
             )}
           </div>
         </section>

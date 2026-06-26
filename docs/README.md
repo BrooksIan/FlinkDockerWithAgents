@@ -1,6 +1,6 @@
 # Documentation
 
-Guides for the **Apemosyne** Flink Agents workspace. Honeypot-specific docs live under [`honeypot/docs/`](../honeypot/docs/).
+Guides for the **Ratatoskr** Flink Agents workspace. Honeypot-specific docs live under [`honeypot/docs/`](../honeypot/docs/).
 
 ## Getting started
 
@@ -8,7 +8,7 @@ Guides for the **Apemosyne** Flink Agents workspace. Honeypot-specific docs live
 |-----|-------------|
 | [../README.md](../README.md) | Workspace overview and quick start |
 | [PLATFORM.md](PLATFORM.md) | **Control API, agents, observability, Studio cluster, dashboard integration** |
-| [../apemosyne/README.md](../apemosyne/README.md) | CLI package and commands |
+| [../ratatoskr/README.md](../ratatoskr/README.md) | CLI package and commands |
 | [../examples/README.md](../examples/README.md) | Example agents and demos |
 
 ## Guides in this directory

@@ -155,7 +155,7 @@ export function FlinkClusterPanel({ initial = null }: Props) {
               <p style={{ marginTop: 0 }}>
                 Start or repair the stack, then validate again:
               </p>
-              <pre className="cluster-cmd">apemosyne up</pre>
+              <pre className="cluster-cmd">ratatoskr up</pre>
               <p>
                 If honeypot already uses port 8081, set <code>FLINK_REST_PORT=8082</code> in{" "}
                 <code>.env</code> for the minimal platform stack.

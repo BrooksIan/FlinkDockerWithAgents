@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
+import { AddMcpServerForm } from "./AddMcpServerForm";
 import type {
   McpCatalog,
   McpInstance,
@@ -11,6 +12,7 @@ interface Props {
   catalog: McpCatalog | null;
   instances: McpInstance[];
   onUpdated?: (instances: McpInstance[]) => void;
+  onCatalogUpdated?: (catalog: McpCatalog, instances: McpInstance[]) => void;
 }
 
 function secretFields(instance: McpInstance, catalog: McpCatalog | null): McpSecretSpec[] {
@@ -120,6 +122,16 @@ function McpServerCard({
           {instance.configured ? "Ready" : "Not configured"}
         </span>
       </div>
+      {catalog &&
+        catalog.categories.some((cat) =>
+          cat.servers.some(
+            (server) => server.id === instance.catalog_id && server.source === "custom",
+          ),
+        ) && (
+          <span className="badge" style={{ marginBottom: "0.5rem" }}>
+            Custom
+          </span>
+        )}
       <p className="muted">{instance.description}</p>
       <p className="muted designer-settings-meta">
         Instance <code>{instance.instance_id}</code>
@@ -193,7 +205,12 @@ function McpServerCard({
   );
 }
 
-export function McpSettingsTool({ catalog, instances, onUpdated }: Props) {
+export function McpSettingsTool({
+  catalog,
+  instances,
+  onUpdated,
+  onCatalogUpdated,
+}: Props) {
   return (
     <div className="card designer-tool mcp-settings-tool">
       <div className="designer-tool-header">
@@ -203,6 +220,13 @@ export function McpSettingsTool({ catalog, instances, onUpdated }: Props) {
         Enable catalog MCP servers project-wide. Agents attach enabled instances in the{" "}
         <strong>Designer</strong> inspector.
       </p>
+
+      <AddMcpServerForm
+        onAdded={(cat, inst) => {
+          onCatalogUpdated?.(cat, inst);
+          onUpdated?.(inst);
+        }}
+      />
 
       {instances.length === 0 ? (
         <p className="muted">No MCP servers in catalog.</p>
@@ -245,6 +269,14 @@ export function McpSettingsToolLoader() {
   if (error) return <p className="error">{error}</p>;
   if (!catalog) return <p className="muted">Loading MCP settings…</p>;
   return (
-    <McpSettingsTool catalog={catalog} instances={instances} onUpdated={setInstances} />
+    <McpSettingsTool
+      catalog={catalog}
+      instances={instances}
+      onUpdated={setInstances}
+      onCatalogUpdated={(cat, inst) => {
+        setCatalog(cat);
+        setInstances(inst);
+      }}
+    />
   );
 }

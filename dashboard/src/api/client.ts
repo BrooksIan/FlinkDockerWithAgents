@@ -4,6 +4,7 @@ import type {
   AgentDefinitionCompileResult,
   AgentDefinitionCreate,
   AgentDefinitionPublishResult,
+  AgentDefinitionRunResult,
   AgentDefinitionValidation,
   AgentDetail,
   AgentGraph,
@@ -22,6 +23,8 @@ import type {
   ReactLlmSettingsUpdate,
   DesignerSkill,
   McpCatalog,
+  McpCatalogServer,
+  McpCatalogServerCreate,
   McpInstance,
   McpInstanceTestRequest,
   McpInstanceTestResult,
@@ -85,6 +88,13 @@ export const api = {
 
   mcpCatalog: () => request<McpCatalog>("/v1/mcp/catalog"),
 
+  addMcpCatalogServer: (body: McpCatalogServerCreate) =>
+    request<McpCatalogServer>(`/v1/mcp/catalog/servers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+
   mcpInstances: () => request<McpInstancesResponse>("/v1/designer/mcp-instances"),
 
   updateMcpInstance: (catalogId: string, body: McpInstanceUpdate) =>
@@ -138,6 +148,18 @@ export const api = {
   publishAgentDefinition: (id: string) =>
     request<AgentDefinitionPublishResult>(
       `/v1/agent-definitions/${encodeURIComponent(id)}/publish`,
+      { method: "POST" },
+    ),
+
+  deleteAgentDefinition: (id: string) =>
+    request<{ id: string; status: string }>(
+      `/v1/agent-definitions/${encodeURIComponent(id)}`,
+      { method: "DELETE" },
+    ),
+
+  runAgentDefinitionLocal: (id: string) =>
+    request<AgentDefinitionRunResult>(
+      `/v1/agent-definitions/${encodeURIComponent(id)}/run-local`,
       { method: "POST" },
     ),
 

@@ -9,7 +9,7 @@ from pathlib import Path
 
 def test_paths_and_manifests() -> None:
     root = Path(__file__).resolve().parents[1]
-    from apemosyne.paths import agents_dir, configure_runtime_sys_path, honeypot_available, runtime_dir
+    from ratatoskr.paths import agents_dir, configure_runtime_sys_path, honeypot_available, runtime_dir
 
     assert runtime_dir(root).is_dir()
     assert agents_dir(root).is_dir()
@@ -19,7 +19,7 @@ def test_paths_and_manifests() -> None:
 
 
 def test_agent_registry() -> None:
-    from apemosyne.agents.registry import load_agent_registry
+    from ratatoskr.agents.registry import load_agent_registry
 
     registry = load_agent_registry()
     assert "workflow_counter" in registry.agents
@@ -30,7 +30,7 @@ def test_agent_registry() -> None:
 
 
 def test_generic_validate_paths() -> None:
-    from apemosyne.commands.test_cmd import _generic_validate_paths
+    from ratatoskr.commands.test_cmd import _generic_validate_paths
 
     root = Path(__file__).resolve().parents[1]
     missing = [p for p in _generic_validate_paths(root) if not (root / p).is_file()]
@@ -38,10 +38,10 @@ def test_generic_validate_paths() -> None:
 
 
 def test_api_factory() -> None:
-    from apemosyne.api.app import create_app
+    from ratatoskr.api.app import create_app
 
     app = create_app()
-    assert app.title == "Apemosyne Control API"
+    assert app.title == "Ratatoskr Control API"
 
 
 def main() -> int:

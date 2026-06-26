@@ -1,4 +1,4 @@
-# Files copied for ``apemosyne test launch`` (container / cluster modes).
+# Files copied for ``ratatoskr test launch`` (container / cluster modes).
 files:
   - local: test/test_launch_flink_agents.py
     remote: /opt/flink/test_launch_flink_agents.py

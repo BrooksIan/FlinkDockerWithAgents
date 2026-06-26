@@ -11,14 +11,14 @@ from pathlib import Path
 def test_react_llm_settings_store_and_api() -> None:
     from fastapi.testclient import TestClient
 
-    from apemosyne.api.app import create_app
-    from apemosyne.api.config import ApiSettings
-    from apemosyne.designer.llm_settings import get_react_llm_settings, reset_designer_store_for_tests
+    from ratatoskr.api.app import create_app
+    from ratatoskr.api.config import ApiSettings
+    from ratatoskr.designer.llm_settings import get_react_llm_settings, reset_designer_store_for_tests
 
     reset_designer_store_for_tests()
     with tempfile.TemporaryDirectory() as tmp:
         db = Path(tmp) / "designer.db"
-        os.environ["APEMOSYNE_DESIGNER_DB"] = str(db)
+        os.environ["RATATOSKR_DESIGNER_DB"] = str(db)
 
         client = TestClient(create_app(ApiSettings(api_key=None)))
 
@@ -58,50 +58,50 @@ def test_react_llm_settings_store_and_api() -> None:
         assert kept["model_id"] == "test-model-v2"
         assert get_react_llm_settings().api_key == "secret-key-1234"
 
-        os.environ.pop("APEMOSYNE_DESIGNER_DB", None)
+        os.environ.pop("RATATOSKR_DESIGNER_DB", None)
         reset_designer_store_for_tests()
 
 
 def test_react_llm_settings_test_endpoint_incomplete() -> None:
     from fastapi.testclient import TestClient
 
-    from apemosyne.api.app import create_app
-    from apemosyne.api.config import ApiSettings
-    from apemosyne.designer.llm_settings import reset_designer_store_for_tests
+    from ratatoskr.api.app import create_app
+    from ratatoskr.api.config import ApiSettings
+    from ratatoskr.designer.llm_settings import reset_designer_store_for_tests
 
     reset_designer_store_for_tests()
     with tempfile.TemporaryDirectory() as tmp:
         db = Path(tmp) / "designer.db"
-        os.environ["APEMOSYNE_DESIGNER_DB"] = str(db)
+        os.environ["RATATOSKR_DESIGNER_DB"] = str(db)
         client = TestClient(create_app(ApiSettings(api_key=None)))
 
         resp = client.post("/v1/designer/llm-settings/test", json={})
         assert resp.status_code == 400
         assert "not configured" in resp.json()["detail"].lower()
 
-        os.environ.pop("APEMOSYNE_DESIGNER_DB", None)
+        os.environ.pop("RATATOSKR_DESIGNER_DB", None)
         reset_designer_store_for_tests()
 
 
 def test_react_llm_settings_test_endpoint_success(monkeypatch) -> None:
     from fastapi.testclient import TestClient
 
-    from apemosyne.api.app import create_app
-    from apemosyne.api.config import ApiSettings
-    from apemosyne.designer.llm_settings import reset_designer_store_for_tests
+    from ratatoskr.api.app import create_app
+    from ratatoskr.api.config import ApiSettings
+    from ratatoskr.designer.llm_settings import reset_designer_store_for_tests
 
     def _fake_chat_completion_json(**kwargs):
         return {"input": 3, "doubled": 6, "reasoning": "test double"}
 
     monkeypatch.setattr(
-        "apemosyne.designer.llm_client.chat_completion_json",
+        "ratatoskr.designer.llm_client.chat_completion_json",
         _fake_chat_completion_json,
     )
 
     reset_designer_store_for_tests()
     with tempfile.TemporaryDirectory() as tmp:
         db = Path(tmp) / "designer.db"
-        os.environ["APEMOSYNE_DESIGNER_DB"] = str(db)
+        os.environ["RATATOSKR_DESIGNER_DB"] = str(db)
         client = TestClient(create_app(ApiSettings(api_key=None)))
 
         client.put(
@@ -124,12 +124,12 @@ def test_react_llm_settings_test_endpoint_success(monkeypatch) -> None:
         assert body["result"]["doubled"] == 6
         assert body["duration_ms"] >= 0
 
-        os.environ.pop("APEMOSYNE_DESIGNER_DB", None)
+        os.environ.pop("RATATOSKR_DESIGNER_DB", None)
         reset_designer_store_for_tests()
 
 
 def test_catalog_includes_llm_required() -> None:
-    from apemosyne.agents.catalog import agent_catalog_response
+    from ratatoskr.agents.catalog import agent_catalog_response
 
     catalog = agent_catalog_response()
     react = next(c for c in catalog["categories"] if c["id"] == "react")

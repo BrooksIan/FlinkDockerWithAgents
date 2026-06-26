@@ -1,10 +1,15 @@
-import type { AgentNodeKind } from "../api/types";
+import { useEffect, useState } from "react";
+import { api } from "../api/client";
+import type { AgentNodeKind, McpCatalog, McpInstance } from "../api/types";
 import type { DesignerDroppedSpec } from "./definitionUtils";
 import { defaultPromptConfig } from "./promptDefaults";
 import { kindLabel } from "./definitionUtils";
+import { attachedMcpOptions } from "./mcpUtils";
 
 interface Props {
   agentType: string;
+  mcpInstances: McpInstance[];
+  mcpAttached: string[];
   onAdd: (spec: DesignerDroppedSpec) => void;
 }
 
@@ -34,6 +39,7 @@ function PaletteItem({
       onClick={onClick}
       role="button"
       tabIndex={0}
+      aria-label={sub ? `${label} — ${sub}` : label}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
@@ -63,16 +69,56 @@ function blockSpec(kind: AgentNodeKind, name: string, config: Record<string, unk
   return { kind, name, config };
 }
 
-export function DesignerPalette({ agentType, onAdd }: Props) {
+export function DesignerPalette({ agentType, mcpInstances, mcpAttached, onAdd }: Props) {
+  const [mcpCatalog, setMcpCatalog] = useState<McpCatalog | null>(null);
+
+  useEffect(() => {
+    api.mcpCatalog().then(setMcpCatalog).catch(() => setMcpCatalog(null));
+  }, []);
+
   const blocks =
     agentType === "react"
       ? [
           ...WORKFLOW_BLOCKS.slice(0, 2),
           blockSpec("prompt", "prompt", defaultPromptConfig()),
-          blockSpec("llm_call", "llm", { use_platform_llm: true }),
+          blockSpec("llm_call", "llm", { use_platform_llm: true, mode: "simple" }),
           WORKFLOW_BLOCKS[4],
         ]
       : WORKFLOW_BLOCKS;
+
+  const mcpOptions = attachedMcpOptions(mcpInstances, mcpAttached);
+
+  function mcpToolSpecs(): DesignerDroppedSpec[] {
+    const specs: DesignerDroppedSpec[] = [];
+    for (const inst of mcpOptions) {
+      const tools =
+        mcpCatalog?.categories
+          .flatMap((category) => category.servers)
+          .find((server) => server.id === inst.catalog_id)?.tools ?? [];
+      if (tools.length === 0) {
+        specs.push({
+          kind: "mcp_tool",
+          name: "mcp_tool",
+          config: { server_ref: inst.instance_id, tool_name: "", arg_name: "ip" },
+        });
+        continue;
+      }
+      for (const tool of tools) {
+        specs.push({
+          kind: "mcp_tool",
+          name: tool.name,
+          config: {
+            server_ref: inst.instance_id,
+            tool_name: tool.name,
+            arg_name: tool.name.includes("ip") ? "ip" : "input",
+          },
+        });
+      }
+    }
+    return specs;
+  }
+
+  const mcpSpecs = mcpToolSpecs();
 
   return (
     <div className="studio-palette card">
@@ -111,7 +157,26 @@ export function DesignerPalette({ agentType, onAdd }: Props) {
           ))}
       </div>
 
-      <h4>Tools</h4>
+      <h4>MCP tools</h4>
+      <div className="studio-palette-actions">
+        {mcpSpecs.length === 0 ? (
+          <p className="muted" style={{ fontSize: "0.85rem", margin: 0 }}>
+            Attach MCP servers on the canvas background to add tools here.
+          </p>
+        ) : (
+          mcpSpecs.map((spec) => (
+            <PaletteItem
+              key={`${spec.kind}-${spec.config?.server_ref}-${spec.name}`}
+              label={`+ ${spec.name}`}
+              sub={String(spec.config?.server_ref || "")}
+              spec={spec}
+              onClick={() => onAdd(spec)}
+            />
+          ))
+        )}
+      </div>
+
+      <h4>Built-in tools</h4>
       <div className="studio-palette-actions">
         {blocks
           .filter((b) => b.kind === "tool")

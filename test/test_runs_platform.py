@@ -9,8 +9,8 @@ from pathlib import Path
 
 
 def test_run_store_crud() -> None:
-    from apemosyne.runs.service import RunService, reset_run_service_for_tests
-    from apemosyne.runs.store import RunStore
+    from ratatoskr.runs.service import RunService, reset_run_service_for_tests
+    from ratatoskr.runs.store import RunStore
 
     reset_run_service_for_tests()
     with tempfile.TemporaryDirectory() as tmp:
@@ -42,40 +42,40 @@ def test_run_store_crud() -> None:
 
 
 def test_agent_execution_plans() -> None:
-    from apemosyne.runs.plan import agent_execution_plan, cluster_job_name
+    from ratatoskr.runs.plan import agent_execution_plan, cluster_job_name
 
     wf = agent_execution_plan("workflow_counter")
     assert any(s["name"] == "double" for s in wf)
     re = agent_execution_plan("react_echo")
     assert any(s["name"] == "classify" for s in re)
-    assert cluster_job_name("workflow_counter") == "Apemosyne Workflow Counter"
+    assert cluster_job_name("workflow_counter") == "Ratatoskr Workflow Counter"
 
 
 def test_find_flink_job_prefers_newest_match() -> None:
-    from apemosyne.runs.plan import _newest_job_id
+    from ratatoskr.runs.plan import _newest_job_id
 
     jobs = [
-        {"jid": "old_failed", "name": "Apemosyne Workflow Counter", "start-time": 100},
-        {"jid": "new_finished", "name": "Apemosyne Workflow Counter", "start-time": 200},
+        {"jid": "old_failed", "name": "Ratatoskr Workflow Counter", "start-time": 100},
+        {"jid": "new_finished", "name": "Ratatoskr Workflow Counter", "start-time": 200},
         {"jid": "other", "name": "Other Job", "start-time": 300},
     ]
-    assert _newest_job_id(jobs, "Apemosyne Workflow Counter") == "new_finished"
+    assert _newest_job_id(jobs, "Ratatoskr Workflow Counter") == "new_finished"
     assert _newest_job_id(jobs, "Missing") is None
 
 
 def test_runs_api_routes() -> None:
-    os.environ.pop("APEMOSYNE_API_KEY", None)
+    os.environ.pop("RATATOSKR_API_KEY", None)
     from fastapi.testclient import TestClient
 
-    from apemosyne.api.app import create_app
-    from apemosyne.api.config import ApiSettings
-    from apemosyne.runs.service import RunService, reset_run_service_for_tests
-    from apemosyne.runs.store import RunStore
+    from ratatoskr.api.app import create_app
+    from ratatoskr.api.config import ApiSettings
+    from ratatoskr.runs.service import RunService, reset_run_service_for_tests
+    from ratatoskr.runs.store import RunStore
 
     reset_run_service_for_tests()
     with tempfile.TemporaryDirectory() as tmp:
         db = Path(tmp) / "runs.db"
-        os.environ["APEMOSYNE_RUNS_DB"] = str(db)
+        os.environ["RATATOSKR_RUNS_DB"] = str(db)
         service = RunService(RunStore(db))
         run_id = service.create_run("react_echo", kind="local", status="running")
         service.finish_run(run_id, status="finished")
@@ -108,7 +108,7 @@ def test_runs_api_routes() -> None:
         missing = client.get("/v1/runs/does-not-exist")
         assert missing.status_code == 404
 
-        del os.environ["APEMOSYNE_RUNS_DB"]
+        del os.environ["RATATOSKR_RUNS_DB"]
         reset_run_service_for_tests()
 
 

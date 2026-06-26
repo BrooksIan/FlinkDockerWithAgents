@@ -1,5 +1,5 @@
 # Honeypot verify extensions — merged with workspace tiers via:
-#   apemosyne verify --profile honeypot
+#   ratatoskr verify --profile honeypot
 tiers:
   quick:
     steps:

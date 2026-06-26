@@ -49,14 +49,14 @@ class ReactSkillsDemoAgent(Agent):
     @chat_model_connection
     @staticmethod
     def designer_llm_connection() -> ResourceDescriptor:
-        from apemosyne.designer.flink_llm import react_llm_connection_descriptor
+        from ratatoskr.designer.flink_llm import react_llm_connection_descriptor
 
         return react_llm_connection_descriptor()
 
     @chat_model_setup
     @staticmethod
     def skills_model() -> ResourceDescriptor:
-        from apemosyne.designer.flink_llm import react_skills_chat_model_descriptor
+        from ratatoskr.designer.flink_llm import react_skills_chat_model_descriptor
 
         return react_skills_chat_model_descriptor(
             connection="designer_llm_connection",
