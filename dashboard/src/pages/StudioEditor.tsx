@@ -17,7 +17,7 @@ import { NodePalette } from "../studio/NodePalette";
 import { PipelineInspector } from "../studio/PipelineInspector";
 import { RunPipelineBar } from "../studio/RunPipelineBar";
 import { StudioCanvas, type DroppedNodeSpec } from "../studio/StudioCanvas";
-import { connectEdge, buildLinearChainEdges, flowToPipeline, nextId, pipelineToFlow, pruneOrphanEdges } from "../studio/pipelineUtils";
+import { connectEdge, buildLinearChainEdges, DEFAULT_KAFKA_OUTPUT_TOPIC, flowToPipeline, nextId, pipelineToFlow, pruneOrphanEdges } from "../studio/pipelineUtils";
 
 export function StudioEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -228,9 +228,9 @@ export function StudioEditorPage() {
     }
     if (spec.kind === "sink") {
       if (spec.kafkaSink) {
-        const defaultTopic = kafkaTopics.find((t) => t.name === "cowrie.alerts")?.name
-          || kafkaTopics[0]?.name
-          || "";
+        const defaultTopic =
+          kafkaTopics.find((t) => t.name === DEFAULT_KAFKA_OUTPUT_TOPIC)?.name ||
+          DEFAULT_KAFKA_OUTPUT_TOPIC;
         return {
           id: nextId("sink"),
           type: "sink",
@@ -433,8 +433,9 @@ export function StudioEditorPage() {
       await persist(nodes, nextEdges);
       const check = await api.validatePipeline(id);
       setValidation(check);
-      if (!check.valid) {
-        setError(check.errors.join(" · "));
+      const clusterErrors = check.cluster?.errors ?? [];
+      if (!check.valid || (check.cluster && !check.cluster.valid)) {
+        setError([...check.errors, ...clusterErrors].join(" · "));
         return;
       }
       const result = await api.submitPipeline(id);
@@ -444,6 +445,7 @@ export function StudioEditorPage() {
           valid: result.validation.valid,
           errors: result.validation.errors,
           warnings: result.validation.warnings,
+          cluster: check.cluster,
         });
       }
       navigate(`/runs/${result.run_id}`);

@@ -198,8 +198,8 @@ def delete_pipeline(pipeline_id: str) -> None:
     default_pipeline_service().delete(pipeline_id)
 
 
-def validate_pipeline_by_id(pipeline_id: str) -> dict[str, Any]:
-    return default_pipeline_service().validate(pipeline_id)
+def validate_pipeline_by_id(pipeline_id: str, *, include_cluster: bool = True) -> dict[str, Any]:
+    return default_pipeline_service().validate(pipeline_id, include_cluster=include_cluster)
 
 
 def run_pipeline_local(pipeline_id: str, *, input_override: list[dict[str, Any]] | None = None, profile: str | None = None) -> dict[str, Any]:

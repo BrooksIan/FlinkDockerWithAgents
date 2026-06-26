@@ -23,3 +23,10 @@ agents:
     description: "ReAct agent with LLM prompt \u2014 configure LLM in Settings."
     entry: examples.agents.published_shims.basicreact:BasicreactAgent
     runner: .apemosyne/agents/def_a8888ce93ad3/run_local.py
+  session_detect:
+    type: workflow
+    description: "Classify closed src_ip sessions from dynamic Flink windows"
+    entry: examples.agents.session_detect:SessionDetectAgent
+    runner: examples/agents/run_session_window_local.py
+    cluster_script: examples/agents/run_session_window_cluster.py
+    flink_yaml: examples/agents/session_detect/agent.yaml

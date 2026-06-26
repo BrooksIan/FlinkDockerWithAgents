@@ -37,6 +37,21 @@ No API key required for local development.
 pip install -e .
 apemosyne build
 apemosyne up                    # default: minimal Flink stack
+apemosyne kafka up              # Studio Kafka for pipeline sources/sinks
+```
+
+Recommended `.env` for Studio (copy from [`.env.example`](../.env.example)):
+
+```bash
+APEMOSYNE_PROFILE=minimal
+FLINK_REST_PORT=8082
+KAFKA_BOOTSTRAP_SERVERS=localhost:9094
+```
+
+After editing runtime code or the Dockerfile:
+
+```bash
+./scripts/restart-studio-cluster.sh [--build] [--api] [--smoke]
 ```
 
 **Terminal 2 — Control API:**
@@ -109,8 +124,12 @@ Presets in `apemosyne/manifests/startup-modes.yaml`:
 | `GET` | `/v1/pipelines/{id}` | Yes | Pipeline graph + layout |
 | `PUT` | `/v1/pipelines/{id}` | Yes | Save canvas state |
 | `DELETE` | `/v1/pipelines/{id}` | Yes | Delete pipeline |
-| `POST` | `/v1/pipelines/{id}/validate` | Yes | Validate linear pipeline |
-| `POST` | `/v1/pipelines/{id}/run` | Yes | Run pipeline locally (MVP) |
+| `POST` | `/v1/pipelines/{id}/validate` | Yes | Validate linear pipeline (local + cluster) |
+| `POST` | `/v1/pipelines/{id}/run` | Yes | Run pipeline locally |
+| `POST` | `/v1/pipelines/{id}/submit` | Yes | Submit batch pipeline to minimal Flink cluster |
+| `GET` | `/v1/kafka/topics` | Yes | List known / discoverable Kafka topics |
+| `GET` | `/v1/cluster/status` | Yes | Studio Flink + Kafka readiness checks |
+| `POST` | `/v1/cluster/validate` | Yes | Re-run cluster readiness checks |
 | `GET` | `/v1/events` | No | SSE health + job snapshots |
 | `GET` | `/metrics` | No | Prometheus metrics |
 | `GET` | `/openapi.json` | No | OpenAPI schema (codegen for dashboard) |
@@ -134,7 +153,8 @@ apemosyne api check              # probe /v1/health
 | `APEMOSYNE_API_KEY` | *(unset)* | Shared secret; when set, protected routes need `X-API-Key` header |
 | `FLINK_REST_ADDRESS` | `localhost` | Flink JobManager host for API/CLI |
 | `FLINK_REST_PORT` | `8082` (minimal) / `8081` (full) | Host Flink REST / Web UI port |
-| `APEMOSYNE_PROFILE` | `minimal` | Compose profile for agent submit |
+| `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9094` | Studio Kafka (`apemosyne kafka up`) |
+| `APEMOSYNE_PROFILE` | `minimal` | Compose profile for agent/pipeline cluster submit |
 | `APEMOSYNE_LOG_JSON` | `0` | `1` = structured JSON logs from API |
 
 **Local dev:** leave `APEMOSYNE_API_KEY` unset. All routes are open.
@@ -193,14 +213,29 @@ To add an agent:
 | Profile | File | Services |
 |---------|------|----------|
 | `minimal` (default) | `docker-compose.yml` | JobManager + TaskManager |
+| `kafka` | `docker-compose.kafka.yml` | Studio Zookeeper + Kafka (`apemosyne kafka up`) |
 | `full` | `honeypot/docker-compose.yml` | Cowrie + Kafka + pipeline + dashboard |
 
 ```bash
 apemosyne up                  # minimal (default)
+apemosyne kafka up            # Studio Kafka (independent of honeypot)
 apemosyne up --profile full   # honeypot (optional)
 apemosyne down
 apemosyne status
 ```
+
+### Studio cluster restart
+
+Use after pulling changes or editing `apemosyne/` pipeline/runtime code:
+
+```bash
+./scripts/restart-studio-cluster.sh              # Flink + Kafka + sync code + bootstrap JARs
+./scripts/restart-studio-cluster.sh --build      # rebuild agent_flink_image
+./scripts/restart-studio-cluster.sh --sync-only  # hot-sync without restarting containers
+./scripts/restart-studio-cluster.sh --smoke      # + cluster launch smoke job
+```
+
+Implementation: [`apemosyne/runtime/studio_cluster_sync.py`](../apemosyne/runtime/studio_cluster_sync.py) copies runtime modules into JobManager and TaskManager, then runs `bootstrap_cluster_containers()` (Flink Agents thin JAR layout for Pemja).
 
 ## Verification tiers
 
@@ -244,7 +279,7 @@ Or manually: `apemosyne api start` then `cd dashboard && npm run dev`.
 | `/runs` | Agent and pipeline run history |
 | `/runs/:id` | Run detail, execution plan, spans |
 | `/studio` | **Agentic Studio** — pipeline list |
-| `/studio/:id` | Drag-and-drop canvas, validate, run locally |
+| `/studio/:id` | Drag-and-drop canvas, validate, run locally, submit to cluster |
 | `/jobs` | Flink jobs, cancel |
 
 Full page reference: [dashboard/README.md](../dashboard/README.md).
@@ -265,11 +300,23 @@ Compose **linear multi-agent pipelines** visually (Source → Agent → … → 
 
 1. Open **Studio** in the dashboard sidebar.
 2. Create a pipeline (demo template: `workflow_counter` → `react_echo` with edge mapping).
-3. Connect nodes left-to-right; configure source records and edge field mapping in the inspector.
-4. **Validate**, then **Run locally** — creates a run with per-agent spans on `/runs/:id`.
+3. Connect nodes left-to-right; configure source records, Kafka topics, and edge field mapping in the inspector.
+4. **Validate**, then **Run locally** or **Run on Flink cluster** — creates a run with per-agent spans on `/runs/:id`.
 5. Double-click an agent node to view its internal action/tool graph (read-only).
 
-Pipelines persist in `.apemosyne/pipelines.db`. Cluster deploy from Studio is deferred (local execution only in MVP).
+Pipelines persist in `.apemosyne/pipelines.db`. Cluster submit targets the **minimal** Flink stack on host port **8082** (not honeypot `:8081`).
+
+| Capability | Local run | Cluster submit |
+|------------|-----------|----------------|
+| Static source records | Yes | Yes (batch) |
+| Kafka source | Yes (sample) | Not yet |
+| Capture sink | Yes | Yes (`print`) |
+| Kafka sink | Yes | Yes (Flink Agents sink agent; default topic `workflow.test.output`) |
+| Published ReAct agents | Yes | Warn-only (Pemja unreliable on cluster) |
+
+**Prerequisites for cluster submit:** `apemosyne up`, `apemosyne kafka up`, `./scripts/restart-studio-cluster.sh` after code updates. Check **Settings → Cluster readiness** in the dashboard.
+
+Codegen writes `.apemosyne/pipelines/{id}/run_cluster.py`; submit copies artifacts to JobManager and runs `flink run`.
 
 **OpenAPI client codegen:**
 

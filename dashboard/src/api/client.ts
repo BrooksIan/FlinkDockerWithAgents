@@ -162,10 +162,15 @@ export const api = {
       method: "DELETE",
     }),
 
-  validatePipeline: (id: string) =>
-    request<PipelineValidation>(`/v1/pipelines/${encodeURIComponent(id)}/validate`, {
-      method: "POST",
-    }),
+  validatePipeline: (id: string, opts?: { includeCluster?: boolean }) =>
+    request<PipelineValidation>(
+      `/v1/pipelines/${encodeURIComponent(id)}/validate${
+        opts?.includeCluster === false ? "?include_cluster=false" : ""
+      }`,
+      {
+        method: "POST",
+      },
+    ),
 
   runPipeline: (id: string, records?: Record<string, unknown>[]) =>
     request<PipelineRunResult>(`/v1/pipelines/${encodeURIComponent(id)}/run`, {

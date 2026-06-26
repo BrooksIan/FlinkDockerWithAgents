@@ -16,6 +16,7 @@ from apemosyne.pipelines.cluster_codegen import (
     pipeline_execution_plan,
     write_cluster_runner,
 )
+from apemosyne.pipelines.cluster_kafka_sink import deliver_pipeline_kafka_sink
 from apemosyne.pipelines.docker_runner import _pipeline_copy_pairs
 from apemosyne.pipelines.models import Pipeline
 from apemosyne.pipelines.validate_cluster import validate_pipeline_cluster
@@ -57,6 +58,9 @@ def _cluster_copy_pairs(root: Path, pipeline: Pipeline, runner_path: Path) -> li
     rel = runner_path.relative_to(root).as_posix()
     pairs = _pipeline_copy_pairs(root, pipeline)
     pairs.append((str(runner_path), f"/opt/flink/{rel}"))
+    generated_init = root / "apemosyne" / "pipelines" / "generated" / "__init__.py"
+    if generated_init.is_file():
+        pairs.append((str(generated_init), "/opt/flink/apemosyne/pipelines/generated/__init__.py"))
     for runtime_rel in (
         "apemosyne/constants.py",
         "apemosyne/flink_rest.py",
@@ -65,6 +69,8 @@ def _cluster_copy_pairs(root: Path, pipeline: Pipeline, runner_path: Path) -> li
         "apemosyne/runtime/cluster_launch_test.py",
         "apemosyne/runtime/cluster_launch_agent.py",
         "apemosyne/kafka_sources.py",
+        "apemosyne/pipelines/cluster_kafka_sink.py",
+        "apemosyne/pipelines/cluster_codegen.py",
     ):
         local = root / runtime_rel
         if local.is_file():
@@ -162,6 +168,21 @@ def submit_pipeline_cluster(
         if rc == 0:
             if not job_id:
                 job_id = find_flink_job_for_pipeline(pipeline)
+            try:
+                deliver_pipeline_kafka_sink(pipeline, root=repo, profile=profile)
+            except Exception as exc:
+                service.finish_run(
+                    run_id,
+                    status="failed",
+                    flink_job_id=job_id,
+                    error=f"Kafka sink delivery failed: {exc}",
+                )
+                return PipelineClusterSubmitResult(
+                    run_id=run_id,
+                    return_code=1,
+                    flink_job_id=job_id,
+                    validation=validation,
+                )
             service.set_running(run_id, flink_job_id=job_id)
             _sync_cluster_run_status(service, run_id, job_id)
         else:

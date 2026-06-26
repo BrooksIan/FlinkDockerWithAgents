@@ -4,8 +4,40 @@ from __future__ import annotations
 
 from typing import Any
 
+from apemosyne.agents.published_copy import is_published_agent_spec
+from apemosyne.agents.registry import AgentRegistryError, get_agent_spec
 from apemosyne.pipelines.models import Pipeline
 from apemosyne.pipelines.validate import validate_pipeline
+
+PUBLISHED_REACT_CLUSTER_WARNING = (
+    "Published ReAct agents are not reliable on Flink cluster yet (known Pemja classloader issue). "
+    "Use Run locally for designer ReAct pipelines, or use a built-in workflow agent for cluster jobs."
+)
+
+
+def pipeline_published_react_agents(pipeline: Pipeline) -> list[str]:
+    """Return agent slugs that are published designer ReAct definitions."""
+    names: list[str] = []
+    for node in pipeline.nodes:
+        if node.kind != "agent" or not node.agent:
+            continue
+        try:
+            spec = get_agent_spec(node.agent)
+        except AgentRegistryError:
+            continue
+        if spec.type == "react" and is_published_agent_spec(spec):
+            names.append(node.agent)
+    return names
+
+
+def published_react_cluster_warnings(pipeline: Pipeline) -> list[str]:
+    agents = pipeline_published_react_agents(pipeline)
+    if not agents:
+        return []
+    label = ", ".join(agents)
+    return [
+        f"Pipeline uses published ReAct agent(s) ({label}). {PUBLISHED_REACT_CLUSTER_WARNING}"
+    ]
 
 
 def validate_pipeline_cluster(pipeline: Pipeline) -> dict[str, Any]:
@@ -37,7 +69,9 @@ def validate_pipeline_cluster(pipeline: Pipeline) -> dict[str, Any]:
         if sink_type == "kafka":
             topic = str(sink.config.get("topic") or "").strip()
             if not topic:
-                errors.append("Kafka sink node missing topic")
+                from apemosyne.kafka_sources import DEFAULT_KAFKA_OUTPUT_TOPIC
+
+                topic = DEFAULT_KAFKA_OUTPUT_TOPIC
             mode = "batch_kafka_sink"
             try:
                 from apemosyne.kafka_sources import kafka_reachable
@@ -49,6 +83,8 @@ def validate_pipeline_cluster(pipeline: Pipeline) -> dict[str, Any]:
                     )
             except Exception:
                 warnings.append("Could not verify Kafka broker reachability")
+
+    warnings.extend(published_react_cluster_warnings(pipeline))
 
     return {
         "valid": base["valid"] and not errors,

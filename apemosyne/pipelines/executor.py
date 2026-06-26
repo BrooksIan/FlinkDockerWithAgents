@@ -146,7 +146,9 @@ def _deliver_sink_output(config: dict[str, Any], records: list[dict[str, Any]]) 
 
     topic = str(config.get("topic") or "").strip()
     if not topic:
-        raise ValueError("Kafka sink missing topic")
+        from apemosyne.kafka_sources import DEFAULT_KAFKA_OUTPUT_TOPIC
+
+        topic = DEFAULT_KAFKA_OUTPUT_TOPIC
     bootstrap = config.get("bootstrap")
     publish_topic_records(
         topic,

@@ -40,6 +40,7 @@ def _pipeline_copy_pairs(root: Path, pipeline: Pipeline) -> list[tuple[str, str]
         "apemosyne/pipelines/models.py",
         "apemosyne/pipelines/validate.py",
         "apemosyne/pipelines/executor.py",
+        "apemosyne/pipelines/cluster_kafka_sink.py",
         "apemosyne/pipelines/container_run.py",
         "apemosyne/designer/__init__.py",
         "apemosyne/designer/models.py",

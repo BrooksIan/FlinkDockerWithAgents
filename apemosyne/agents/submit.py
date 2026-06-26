@@ -93,6 +93,10 @@ def _agent_copy_pairs(spec: AgentSpec, *, root: Path) -> List[Tuple[str, str]]:
         "apemosyne/runtime/flink_cluster_submit.py",
         "apemosyne/runtime/cluster_launch_test.py",
         "apemosyne/runtime/cluster_launch_agent.py",
+        "apemosyne/runtime/kafka_jars.py",
+        "apemosyne/kafka_sources.py",
+        "apemosyne/paths.py",
+        "apemosyne/docker_utils.py",
     ):
         local = root / rel
         if local.is_file():
@@ -110,6 +114,20 @@ def _agent_copy_pairs(spec: AgentSpec, *, root: Path) -> List[Tuple[str, str]]:
         for path in (
             root / "examples/agents/react_double_value_logic.py",
             root / "examples/agents/react_double_value_prompt.py",
+        ):
+            if path.is_file():
+                rel = path.relative_to(root).as_posix()
+                remote = f"/opt/flink/{rel}"
+                if (str(path), remote) not in pairs:
+                    pairs.append((str(path), remote))
+
+    if spec.name == "session_detect":
+        for path in (
+            root / "examples/agents/session_detect_logic.py",
+            root / "examples/agents/session_detect_actions.py",
+            root / "examples/agents/session_window_policy.py",
+            root / "examples/agents/session_window_ops.py",
+            root / "examples/agents/session_window_fixtures.py",
         ):
             if path.is_file():
                 rel = path.relative_to(root).as_posix()

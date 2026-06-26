@@ -1,6 +1,8 @@
 import { addEdge, type Connection, type Edge, type Node } from "@xyflow/react";
 import type { AgentSummary, PipelineEdgeDef, PipelineNodeDef, PipelineSummary } from "../api/types";
 
+export const DEFAULT_KAFKA_OUTPUT_TOPIC = "workflow.test.output";
+
 let _id = 0;
 export function nextId(prefix: string) {
   _id += 1;
@@ -41,7 +43,9 @@ export function pipelineToFlow(
         data: {
           label: sinkType === "kafka" ? "Kafka sink" : "Sink",
           sinkType,
-          kafkaTopic: sinkType === "kafka" ? (config.topic as string) : undefined,
+          kafkaTopic: sinkType === "kafka"
+            ? ((config.topic as string) || DEFAULT_KAFKA_OUTPUT_TOPIC)
+            : undefined,
           config,
         },
       };
@@ -127,11 +131,16 @@ export function flowToPipeline(
     }
     if (n.type === "sink") {
       const existing = (n.data as { config?: Record<string, unknown> }).config;
+      const sinkType = (existing?.sink_type as string) || "capture";
       const config =
         existing ||
         ({
           sink_type: "capture",
         } as Record<string, unknown>);
+      if (sinkType === "kafka" && !String(config.topic || "").trim()) {
+        config.topic = DEFAULT_KAFKA_OUTPUT_TOPIC;
+        config.sink_type = "kafka";
+      }
       return { id: n.id, kind: "sink", config };
     }
     return {

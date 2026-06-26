@@ -7,7 +7,7 @@ Guides for the **Apemosyne** Flink Agents workspace. Honeypot-specific docs live
 | Doc | Description |
 |-----|-------------|
 | [../README.md](../README.md) | Workspace overview and quick start |
-| [PLATFORM.md](PLATFORM.md) | **Control API, agents, observability, dashboard integration** |
+| [PLATFORM.md](PLATFORM.md) | **Control API, agents, observability, Studio cluster, dashboard integration** |
 | [../apemosyne/README.md](../apemosyne/README.md) | CLI package and commands |
 | [../examples/README.md](../examples/README.md) | Example agents and demos |
 
@@ -15,7 +15,7 @@ Guides for the **Apemosyne** Flink Agents workspace. Honeypot-specific docs live
 
 | Doc | Description |
 |-----|-------------|
-| [PLATFORM.md](PLATFORM.md) | Platform control plane — API, agent registry, local dev, verify |
+| [PLATFORM.md](PLATFORM.md) | Platform control plane — API, agent registry, Studio cluster, verify |
 | [FLINK_AGENTS.md](FLINK_AGENTS.md) | Workflow vs ReAct agents — concepts, comparison, diagrams |
 | [AGENT_DESIGNER_PLAN.md](AGENT_DESIGNER_PLAN.md) | Agent Designer — visual agent authoring, codegen, roadmap |
 | [../dashboard/README.md](../dashboard/README.md) | Dashboard — pages, dev setup, project structure |

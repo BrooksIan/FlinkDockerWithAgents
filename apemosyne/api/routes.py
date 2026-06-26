@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -455,9 +455,12 @@ def pipelines_delete(pipeline_id: str) -> dict[str, str]:
     tags=["pipelines"],
     dependencies=[Depends(require_api_key)],
 )
-def pipelines_validate(pipeline_id: str) -> dict[str, Any]:
+def pipelines_validate(
+    pipeline_id: str,
+    include_cluster: bool = Query(True, alias="include_cluster"),
+) -> dict[str, Any]:
     try:
-        return services.validate_pipeline_by_id(pipeline_id)
+        return services.validate_pipeline_by_id(pipeline_id, include_cluster=include_cluster)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=f"Pipeline not found: {pipeline_id}") from exc
 

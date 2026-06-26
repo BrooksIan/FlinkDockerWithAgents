@@ -326,6 +326,12 @@ export interface PipelineValidation {
   valid: boolean;
   errors: string[];
   warnings: string[];
+  cluster?: {
+    valid: boolean;
+    errors: string[];
+    warnings: string[];
+    mode?: string;
+  };
 }
 
 export interface PipelineRunResult {

@@ -33,6 +33,40 @@ categories:
             type: integer
           agent:
             type: string
+    - id: session_detect
+      manifest: session_detect
+      display_name: Session Detect
+      description: Classify closed src_ip sessions from dynamic Flink windows and block
+        on high/critical severity.
+      tags:
+      - demo
+      - security
+      - window
+      input_schema:
+        type: object
+        required:
+        - src_ip
+        - events
+        properties:
+          src_ip:
+            type: string
+          events:
+            type: array
+          event_count:
+            type: integer
+      output_schema:
+        type: object
+        properties:
+          src_ip:
+            type: string
+          severity:
+            type: string
+          event_count:
+            type: integer
+          response_actions:
+            type: array
+          agent:
+            type: string
 - id: react
   label: ReAct Agents
   description: Tool-chaining agents with planning loops (lab / enrichment paths).

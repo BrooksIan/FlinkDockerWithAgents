@@ -62,11 +62,6 @@ def generate_cluster_runner(pipeline: Pipeline, *, root: Path | None = None) -> 
         imports.append(published_cluster_import_line(spec))
 
     sink_node = next((n for n in pipeline.nodes if n.kind == "sink"), None)
-    sink_type = "capture"
-    kafka_topic = ""
-    if sink_node is not None:
-        sink_type = str(sink_node.config.get("sink_type") or "capture").strip().lower()
-        kafka_topic = str(sink_node.config.get("topic") or "").strip()
 
     map_functions: list[str] = []
     apply_blocks: list[str] = []
@@ -115,20 +110,6 @@ def generate_cluster_runner(pipeline: Pipeline, *, root: Path | None = None) -> 
             continue
 
         if node.kind == "sink":
-            if sink_type == "kafka" and kafka_topic:
-                map_functions.append(
-                    "class PublishToKafka(MapFunction):\n"
-                    "    def open(self, runtime_context):\n"
-                    "        import os\n"
-                    "        self.topic = KAFKA_SINK_TOPIC\n"
-                    '        self.bootstrap = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "host.docker.internal:9094")\n'
-                    "\n"
-                    "    def map(self, row):\n"
-                    "        from apemosyne.kafka_sources import publish_topic_records\n"
-                    "        publish_topic_records(self.topic, [row], bootstrap=self.bootstrap)\n"
-                    "        return row\n"
-                )
-                apply_blocks.append(f"    {stream_var} = {stream_var}.map(PublishToKafka())")
             apply_blocks.append(f"    {stream_var}.print()")
             prev_kind = "sink"
 
@@ -157,14 +138,6 @@ def generate_cluster_runner(pipeline: Pipeline, *, root: Path | None = None) -> 
         f"RECORDS = {json.dumps(records, indent=4)}",
         "",
     ]
-    if sink_type == "kafka" and kafka_topic:
-        lines.append("from pyflink.datastream.functions import MapFunction")
-        lines.append("")
-
-    if sink_type == "kafka" and kafka_topic:
-        lines.append(f"KAFKA_SINK_TOPIC = {kafka_topic!r}")
-        lines.append("")
-
     if map_functions:
         lines.extend(map_functions)
         lines.append("")
@@ -193,9 +166,9 @@ def generate_cluster_runner(pipeline: Pipeline, *, root: Path | None = None) -> 
         ]
     )
     lines.extend(apply_blocks)
+    lines.append(f'    agents_env.execute({job_name!r})')
     lines.extend(
         [
-            f'    agents_env.execute({job_name!r})',
             "",
             "",
             'if __name__ == "__main__":',

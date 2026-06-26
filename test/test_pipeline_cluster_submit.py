@@ -84,6 +84,75 @@ def test_validate_pipeline_cluster_allows_kafka_sink() -> None:
     assert result["mode"] == "batch_kafka_sink"
 
 
+def test_validate_pipeline_cluster_warns_published_react() -> None:
+    from pathlib import Path
+
+    from apemosyne.pipelines.models import Pipeline, PipelineEdge, PipelineNode
+    from apemosyne.pipelines.validate_cluster import (
+        PUBLISHED_REACT_CLUSTER_WARNING,
+        validate_pipeline_cluster,
+    )
+
+    root = Path(__file__).resolve().parents[1]
+    if not (root / ".apemosyne/agents/def_a8888ce93ad3/agent.py").is_file():
+        return
+
+    pipeline = Pipeline(
+        id="pipe_pub",
+        name="Published",
+        nodes=[
+            PipelineNode(
+                id="src1",
+                kind="source",
+                config={"records": [{"key": "1", "value": 3}]},
+            ),
+            PipelineNode(id="agent1", kind="agent", agent="basicreact"),
+            PipelineNode(id="sink1", kind="sink"),
+        ],
+        edges=[
+            PipelineEdge(id="e1", source="src1", target="agent1"),
+            PipelineEdge(id="e2", source="agent1", target="sink1"),
+        ],
+    )
+    result = validate_pipeline_cluster(pipeline)
+    assert result["valid"] is True
+    assert any(PUBLISHED_REACT_CLUSTER_WARNING in w for w in result["warnings"])
+    assert any("basicreact" in w for w in result["warnings"])
+
+
+def test_validate_pipeline_includes_cluster_section() -> None:
+    import tempfile
+    from pathlib import Path
+
+    from apemosyne.pipelines.service import PipelineService, reset_pipeline_service_for_tests
+    from apemosyne.pipelines.store import PipelineStore
+
+    reset_pipeline_service_for_tests()
+    with tempfile.TemporaryDirectory() as tmp:
+        service = PipelineService(PipelineStore(Path(tmp) / "pipelines.db"))
+        created = service.create(
+            name="Counter batch",
+            nodes=[
+                {
+                    "id": "src1",
+                    "kind": "source",
+                    "config": {"records": [{"key": "1", "value": 1}]},
+                },
+                {"id": "agent_wc", "kind": "agent", "agent": "workflow_counter"},
+                {"id": "sink1", "kind": "sink", "config": {"sink_type": "capture"}},
+            ],
+            edges=[
+                {"id": "e1", "source": "src1", "target": "agent_wc"},
+                {"id": "e2", "source": "agent_wc", "target": "sink1"},
+            ],
+        )
+        body = service.validate(created["id"])
+        assert "cluster" in body
+        assert isinstance(body["cluster"]["warnings"], list)
+        assert body["cluster"]["valid"] is True
+    reset_pipeline_service_for_tests()
+
+
 def test_generate_cluster_runner_workflow_counter() -> None:
     from apemosyne.pipelines.cluster_codegen import cluster_job_name, generate_cluster_runner
 
@@ -127,6 +196,33 @@ def test_generate_cluster_runner_published_agent_import() -> None:
     assert "published_shims" not in script
 
 
+def test_generate_cluster_runner_kafka_sink_default_topic() -> None:
+    from apemosyne.pipelines.cluster_codegen import generate_cluster_runner
+    from apemosyne.pipelines.models import Pipeline, PipelineEdge, PipelineNode
+
+    pipeline = Pipeline(
+        id="pipe_ks_default",
+        name="Kafka sink default",
+        nodes=[
+            PipelineNode(
+                id="src1",
+                kind="source",
+                config={"records": [{"key": "1", "value": 3}]},
+            ),
+            PipelineNode(id="agent_wc", kind="agent", agent="workflow_counter"),
+            PipelineNode(id="sink1", kind="sink", config={"sink_type": "kafka"}),
+        ],
+        edges=[
+            PipelineEdge(id="e1", source="src1", target="agent_wc"),
+            PipelineEdge(id="e2", source="agent_wc", target="sink1"),
+        ],
+    )
+    script = generate_cluster_runner(pipeline)
+    assert "deliver_batch_kafka_sink" not in script
+    assert "KafkaSinkAgent" not in script
+    assert "stream.print()" in script
+
+
 def test_generate_cluster_runner_kafka_sink() -> None:
     from apemosyne.pipelines.cluster_codegen import generate_cluster_runner
     from apemosyne.pipelines.models import Pipeline, PipelineEdge, PipelineNode
@@ -153,9 +249,10 @@ def test_generate_cluster_runner_kafka_sink() -> None:
         ],
     )
     script = generate_cluster_runner(pipeline)
-    assert "KAFKA_SINK_TOPIC = 'workflow.test.output'" in script
-    assert "PublishToKafka" in script
-    assert "publish_topic_records" in script
+    assert "deliver_batch_kafka_sink" not in script
+    assert "PublishToKafka" not in script
+    assert "MapFunction" not in script
+    assert "stream.print()" in script
 
 
 def test_generate_cluster_runner_counter_echo_mapping() -> None:

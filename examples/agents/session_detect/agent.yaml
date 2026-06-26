@@ -1,0 +1,18 @@
+# Flink Agents YAML definition — session_detect (dynamic window batch input).
+agents:
+  - name: session_detect
+    description: Classify closed src_ip sessions and block on high/critical severity.
+
+    actions:
+      - name: process_session
+        function: examples.agents.session_detect_actions:process_session
+        listen_to: [input]
+        type: python
+
+    tools:
+      - name: classify_session
+        function: examples.agents.session_detect_actions:classify_session_tool
+        type: python
+      - name: block_ip
+        function: examples.agents.session_detect_actions:block_ip
+        type: python

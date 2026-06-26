@@ -1,2 +1,3 @@
 # Local run registry (SQLite)
 .apemosyne/
+apemosyne/pipelines/generated/*/

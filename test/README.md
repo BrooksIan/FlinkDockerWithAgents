@@ -10,6 +10,8 @@ Tests for the **Apemosyne Flink Agents platform** and workspace-wide CLI behavio
 | `test_generic_platform.py` | Agent registry, validate paths, API factory |
 | `test_api_platform.py` | Control API OpenAPI, health, metrics, auth |
 | `test_launch_flink_agents.py` | Flink Agents import + cluster launch smoke |
+| `test_pipelines_platform.py` | Studio pipelines API + Kafka validation |
+| `test_pipeline_cluster_submit.py` | Cluster codegen, validate, submit |
 | `honeypot/test/` | Cowrie pipeline, policy, traps, ReAct (optional) |
 
 ## Run locally (no Docker)
@@ -37,6 +39,12 @@ Tiers: `apemosyne/manifests/verify-tiers.yaml`. Honeypot overlay: `honeypot/mani
 apemosyne test validate             # file layout (generic paths)
 apemosyne test launch               # flink_agents import in image
 apemosyne test launch --cluster     # submit job to JobManager (needs stack up)
+```
+
+For Studio pipeline cluster work, restart the minimal stack and sync runtime code first:
+
+```bash
+./scripts/restart-studio-cluster.sh --smoke
 ```
 
 ## Control API

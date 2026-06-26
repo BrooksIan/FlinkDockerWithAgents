@@ -19,6 +19,24 @@ This repository is a **multi-project workspace** centered on the **Apemosyne** C
 pip install -e .
 apemosyne build
 apemosyne up                    # minimal: JobManager + TaskManager (default)
+apemosyne kafka up              # Studio Kafka (pipeline sources/sinks on :9094)
+```
+
+Copy [`.env.example`](.env.example) to `.env` for Studio defaults:
+
+```bash
+APEMOSYNE_PROFILE=minimal
+FLINK_REST_PORT=8082
+KAFKA_BOOTSTRAP_SERVERS=localhost:9094
+APEMOSYNE_API_PORT=8090
+```
+
+**After code or image updates**, restart the Studio cluster (Flink + Kafka + sync runtime into containers):
+
+```bash
+./scripts/restart-studio-cluster.sh
+./scripts/restart-studio-cluster.sh --build --api   # rebuild image + restart API
+./scripts/restart-studio-cluster.sh --sync-only     # hot-sync code, no container restart
 ```
 
 **Terminal 2 — Control API** (for dashboard development; no API key in local dev):
@@ -54,8 +72,9 @@ See [dashboard/README.md](dashboard/README.md) and [docs/PLATFORM.md](docs/PLATF
 | URL | Service |
 |-----|---------|
 | http://localhost:3000 | Dashboard (dev) |
-| http://localhost:8082 | Flink Web UI (minimal stack) |
+| http://localhost:8082 | Flink Web UI (minimal / Studio stack) |
 | http://localhost:8081 | Flink Web UI (honeypot / full profile) |
+| http://localhost:9094 | Studio Kafka bootstrap (host) |
 | http://127.0.0.1:8090/docs | Control API (Swagger) |
 | http://127.0.0.1:8090/v1/health | Pipeline health |
 
@@ -79,7 +98,12 @@ See [honeypot/README.md](honeypot/README.md).
 ├── honeypot/                  # Optional Cowrie subproject
 ├── test/                      # Platform + CLI tests
 ├── docker-compose.yml         # Minimal Flink stack (default)
+├── docker-compose.kafka.yml   # Studio Kafka (independent of honeypot)
 ├── Dockerfile                 # agent_flink_image build
+├── scripts/
+│   ├── dev-start.sh           # API + dashboard dev
+│   ├── dev-stop.sh
+│   └── restart-studio-cluster.sh  # Flink + Kafka + code sync after updates
 └── README.md
 ```
 
@@ -90,7 +114,11 @@ See [honeypot/README.md](honeypot/README.md).
 apemosyne build [git-ref]
 apemosyne up [--profile minimal|full] [--mode flink|platform|honeypot]
 apemosyne down
+apemosyne kafka up|down|status   # Studio Kafka (docker-compose.kafka.yml)
 apemosyne doctor
+
+# Studio cluster (after pulling or editing runtime code)
+./scripts/restart-studio-cluster.sh [--build] [--smoke] [--api] [--sync-only]
 
 # Agents
 apemosyne agent list|describe|run|submit|status|cancel

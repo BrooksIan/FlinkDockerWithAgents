@@ -9,7 +9,16 @@ From the repo root:
 ```bash
 pip install -e .
 apemosyne build
-apemosyne up                    # JobManager + TaskManager
+apemosyne up                    # JobManager + TaskManager (Flink UI :8082)
+apemosyne kafka up              # Studio Kafka (:9094) — for pipeline Kafka sinks
+```
+
+Copy [`.env.example`](../.env.example) to `.env` with `APEMOSYNE_PROFILE=minimal`, `FLINK_REST_PORT=8082`, and `KAFKA_BOOTSTRAP_SERVERS=localhost:9094`.
+
+After pulling changes or editing cluster runtime code:
+
+```bash
+./scripts/restart-studio-cluster.sh --api
 ```
 
 In a **second terminal**, start the Control API:
@@ -70,11 +79,11 @@ LLM settings for ReAct agents are stored server-side (`.apemosyne/designer.db`),
 | `/agents/:name` | Agent detail, Flink YAML, submit to cluster |
 | `/designer` | Agent Designer — list user-defined agents, catalog preview |
 | `/designer/:id` | Visual editor — canvas, validate, compile to Python/YAML |
-| `/settings` | Platform settings — LLM connection for ReAct agents |
+| `/settings` | LLM connection + Flink cluster readiness (Studio stack on :8082) |
 | `/runs` | Run history (agents + pipelines) |
 | `/runs/:id` | Run detail, execution plan, spans, output |
 | `/studio` | Agentic Studio — pipeline list |
-| `/studio/:id` | Pipeline canvas — validate and run locally |
+| `/studio/:id` | Pipeline canvas — validate, run locally, **run on Flink cluster** |
 | `/jobs` | Flink jobs list |
 | `/jobs/:id` | Job detail, cancel, link to Flink UI |
 
@@ -106,12 +115,15 @@ See [docs/AGENT_DESIGNER_PLAN.md](../docs/AGENT_DESIGNER_PLAN.md) for the full r
 
 Compose **linear multi-agent pipelines** (Source → Agent → … → Sink):
 
-- **Palette** — add Source, agents from the catalog, and Sink
-- **Inspector** — source JSON records and edge field mappings (e.g. `{"message": "$.doubled"}`)
-- **Drill-down** — double-click an agent to view its action/tool graph
-- **Run locally** — executes the chain in-process; links to `/runs/:id`
+- **Palette** — Source (records or Kafka), agents from the catalog, Capture sink or **Kafka sink**
+- **Inspector** — source records, Kafka topic, edge field mappings (e.g. `{"message": "$.doubled"}`)
+- **Drill-down** — double-click an agent to view its internal action/tool graph
+- **Run locally** — in-process execution; links to `/runs/:id`
+- **Run on Flink cluster** — batch submit to minimal stack (`:8082`); Kafka sink default topic `workflow.test.output`
 
-Pipelines persist in `.apemosyne/pipelines.db`. Local runs require `flink_agents` (from `apemosyne build`).
+Pipelines persist in `.apemosyne/pipelines.db`. Cluster runs need Studio Kafka (`apemosyne kafka up`) and a healthy minimal Flink stack — use `./scripts/restart-studio-cluster.sh` after code updates.
+
+Published ReAct agents show a **cluster warning** (Pemja classloader); prefer built-in workflow agents or local run for designer ReAct pipelines.
 
 ### Runs
 
@@ -119,12 +131,13 @@ Unified history for agent submits and Studio pipeline runs. Run detail shows sta
 
 ### Settings
 
-Platform-wide **LLM connection** for ReAct agents:
+Platform-wide **LLM connection** for ReAct agents and **Flink cluster readiness** for Studio:
 
 - Endpoint URL, model ID, API key (masked on read)
 - **Test connection** — validates with a double-value prompt (3 → 6)
+- **Cluster panel** — Docker image, JobManager/TaskManager, TaskManager slots, Studio Kafka (`:9094`)
 
-Backed by `GET/PUT/POST /v1/designer/llm-settings` on the Control API.
+Backed by `GET/PUT/POST /v1/designer/llm-settings` and `GET /v1/cluster/status` on the Control API.
 
 ### Jobs
 
@@ -167,6 +180,8 @@ Key client methods:
 | `getDesignerDefinition(id)` | `GET /v1/agent-definitions/{id}` | Designer store |
 | `compileAgentDefinition(id)` | `POST /v1/agent-definitions/{id}/compile` | Codegen |
 | `runPipeline(id)` | `POST /v1/pipelines/{id}/run` | Studio local run |
+| `submitPipeline(id)` | `POST /v1/pipelines/{id}/submit` | Studio cluster submit |
+| `validatePipeline(id)` | `POST /v1/pipelines/{id}/validate` | Local + cluster validation |
 
 ## Build
 

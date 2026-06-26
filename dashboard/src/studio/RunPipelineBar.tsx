@@ -13,6 +13,15 @@ interface Props {
   onClusterSubmit: () => void;
 }
 
+function publishedReactClusterWarning(validation: PipelineValidation | null): string | null {
+  const warnings = validation?.cluster?.warnings ?? [];
+  return (
+    warnings.find((w) => w.includes("published ReAct agent")) ??
+    warnings.find((w) => w.includes("Pemja")) ??
+    null
+  );
+}
+
 export function RunPipelineBar({
   validation,
   running,
@@ -25,13 +34,24 @@ export function RunPipelineBar({
   onClusterSubmit,
 }: Props) {
   const busy = running || submitting;
+  const clusterValidation = validation?.cluster;
+  const clusterReactWarning = publishedReactClusterWarning(validation);
   const clusterDisabled =
-    busy || Boolean(clusterBlockedReason) || validation?.valid === false;
+    busy ||
+    Boolean(clusterBlockedReason) ||
+    validation?.valid === false ||
+    clusterValidation?.valid === false;
 
   const clusterTitle = (() => {
     if (clusterBlockedReason) return clusterBlockedReason;
     if (validation?.valid === false) {
       return validation.errors.join(" · ") || "Fix pipeline validation errors first";
+    }
+    if (clusterValidation?.valid === false) {
+      return clusterValidation.errors.join(" · ") || "Fix cluster validation errors first";
+    }
+    if (clusterReactWarning) {
+      return "Cluster submit may fail — published ReAct agents are experimental on Flink cluster";
     }
     if (busy) return "Wait for the current run to finish";
     return "Submit as a Flink job on the cluster (JobManager + TaskManagers)";
@@ -39,6 +59,12 @@ export function RunPipelineBar({
 
   return (
     <div className="studio-run-bar card">
+      {clusterReactWarning && !clusterBlockedReason && (
+        <div className="studio-cluster-warning" role="status">
+          <span className="badge warn">Cluster</span>
+          <p>{clusterReactWarning}</p>
+        </div>
+      )}
       <div className="actions" style={{ margin: 0 }}>
         <button type="button" className="secondary" onClick={onConnectChain} disabled={busy}>
           Connect chain
@@ -76,6 +102,11 @@ export function RunPipelineBar({
           ) : (
             <span className="badge bad">Invalid</span>
           )}
+          {clusterValidation && (
+            <span className="badge neutral" style={{ marginLeft: "0.35rem" }}>
+              Cluster {clusterValidation.valid ? "ready" : "blocked"}
+            </span>
+          )}
           {validation.errors.map((e) => (
             <p key={e} className="error" style={{ margin: "0.35rem 0" }}>
               {e}
@@ -86,6 +117,18 @@ export function RunPipelineBar({
               {w}
             </p>
           ))}
+          {clusterValidation?.errors.map((e) => (
+            <p key={`cluster-${e}`} className="error" style={{ margin: "0.35rem 0" }}>
+              Cluster: {e}
+            </p>
+          ))}
+          {clusterValidation?.warnings
+            .filter((w) => w !== clusterReactWarning)
+            .map((w) => (
+              <p key={`cluster-${w}`} className="muted" style={{ margin: "0.35rem 0" }}>
+                Cluster: {w}
+              </p>
+            ))}
         </div>
       )}
       {lastRunId && (

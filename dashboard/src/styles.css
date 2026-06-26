@@ -478,6 +478,20 @@ pre.yaml {
   margin-bottom: 1rem;
 }
 
+.studio-cluster-warning {
+  margin-bottom: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--border));
+  background: color-mix(in srgb, var(--warn) 12%, var(--surface));
+}
+
+.studio-cluster-warning p {
+  margin: 0.45rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
 .studio-drawer {
   position: fixed;
   right: 0;

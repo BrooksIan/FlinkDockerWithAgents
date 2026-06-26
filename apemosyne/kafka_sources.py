@@ -23,7 +23,12 @@ _STATIC_TOPICS: dict[str, str] = {
     "cowrie.disinfo_requests": "Counter-attack / disinfo request stream",
     "workflow.test.input": "Studio test input — integer value records for workflow_counter",
     "workflow.test.output": "Studio test sink — workflow_counter doubled output",
+    "session.window.input": "Cowrie-like events for session window detect demo (keyed by src_ip)",
+    "session.window.output": "Session detect agent output",
 }
+
+DEFAULT_KAFKA_OUTPUT_TOPIC = "workflow.test.output"
+DEFAULT_KAFKA_INPUT_TOPIC = "workflow.test.input"
 
 STUDIO_KAFKA_EXTERNAL_PORT = 9094
 

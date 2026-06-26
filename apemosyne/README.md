@@ -22,6 +22,7 @@ Entry point: `apemosyne.main:main` → `apemosyne.cli:app` (Typer).
 | `apemosyne up --mode platform` | Flink stack + API docs URL in startup output |
 | `apemosyne up --profile full` | Optional honeypot stack |
 | `apemosyne down` / `status` / `logs` | Compose lifecycle |
+| `apemosyne kafka up` / `down` / `status` | Studio Kafka (`docker-compose.kafka.yml`, host `:9094`) |
 | `apemosyne doctor` | Platform preflight (manifest, Flink REST, API) |
 
 ### Agents
@@ -70,7 +71,9 @@ apemosyne/
 │   ├── observability.py   # Prometheus + JSON logging
 │   └── config.py          # Env-based settings
 ├── agents/                # Registry + submit helpers
-├── runtime/               # Flink cluster submit (no honeypot)
+├── runtime/               # Flink cluster submit + studio sync
+│   ├── flink_cluster_submit.py
+│   └── studio_cluster_sync.py   # Copy runtime into JM/TM after updates
 ├── docker_utils.py        # Compose helpers
 ├── paths.py               # Repo root, honeypot_dir(), runtime paths
 ├── manifests.py           # YAML catalogs
@@ -91,6 +94,7 @@ apemosyne/
 | Profile | Compose file | Stack |
 |---------|--------------|-------|
 | `minimal` (default) | `docker-compose.yml` | JobManager + TaskManager |
+| `kafka` | `docker-compose.kafka.yml` | Studio Zookeeper + Kafka (`apemosyne kafka up`) |
 | `full` | `honeypot/docker-compose.yml` | Cowrie honeypot + Kafka + pipeline |
 
 `configure_runtime_sys_path()` loads honeypot modules only for the `full` profile.
@@ -104,8 +108,23 @@ apemosyne/
 | `APEMOSYNE_API_PORT` | `8090` | API port |
 | `FLINK_REST_ADDRESS` | `localhost` | JobManager for API/CLI |
 | `FLINK_REST_PORT` | `8082` (minimal) / `8081` (full) | Host Flink REST port |
+| `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9094` | Studio Kafka (after `apemosyne kafka up`) |
+| `APEMOSYNE_PROFILE` | `minimal` | Compose profile for agent/pipeline cluster submit |
 
 See [../.env.example](../.env.example).
+
+## Studio cluster restart
+
+After editing `apemosyne/` runtime code, pipeline cluster codegen, or the Dockerfile:
+
+```bash
+./scripts/restart-studio-cluster.sh              # Flink + Kafka + sync + bootstrap
+./scripts/restart-studio-cluster.sh --build      # rebuild agent_flink_image first
+./scripts/restart-studio-cluster.sh --smoke      # + cluster launch smoke job
+./scripts/restart-studio-cluster.sh --sync-only  # copy code only (containers stay up)
+```
+
+The script loads `.env`, force-recreates minimal Flink JM/TM, starts Studio Kafka, copies runtime modules into containers (`studio_cluster_sync.py`), and bootstraps Flink Agents thin JARs (avoids Pemja classloader issues on TaskManagers).
 
 ## Development
 

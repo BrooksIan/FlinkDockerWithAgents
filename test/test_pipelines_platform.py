@@ -313,8 +313,8 @@ def test_kafka_sink_validation() -> None:
         ],
     )
     bad_result = validate_pipeline(bad)
-    assert bad_result["valid"] is False
-    assert any("topic" in e.lower() for e in bad_result["errors"])
+    assert bad_result["valid"] is True
+    assert any("workflow.test.output" in w for w in bad_result["warnings"])
 
 
 def main() -> int:

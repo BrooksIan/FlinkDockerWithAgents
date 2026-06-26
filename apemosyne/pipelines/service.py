@@ -127,11 +127,22 @@ class PipelineService:
         if not self._store.delete(pipeline_id):
             raise KeyError(pipeline_id)
 
-    def validate(self, pipeline_id: str) -> dict[str, Any]:
+    def validate(self, pipeline_id: str, *, include_cluster: bool = True) -> dict[str, Any]:
         pipeline = self._store.get(pipeline_id)
         if pipeline is None:
             raise KeyError(pipeline_id)
-        return validate_pipeline(pipeline)
+        result = dict(validate_pipeline(pipeline))
+        if include_cluster:
+            from apemosyne.pipelines.validate_cluster import validate_pipeline_cluster
+
+            cluster = validate_pipeline_cluster(pipeline)
+            result["cluster"] = {
+                "valid": cluster["valid"],
+                "errors": cluster["errors"],
+                "warnings": cluster["warnings"],
+                "mode": cluster.get("mode"),
+            }
+        return result
 
     def run_local(
         self,
@@ -169,7 +180,11 @@ class PipelineService:
             profile=profile or DEFAULT_PROFILE,
         )
         if result.return_code != 0:
-            raise RuntimeError(f"Pipeline cluster submit failed with exit code {result.return_code}")
+            detail = f"Pipeline cluster submit failed with exit code {result.return_code}"
+            run = default_run_service().get_run(result.run_id)
+            if run and run.get("error"):
+                detail = f"{detail}: {run['error']}"
+            raise RuntimeError(detail)
         return submit_result_to_dict(result, pipeline=pipeline)
 
 

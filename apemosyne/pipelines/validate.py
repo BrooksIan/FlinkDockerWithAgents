@@ -65,7 +65,11 @@ def validate_pipeline(pipeline: Pipeline) -> dict[str, Any]:
             if sink_type == "kafka":
                 topic = str(node.config.get("topic") or "").strip()
                 if not topic:
-                    errors.append("Kafka sink node missing topic")
+                    from apemosyne.kafka_sources import DEFAULT_KAFKA_OUTPUT_TOPIC
+
+                    warnings.append(
+                        f"Kafka sink has no topic; using default {DEFAULT_KAFKA_OUTPUT_TOPIC!r}"
+                    )
         if node.kind == "agent":
             if not node.agent:
                 errors.append(f"Agent node {node.id!r} missing agent name")

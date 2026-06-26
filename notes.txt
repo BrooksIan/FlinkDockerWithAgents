@@ -1,0 +1,13 @@
+Typical after pulling changes:
+
+./scripts/restart-studio-cluster.sh --api
+
+
+After Dockerfile/runtime edits:
+
+./scripts/restart-studio-cluster.sh --build --smoke
+
+
+Quick code-only sync (cluster already running):
+
+./scripts/restart-studio-cluster.sh --sync-only
