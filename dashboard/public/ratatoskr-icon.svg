@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Ratatoskr">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#243044"/>
+      <stop offset="100%" stop-color="#1a2332"/>
+    </linearGradient>
+  </defs>
+  <!-- Norway-inspired palette: red #BA0C2F, blue #00205B, white #FFFFFF -->
+  <circle cx="32" cy="32" r="30" fill="url(#bg)" stroke="#2d3a4f" stroke-width="1.5"/>
+  <!-- Yggdrasil trunk — blue with white fimbriation (flag nod) -->
+  <path d="M32 14v34" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round"/>
+  <path d="M32 14v34" stroke="#00205B" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M32 48 L22 56" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M32 48 L22 56" stroke="#00205B" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M32 48 L32 57" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M32 48 L32 57" stroke="#00205B" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M32 48 L42 56" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M32 48 L42 56" stroke="#00205B" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- branches -->
+  <path d="M32 22 L24 18" stroke="#00205B" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M32 30 L40 26" stroke="#00205B" stroke-width="2.2" stroke-linecap="round"/>
+  <!-- events on the wire -->
+  <circle cx="32" cy="19" r="2.4" fill="#00205B" stroke="#FFFFFF" stroke-width="0.8"/>
+  <circle cx="32" cy="34" r="2.4" fill="#FFFFFF" stroke="#00205B" stroke-width="0.8"/>
+  <circle cx="32" cy="43" r="2.4" fill="#00205B" stroke="#FFFFFF" stroke-width="0.8"/>
+  <!-- squirrel — Norway red -->
+  <path
+    d="M36 27c3.5 0 6 2.8 6 6.2 0 2.4-1.2 4.5-3 5.7v4.1h-5.5v-3.8c-1.8-.3-3.2-1.8-3.2-3.7 0-2.1 1.7-3.8 3.8-3.8.8 0 1.5.2 2.1.6.6-1.5 2-2.6 3.8-2.6z"
+    fill="#BA0C2F"
+  />
+  <circle cx="40.2" cy="31.5" r="1.1" fill="#00205B"/>
+  <path
+    d="M28 30c-4 1.5-7 5-8 9.5 3-2 6.5-3 10-2.5-1.5-3.5-1-7.5 2-7 0 0-2.5-.5-4 0z"
+    fill="#9A0A26"
+  />
+  <path d="M34 24.5 L36 21 L38 24.5" fill="#BA0C2F"/>
+  <!-- blue ear tips -->
+  <path d="M34.2 24.8 L35.2 22.2 L36.1 24.6 Z" fill="#00205B"/>
+  <path d="M37.8 24.8 L38.7 22.2 L39.7 24.6 Z" fill="#00205B"/>
+</svg>

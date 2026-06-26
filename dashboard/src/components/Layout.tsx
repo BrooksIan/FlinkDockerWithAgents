@@ -6,8 +6,13 @@ export function Layout() {
   return (
     <div className="layout">
       <nav className="nav">
-        <h1>Ratatoskr</h1>
-        <p className="sub">Flink Agents</p>
+        <div className="nav-brand">
+          <img className="nav-logo" src="/ratatoskr-icon.svg" alt="" width={40} height={40} />
+          <div>
+            <h1>Ratatoskr</h1>
+            <p className="sub">Flink Agents</p>
+          </div>
+        </div>
         <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : "")}>
           Overview
         </NavLink>

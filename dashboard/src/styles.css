@@ -43,6 +43,17 @@ a:hover {
   padding: 1.5rem 1rem;
 }
 
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 1.25rem;
+}
+
+.nav-logo {
+  flex-shrink: 0;
+}
+
 .nav h1 {
   font-size: 1.1rem;
   margin: 0 0 0.25rem;

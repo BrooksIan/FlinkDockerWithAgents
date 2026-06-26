@@ -1,6 +1,12 @@
 # Ratatoskr
 
+<p align="center">
+  <img src="dashboard/public/ratatoskr-icon.svg" alt="Ratatoskr — squirrel messenger on Yggdrasil" width="96" height="96" />
+</p>
+
 **Build, run, and verify [Apache Flink Agents](https://github.com/apache/flink-agents) on Docker — with a CLI, registered agents, and a Control API for dashboards.**
+
+Named for the Norse squirrel that carries messages up and down **Yggdrasil** — a fit for event pipelines, Kafka, and Flink streams. See [docs/branding/RATATOSKR.md](docs/branding/RATATOSKR.md).
 
 This repository is a **multi-project workspace** centered on the **Ratatoskr** CLI:
 

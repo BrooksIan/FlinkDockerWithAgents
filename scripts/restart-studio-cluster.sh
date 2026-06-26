@@ -13,8 +13,8 @@ cd "$ROOT"
 
 BUILD=false
 SMOKE=false
-RESTART_API=false
-START_DASHBOARD=false
+RESTART_API=true
+START_DASHBOARD=true
 SKIP_KAFKA=false
 SYNC_ONLY=false
 DASHBOARD_PORT="${DASHBOARD_PORT:-3000}"
@@ -32,9 +32,10 @@ Restart the Studio stack used for pipeline cluster runs:
 Options:
   --build       Rebuild agent_flink_image before restarting Flink
   --smoke       Run cluster launch smoke job after sync
-  --api         Restart Control API on :8090 (stops dev ports first)
-  --dashboard   Start dashboard dev server on :3000 (background)
-  --dev         Shorthand for --api --dashboard
+  --no-dev      Skip Control API + dashboard (default: both start on :8090 / :3000)
+  --api         Restart Control API on :8090 only (skip dashboard)
+  --dashboard   Start dashboard on :3000 only (skip API)
+  --dev         Shorthand for --api --dashboard (default behavior)
   --no-kafka    Skip Studio Kafka restart
   --sync-only   Do not restart Docker services; copy code + bootstrap only
   -h, --help    Show this help
@@ -48,7 +49,7 @@ Environment (from .env):
 After restart:
   Flink UI:    http://localhost:8082
   Control API: http://127.0.0.1:8090/docs
-  Dashboard:   http://localhost:3000  (pass --dev or --dashboard)
+  Dashboard:   http://localhost:3000
 EOF
 }
 
@@ -56,8 +57,9 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --build) BUILD=true ;;
     --smoke) SMOKE=true ;;
-    --api) RESTART_API=true ;;
-    --dashboard) START_DASHBOARD=true ;;
+    --no-dev) RESTART_API=false; START_DASHBOARD=false ;;
+    --api) RESTART_API=true; START_DASHBOARD=false ;;
+    --dashboard) RESTART_API=false; START_DASHBOARD=true ;;
     --dev) RESTART_API=true; START_DASHBOARD=true ;;
     --no-kafka) SKIP_KAFKA=true ;;
     --sync-only) SYNC_ONLY=true ;;
@@ -171,7 +173,7 @@ if $RESTART_API || $START_DASHBOARD; then
     start_dashboard
   fi
 else
-  echo "[5/5] Dev services not restarted (pass --dev, --api, or --dashboard)"
+  echo "[5/5] Dev services skipped (--no-dev)"
 fi
 
 echo ""
@@ -182,7 +184,7 @@ echo "  Control API: http://127.0.0.1:${RATATOSKR_API_PORT}/docs"
 if $START_DASHBOARD; then
   echo "  Dashboard:   http://localhost:${DASHBOARD_PORT}"
 else
-  echo "  Dashboard:   pass --dev or --dashboard to start"
+  echo "  Dashboard:   skipped (--no-dev or --api)"
 fi
 echo ""
 echo "Submit pipeline: Studio → Run on Flink cluster"

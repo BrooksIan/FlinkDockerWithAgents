@@ -1,6 +1,7 @@
 Typical after pulling changes:
 
-./scripts/restart-studio-cluster.sh --dev
+./scripts/restart-studio-cluster.sh
+# (starts Flink sync + API :8090 + dashboard :3000 by default)
 
 
 After Dockerfile/runtime edits:
@@ -11,6 +12,7 @@ After Dockerfile/runtime edits:
 Quick code-only sync (cluster already running):
 
 ./scripts/restart-studio-cluster.sh --sync-only
+# still restarts API + dashboard; use --no-dev to skip dev services
 
 ./scripts/dev-start.sh
 ./scripts/dev-stop.sh
