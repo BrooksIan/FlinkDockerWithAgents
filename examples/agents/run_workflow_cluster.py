@@ -28,10 +28,7 @@ def main() -> None:
     from flink_agents.api.execution_environment import AgentsExecutionEnvironment
 
     from examples.agents.workflow_counter import CounterAgent
-    from apemosyne.runtime.flink_cluster_submit import attach_flink_agents_jars
-
     env = StreamExecutionEnvironment.get_execution_environment()
-    attach_flink_agents_jars(env)
     env.set_parallelism(1)
     agents_env = AgentsExecutionEnvironment.get_execution_environment(env)
 

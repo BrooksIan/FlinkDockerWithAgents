@@ -35,12 +35,12 @@ RUN git clone --depth 1 --branch "${FLINK_AGENTS_VERSION}" https://github.com/ap
         'pyarrow>=5.0.0,<16.0.0' \
         'apache-beam>=2.43.0,<2.49.0' \
         'grpcio-tools>=1.29.0,<=1.51.3' \
-        'pemja>=0.5.6,<0.5.8' \
+        'pemja>=0.6.0,<0.7.0' \
         'setuptools>=75.3,<82' \
         'avro-python3>=1.10.0,<1.12.0' \
-        'pemja>=0.6.0,<0.7.0' \
         ./python/dist/*.whl \
         ruamel.yaml \
+    && cp dist/common/target/flink-agents-dist-common-*.jar /opt/flink/lib/ \
     && rm -rf /tmp/flink-agents
 
 COPY examples/demo_datastream.py examples/demo_table.py examples/demo_datastream_local.py /opt/flink/

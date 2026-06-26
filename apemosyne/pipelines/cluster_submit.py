@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Optional
 from apemosyne.constants import DEFAULT_PROFILE
 from apemosyne.copy_manifest import copy_pairs_to_cluster
 from apemosyne.designer.runtime_env import react_llm_shell_prefix, sync_designer_db_to_cluster
-from apemosyne.docker_utils import PYFLINK_PYTHONPATH, container_id, docker_exec, project_root
+from apemosyne.docker_utils import PYFLINK_PYTHONPATH, container_id, docker_exec_output, project_root
 from apemosyne.pipelines.cluster_codegen import (
     cluster_job_name,
     cluster_runner_relpath,
@@ -158,14 +158,20 @@ def submit_pipeline_cluster(
             f"job_id, out = flink_run_py(Path('{remote}')); "
             "print('Submitted job', job_id)\""
         )
-        rc = docker_exec(
+        rc, stdout, stderr = docker_exec_output(
             container_id("jobmanager", profile=profile) or "",
             command,
             interactive=False,
         )
+        output = stdout + stderr
 
         job_id = flink_job_id
         if rc == 0:
+            if not job_id:
+                for line in output.splitlines():
+                    if line.startswith("Submitted job "):
+                        job_id = line.split("Submitted job ", 1)[1].strip()
+                        break
             if not job_id:
                 job_id = find_flink_job_for_pipeline(pipeline)
             try:
@@ -186,7 +192,12 @@ def submit_pipeline_cluster(
             service.set_running(run_id, flink_job_id=job_id)
             _sync_cluster_run_status(service, run_id, job_id)
         else:
-            service.finish_run(run_id, status="failed", error=f"submit exit code {rc}")
+            detail = (stderr or stdout or "").strip()
+            service.finish_run(
+                run_id,
+                status="failed",
+                error=detail or f"submit exit code {rc}",
+            )
 
         return PipelineClusterSubmitResult(
             run_id=run_id,

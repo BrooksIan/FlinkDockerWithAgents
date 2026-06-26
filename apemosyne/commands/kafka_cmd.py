@@ -8,7 +8,7 @@ import typer
 
 from apemosyne.constants import KAFKA_PROFILE
 from apemosyne.docker_utils import compose_file, run_compose
-from apemosyne.kafka_sources import STUDIO_KAFKA_EXTERNAL_PORT, kafka_reachable
+from apemosyne.kafka_sources import STUDIO_KAFKA_EXTERNAL_PORT, kafka_reachable, sample_topic_records
 
 app = typer.Typer(help="Studio Kafka — Zookeeper + broker for pipeline sources/sinks.")
 
@@ -60,6 +60,36 @@ def kafka_status() -> None:
         typer.echo(f"Broker reachable at localhost:{STUDIO_KAFKA_EXTERNAL_PORT}")
     else:
         typer.echo("Broker not reachable from host.", err=True)
+
+
+@app.command("consume")
+def kafka_consume(
+    topic: str = typer.Argument(..., help="Topic name (e.g. workflow.test.output)"),
+    limit: int = typer.Option(10, "--limit", "-n", help="Max messages to print"),
+) -> None:
+    """Print recent messages from a Studio Kafka topic."""
+    import json
+
+    if not kafka_reachable():
+        typer.echo(
+            f"Kafka not reachable at localhost:{STUDIO_KAFKA_EXTERNAL_PORT} — run: apemosyne kafka up",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    try:
+        records = sample_topic_records(topic, limit=limit)
+    except Exception as exc:
+        typer.echo(f"Failed to read {topic!r}: {exc}", err=True)
+        raise typer.Exit(1) from exc
+
+    if not records:
+        typer.echo(f"No messages on {topic!r}.")
+        return
+
+    typer.echo(f"{topic} ({len(records)} message(s)):")
+    for record in records:
+        typer.echo(json.dumps(record, default=str))
 
 
 @app.command("logs")

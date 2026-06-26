@@ -139,9 +139,26 @@ def docker_exec(
     interactive: bool = True,
     workdir: str = "/opt/flink",
 ) -> int:
+    rc, _, _ = docker_exec_output(container, command, interactive=interactive, workdir=workdir)
+    return rc
+
+
+def docker_exec_output(
+    container: str,
+    command: str,
+    *,
+    interactive: bool = False,
+    workdir: str = "/opt/flink",
+) -> tuple[int, str, str]:
     flags = ["-it"] if interactive and sys.stdin.isatty() else []
     cmd = ["docker", "exec", *flags, container, "bash", "-c", command]
-    return subprocess.run(cmd, cwd=project_root()).returncode
+    result = subprocess.run(
+        cmd,
+        cwd=project_root(),
+        capture_output=True,
+        text=True,
+    )
+    return result.returncode, result.stdout or "", result.stderr or ""
 
 
 def pyflink_python_cmd(script: str) -> str:

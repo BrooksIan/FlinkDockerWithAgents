@@ -79,12 +79,43 @@ def ensure_flink_agents_jars() -> None:
     shutil.copy2(thin_jars[0], version_dir / thin_jars[0].name)
 
 
+def install_flink_agents_common_lib_jar() -> None:
+    """Install common JAR on ``/opt/flink/lib`` for JM-side CompileUtils (parent classloader)."""
+    import shutil
+
+    common_dir = SITE_PACKAGES / "flink_agents" / "lib" / "common"
+    if not common_dir.is_dir():
+        return
+    for jar in common_dir.glob("*.jar"):
+        target = FLINK_LIB / jar.name
+        if target.exists() and target.stat().st_size == jar.stat().st_size:
+            continue
+        try:
+            shutil.copy2(jar, target)
+        except OSError:
+            continue
+
+
+def remove_flink_agents_common_from_classpath() -> None:
+    """Remove common JAR from ``/opt/flink/lib`` (used when resetting cluster state)."""
+    for jar in FLINK_LIB.glob("flink-agents-dist-common-*.jar"):
+        try:
+            jar.unlink()
+        except OSError:
+            pass
+
+
+def ensure_flink_agents_common_on_classpath() -> None:
+    """Alias for ``install_flink_agents_common_lib_jar``."""
+    install_flink_agents_common_lib_jar()
+
+
 def flink_agents_jar_uris(*, pipeline: bool = False) -> list[str]:
     """Return Flink Agents dist JAR URIs.
 
-    For ``pipeline=True`` (``add_jars`` / ``pipeline.jars``), attach only the thin
-    Flink-version JAR. Including both common + thin creates separate child
-    classloaders and triggers Pemja ``PyObject`` ClassCastException on TaskManagers.
+    For ``pipeline=True``, attach only the thin Flink-version JAR via
+    ``AgentsExecutionEnvironment.get_execution_environment(env)`` — do not also call
+    ``attach_flink_agents_jars`` or copy common JAR into ``/opt/flink/lib``.
     """
     flink_major = flink_major_version()
     common_dir = SITE_PACKAGES / "flink_agents" / "lib" / "common"
@@ -97,8 +128,12 @@ def flink_agents_jar_uris(*, pipeline: bool = False) -> list[str]:
 
 
 def attach_flink_agents_jars(stream_env) -> None:
-    """Attach Flink Agents thin dist JAR for cluster pipeline execution."""
-    jar_uris = flink_agents_jar_uris(pipeline=True)
+    """Attach Flink Agents JARs in one user classloader (common + thin together).
+
+    Flink Agents' built-in loader calls ``add_jars`` once per JAR, which splits Pemja
+    across classloaders on TaskManagers. A single ``add_jars(*uris)`` avoids that.
+    """
+    jar_uris = flink_agents_jar_uris(pipeline=False)
     if not jar_uris:
         return
     joined = ";".join(jar_uris)
@@ -110,6 +145,9 @@ def attach_flink_agents_jars(stream_env) -> None:
         stream_env.add_jars(*jar_uris)
     except Exception:
         pass
+
+
+PEMJA_VERSION = "pemja>=0.6.0,<0.7.0"
 
 
 def ensure_pemja_embed_runtime() -> None:
@@ -125,7 +163,7 @@ def ensure_pemja_embed_runtime() -> None:
                 "install",
                 "--target",
                 str(SITE_PACKAGES),
-                "pemja>=0.6.0,<0.7.0",
+                PEMJA_VERSION,
             ],
             check=False,
         )
@@ -143,10 +181,13 @@ def ensure_pyflink_beam_runtime() -> None:
                 "pyarrow>=5.0.0,<16.0.0",
                 "apache-beam>=2.43.0,<2.49.0",
                 "grpcio-tools>=1.29.0,<=1.51.3",
-            "pemja>=0.5.6,<0.5.8",
-            "setuptools>=75.3,<82",
+                "setuptools>=75.3,<82",
             ]
         )
+    try:
+        import pemja  # noqa: F401
+    except ImportError:
+        missing.append(PEMJA_VERSION)
     try:
         import avro  # noqa: F401
     except ImportError:
@@ -176,6 +217,7 @@ def bootstrap_cluster_runtime(
 ) -> None:
     """Prepare Python workers and optional Flink Agents JARs."""
     ensure_python_symlink()
+    remove_flink_agents_common_from_classpath()
     ensure_pemja_embed_runtime()
     ensure_pyflink_beam_runtime()
     if install_agents_jars:
@@ -199,7 +241,10 @@ def bootstrap_cluster_containers(*, profile: str | None = None) -> None:
     for service in ("jobmanager", "taskmanager"):
         cid = container_id(service, profile=active_profile)
         if cid:
-            docker_exec(cid, command, interactive=False)
+            subprocess.run(
+                ["docker", "exec", "-u", "root", cid, "bash", "-c", command],
+                check=False,
+            )
 
 
 def rest_base(*, rest_port: int | None = None) -> str:

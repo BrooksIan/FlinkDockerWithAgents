@@ -61,6 +61,7 @@ def studio_cluster_copy_pairs(*, root: Path | None = None) -> list[tuple[str, st
         "apemosyne/designer/runtime_env.py",
         "apemosyne/runtime/__init__.py",
         "apemosyne/runtime/flink_cluster_submit.py",
+        "apemosyne/runtime/flink_agents_bootstrap.py",
         "apemosyne/runtime/cluster_launch_test.py",
         "apemosyne/runtime/cluster_launch_agent.py",
         "apemosyne/runtime/studio_cluster_sync.py",
@@ -169,6 +170,19 @@ def bootstrap_studio_cluster(*, profile: str = DEFAULT_PROFILE) -> None:
     flink_cluster_submit.bootstrap_cluster_containers(profile=profile)
 
 
+def restart_taskmanager(*, profile: str = DEFAULT_PROFILE) -> None:
+    """Restart TaskManager to clear stale PemJa / child classloader state."""
+    import subprocess
+
+    from apemosyne.docker_utils import container_id
+
+    cid = container_id("taskmanager", profile=profile)
+    if not cid:
+        return
+    subprocess.run(["docker", "restart", cid], check=False)
+    wait_for_taskmanagers(timeout_sec=120, rest_port=studio_flink_rest_port())
+
+
 def restart_studio_cluster(
     *,
     profile: str = DEFAULT_PROFILE,
@@ -193,6 +207,9 @@ def restart_studio_cluster(
 
     print("Bootstrapping Flink Agents JARs + Python on cluster...")
     bootstrap_studio_cluster(profile=profile)
+
+    print("Restarting TaskManager (clears PemJa classloader state)...")
+    restart_taskmanager(profile=profile)
 
     result: dict[str, Any] = {
         "flink_rest_port": port,

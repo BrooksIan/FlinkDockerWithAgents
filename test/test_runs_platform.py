@@ -51,6 +51,18 @@ def test_agent_execution_plans() -> None:
     assert cluster_job_name("workflow_counter") == "Apemosyne Workflow Counter"
 
 
+def test_find_flink_job_prefers_newest_match() -> None:
+    from apemosyne.runs.plan import _newest_job_id
+
+    jobs = [
+        {"jid": "old_failed", "name": "Apemosyne Workflow Counter", "start-time": 100},
+        {"jid": "new_finished", "name": "Apemosyne Workflow Counter", "start-time": 200},
+        {"jid": "other", "name": "Other Job", "start-time": 300},
+    ]
+    assert _newest_job_id(jobs, "Apemosyne Workflow Counter") == "new_finished"
+    assert _newest_job_id(jobs, "Missing") is None
+
+
 def test_runs_api_routes() -> None:
     os.environ.pop("APEMOSYNE_API_KEY", None)
     from fastapi.testclient import TestClient

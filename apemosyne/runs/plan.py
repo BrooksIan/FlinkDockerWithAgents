@@ -54,8 +54,17 @@ def agent_execution_plan(agent: str) -> list[dict[str, Any]]:
     return [dict(step) for step in _AGENT_PLANS[agent]]
 
 
+def _newest_job_id(jobs: list[dict[str, Any]], expected_name: str) -> str | None:
+    """Return the most recently started Flink job id matching ``expected_name``."""
+    matches = [job for job in jobs if job.get("name") == expected_name and job.get("jid")]
+    if not matches:
+        return None
+    newest = max(matches, key=lambda job: int(job.get("start-time") or 0))
+    return str(newest["jid"])
+
+
 def find_flink_job_for_agent(agent: str) -> str | None:
-    """Match a Flink job id by the cluster runner's execute() name."""
+    """Match the newest Flink job id by the cluster runner's execute() name."""
     from apemosyne.runtime import flink_cluster_submit
 
     expected = cluster_job_name(agent)
@@ -65,11 +74,7 @@ def find_flink_job_for_agent(agent: str) -> str | None:
         data = flink_cluster_submit.fetch_json("/jobs/overview")
     except Exception:
         return None
-    for job in data.get("jobs") or []:
-        if job.get("name") == expected:
-            jid = job.get("jid")
-            return str(jid) if jid else None
-    return None
+    return _newest_job_id(list(data.get("jobs") or []), expected)
 
 
 def cluster_job_name_for_agent(agent: str) -> str | None:
@@ -92,11 +97,7 @@ def find_flink_job_for_pipeline(pipeline: "Pipeline") -> str | None:
         data = flink_cluster_submit.fetch_json("/jobs/overview", rest_port=port)
     except Exception:
         return None
-    for job in data.get("jobs") or []:
-        if job.get("name") == expected:
-            jid = job.get("jid")
-            return str(jid) if jid else None
-    return None
+    return _newest_job_id(list(data.get("jobs") or []), expected)
 
 
 def resolve_pipeline_for_run(agent: str) -> "Pipeline | None":

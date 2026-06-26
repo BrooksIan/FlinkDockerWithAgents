@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Cluster runner — Kafka (or demo collection) → dynamic session window → SessionDetectAgent."""
+"""Cluster runner — Kafka (or demo collection) → dynamic session window → session detect."""
 
 from __future__ import annotations
 
@@ -62,16 +62,11 @@ def _kafka_source(env, topic: str, bootstrap: str):
 
 def main() -> None:
     _bootstrap()
-    from apemosyne.runtime.flink_agents_bootstrap import patch_flink_agents_version
-
-    patch_flink_agents_version()
     from pyflink.datastream import StreamExecutionEnvironment
     from pyflink.datastream.window import DynamicProcessingTimeSessionWindows
-    from flink_agents.api.execution_environment import AgentsExecutionEnvironment
 
-    from apemosyne.runtime.flink_cluster_submit import attach_flink_agents_jars
     from apemosyne.runtime.kafka_jars import attach_kafka_jars
-    from examples.agents.session_detect import SessionDetectAgent
+    from examples.agents.session_detect_logic import process_session_summary
     from examples.agents.session_window_fixtures import DEMO_TOPIC, demo_session_events
     from examples.agents.session_window_ops import CowrieActivityGapExtractor, SessionSummaryFunction
 
@@ -79,33 +74,27 @@ def main() -> None:
     topic = os.environ.get("SESSION_WINDOW_KAFKA_TOPIC", DEMO_TOPIC).strip() or DEMO_TOPIC
 
     env = StreamExecutionEnvironment.get_execution_environment()
-    attach_flink_agents_jars(env)
     if use_kafka:
         attach_kafka_jars(env)
     env.set_parallelism(1)
-    agents_env = AgentsExecutionEnvironment.get_execution_environment(env)
 
     if use_kafka:
         stream = _kafka_source(env, topic, _kafka_bootstrap())
     else:
         stream = env.from_collection(demo_session_events())
 
-    windowed = (
+    out = (
         stream.key_by(lambda e: str(e.get("src_ip") or "unknown"))
         .window(DynamicProcessingTimeSessionWindows.with_dynamic_gap(CowrieActivityGapExtractor()))
         .process(SessionSummaryFunction())
+        .map(process_session_summary)
     )
-
-    out = agents_env.from_datastream(
-        input=windowed,
-        key_selector=lambda row: str(row.get("key") or row.get("src_ip") or "1"),
-    ).apply(SessionDetectAgent()).to_datastream()
     out.print()
 
     job_name = "Apemosyne Session Window Detect"
     if use_kafka:
         job_name += f" (Kafka:{topic})"
-    agents_env.execute(job_name)
+    env.execute(job_name)
 
 
 if __name__ == "__main__":
