@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { FlinkClusterPanel } from "../components/FlinkClusterPanel";
 import { LlmSettingsToolLoader } from "../components/LlmSettingsTool";
 
 export function SettingsPage() {
@@ -6,10 +7,14 @@ export function SettingsPage() {
     <>
       <h2>Settings</h2>
       <p className="muted">
-        Platform-wide configuration for ReAct agents and other designer tools.
+        Platform-wide configuration for the Flink cluster, ReAct agents, and other designer tools.
       </p>
 
-      <section className="designer-section" style={{ maxWidth: 640 }}>
+      <section className="designer-section" style={{ maxWidth: 720 }}>
+        <FlinkClusterPanel />
+      </section>
+
+      <section className="designer-section" style={{ maxWidth: 640, marginTop: "1.5rem" }}>
         <LlmSettingsToolLoader />
       </section>
 

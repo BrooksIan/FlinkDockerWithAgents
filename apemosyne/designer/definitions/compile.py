@@ -194,6 +194,9 @@ def _render_react_logic_module(
     run_react_body = (
         textwrap.dedent(
             """
+            from apemosyne.designer.llm_client import chat_completion_json
+            from apemosyne.designer.llm_settings import get_react_llm_settings
+
             settings = get_react_llm_settings()
             if not settings.is_complete():
                 return fallback_process(message, value_hint)
@@ -227,14 +230,6 @@ def _render_react_logic_module(
         "import re",
         "from typing import Any",
     ]
-    if use_platform_llm:
-        lines.extend(
-            [
-                "",
-                "from apemosyne.designer.llm_client import chat_completion_json",
-                "from apemosyne.designer.llm_settings import get_react_llm_settings",
-            ]
-        )
     lines.extend(
         [
             "",
@@ -394,7 +389,14 @@ def _render_react_agent_module(
             return module
 
 
-        _logic = _load_logic()
+        _logic_module = None
+
+
+        def _logic():
+            global _logic_module
+            if _logic_module is None:
+                _logic_module = _load_logic()
+            return _logic_module
 
 
         class {class_name}(Agent):
@@ -404,10 +406,11 @@ def _render_react_agent_module(
             @action(_INPUT_EVENT)
             @staticmethod
             def {action.name}(event: Event, ctx: RunnerContext) -> None:
-                payload = _logic.payload_from_input(InputEvent.from_event(event).input)
-                message = _logic.message_from_payload(payload)
-                value_hint = _logic.hint_value(payload)
-                result = _logic.run_react(message, value_hint=value_hint)
+                logic = _logic()
+                payload = logic.payload_from_input(InputEvent.from_event(event).input)
+                message = logic.message_from_payload(payload)
+                value_hint = logic.hint_value(payload)
+                result = logic.run_react(message, value_hint=value_hint)
                 input_val = int(result.get("input", value_hint or 0))
                 ctx.send_event(
                     OutputEvent(

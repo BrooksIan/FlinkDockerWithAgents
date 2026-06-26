@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 
 from apemosyne import __version__
-from apemosyne.commands import agent_cmd, api_cmd, build, doctor_platform, process, stack, test_cmd, verify_cmd
+from apemosyne.commands import agent_cmd, api_cmd, build, doctor_platform, kafka_cmd, process, stack, test_cmd, verify_cmd
 from apemosyne.commands.build import build_image
 from apemosyne.constants import DEFAULT_PROFILE, PROFILE_HELP, STARTUP_MODE_HELP
 from apemosyne.startup_modes import resolve_up_options
@@ -79,6 +79,7 @@ def cli_up(
 
 
 app.add_typer(stack.app, name="stack")
+app.add_typer(kafka_cmd.app, name="kafka")
 app.add_typer(test_cmd.app, name="test")
 app.add_typer(verify_cmd.app, name="verify")
 app.add_typer(process.app, name="process")

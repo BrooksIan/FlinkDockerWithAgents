@@ -10,7 +10,14 @@ from typing import Any
 
 from apemosyne.agents.registry import AgentRegistryError, get_agent_spec
 from apemosyne.runs.models import Run, RunKind, RunStatus, SpanKind, SpanStatus
-from apemosyne.runs.plan import agent_execution_plan, find_flink_job_for_agent, flink_job_state
+from apemosyne.runs.plan import (
+    agent_execution_plan,
+    find_flink_job_for_agent,
+    find_flink_job_for_pipeline,
+    flink_job_state,
+    pipeline_execution_plan_for_run,
+    resolve_pipeline_for_run,
+)
 from apemosyne.runs.store import RunStore, runs_db_path
 
 _default_service: "RunService | None" = None
@@ -162,7 +169,11 @@ class RunService:
             raise KeyError(run_id)
         if run.kind == "cluster":
             if not run.flink_job_id:
-                job_id = find_flink_job_for_agent(run.agent)
+                pipeline = resolve_pipeline_for_run(run.agent)
+                if pipeline is not None:
+                    job_id = find_flink_job_for_pipeline(pipeline)
+                else:
+                    job_id = find_flink_job_for_agent(run.agent)
                 if job_id:
                     self.set_running(run_id, flink_job_id=job_id)
             run = self._store.get_run(run_id)
@@ -174,7 +185,7 @@ class RunService:
             if run is None:
                 raise KeyError(run_id)
         if run.agent.startswith("pipeline:"):
-            run.plan = []
+            run.plan = pipeline_execution_plan_for_run(run.agent)
         else:
             run.plan = agent_execution_plan(run.agent)
         return _run_to_dict(run)

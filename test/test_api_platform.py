@@ -36,6 +36,26 @@ def test_openapi_and_health() -> None:
     assert b"apemosyne_api_requests_total" in metrics.content
 
 
+def test_cluster_status_route() -> None:
+    from fastapi.testclient import TestClient
+
+    from apemosyne.api.app import create_app
+    from apemosyne.api.config import ApiSettings
+
+    client = TestClient(create_app(ApiSettings(api_key=None, flink_rest_host="127.0.0.1", flink_rest_port=1)))
+    response = client.get("/v1/cluster/status")
+    assert response.status_code == 200
+    body = response.json()
+    assert "ready" in body
+    assert "checks" in body
+    assert isinstance(body["checks"], list)
+    assert body["flink_rest_url"].startswith("http://")
+
+    validate = client.post("/v1/cluster/validate")
+    assert validate.status_code == 200
+    assert validate.json()["checks"]
+
+
 def test_api_key_auth() -> None:
     from fastapi.testclient import TestClient
 

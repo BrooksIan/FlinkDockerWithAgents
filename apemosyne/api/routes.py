@@ -14,6 +14,7 @@ from apemosyne.api.auth import require_api_key
 from apemosyne.api.config import ApiSettings
 from apemosyne.api.events import event_stream
 from apemosyne.api.observability import refresh_flink_gauges
+from apemosyne.constants import DEFAULT_PROFILE
 
 router = APIRouter(prefix="/v1")
 
@@ -116,6 +117,18 @@ async def health(settings: ApiSettings = Depends(_settings)) -> dict[str, Any]:
         agents_registered=int(agents.get("registered") or 0),
     )
     return body
+
+
+@router.get("/cluster/status", tags=["cluster"])
+def cluster_status(settings: ApiSettings = Depends(_settings)) -> dict[str, Any]:
+    """Flink cluster info and readiness checks for Studio cluster submit."""
+    return services.cluster_readiness(settings)
+
+
+@router.post("/cluster/validate", tags=["cluster"])
+def cluster_validate(settings: ApiSettings = Depends(_settings)) -> dict[str, Any]:
+    """Re-run Flink cluster readiness validation (same payload as GET /cluster/status)."""
+    return services.cluster_readiness(settings)
 
 
 @router.get("/cluster/overview", tags=["cluster"], dependencies=[Depends(require_api_key)])
@@ -464,7 +477,29 @@ def pipelines_run(
         return services.run_pipeline_local(
             pipeline_id,
             input_override=records,
-            profile=settings.default_profile,
+            profile=DEFAULT_PROFILE,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"Pipeline not found: {pipeline_id}") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.post(
+    "/pipelines/{pipeline_id}/submit",
+    tags=["pipelines"],
+    dependencies=[Depends(require_api_key)],
+)
+def pipelines_submit(
+    pipeline_id: str,
+    settings: ApiSettings = Depends(_settings),
+) -> dict[str, Any]:
+    try:
+        return services.submit_pipeline_cluster_api(
+            pipeline_id,
+            profile=DEFAULT_PROFILE,
         )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=f"Pipeline not found: {pipeline_id}") from exc

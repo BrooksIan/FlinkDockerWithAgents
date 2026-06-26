@@ -20,7 +20,10 @@ from apemosyne.flink_rest import flink_web_ui_url
 
 app = typer.Typer(help="Manage the Docker Compose stack.")
 
-PROFILE_HELP = "Stack profile: 'full' (honeypot + Kafka + dashboard) or 'minimal' (Flink only)"
+PROFILE_HELP = (
+    "Stack profile: 'full' (honeypot + Kafka + dashboard), "
+    "'minimal' (Flink only), or 'kafka' (Studio Kafka only)"
+)
 
 _ENSURE_PIPELINE_CMD = (
     "cd /opt/flink && "

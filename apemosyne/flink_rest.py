@@ -19,5 +19,10 @@ def default_flink_rest_port(profile: str | None = None) -> int:
     return FULL_FLINK_REST_PORT if active == FULL_PROFILE else MINIMAL_FLINK_REST_PORT
 
 
+def studio_flink_rest_port() -> int:
+    """Host REST port for the minimal Studio Flink stack (not honeypot)."""
+    return MINIMAL_FLINK_REST_PORT
+
+
 def flink_web_ui_url(profile: str | None = None, *, host: str = "localhost") -> str:
     return f"http://{host}:{default_flink_rest_port(profile)}"

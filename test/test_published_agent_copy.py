@@ -29,6 +29,10 @@ def test_published_agent_artifact_pairs_includes_generated_files() -> None:
     assert "/opt/flink/.apemosyne/agents/def_a8888ce93ad3/agent.py" in remotes
     assert "/opt/flink/.apemosyne/agents/def_a8888ce93ad3/agent_logic.py" in remotes
     assert "/opt/flink/examples/agents/published_shims/basicreact.py" in remotes
+    assert (
+        "/opt/flink/pythonpath/agent-site-packages/apemosyne_published_def_a8888ce93ad3.py"
+        in remotes
+    )
 
 
 def test_pipeline_copy_pairs_includes_published_react_designer_files() -> None:
@@ -52,6 +56,7 @@ def test_pipeline_copy_pairs_includes_published_react_designer_files() -> None:
     )
     pairs = _pipeline_copy_pairs(root, pipeline)
     remotes = {remote for _, remote in pairs}
+    assert "/opt/flink/apemosyne/flink_rest.py" in remotes
     assert "/opt/flink/apemosyne/agents/published_copy.py" in remotes
     assert "/opt/flink/apemosyne/designer/llm_client.py" in remotes
     assert "/opt/flink/.apemosyne/agents/def_a8888ce93ad3/agent.py" in remotes

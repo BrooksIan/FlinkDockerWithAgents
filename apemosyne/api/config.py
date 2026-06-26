@@ -6,7 +6,7 @@ import os
 from dataclasses import dataclass
 
 from apemosyne.constants import DEFAULT_PROFILE
-from apemosyne.flink_rest import default_flink_rest_port
+from apemosyne.flink_rest import default_flink_rest_port, studio_flink_rest_port
 
 
 @dataclass(frozen=True)
@@ -26,6 +26,10 @@ class ApiSettings:
     @property
     def flink_rest_url(self) -> str:
         return f"http://{self.flink_rest_host}:{self.flink_rest_port}"
+
+    @property
+    def studio_flink_rest_url(self) -> str:
+        return f"http://{self.flink_rest_host}:{studio_flink_rest_port()}"
 
 
 def load_settings() -> ApiSettings:

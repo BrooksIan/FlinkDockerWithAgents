@@ -6,7 +6,8 @@ from typing import Final, FrozenSet, Tuple
 
 DEFAULT_PROFILE: Final[str] = "minimal"
 FULL_PROFILE: Final[str] = "full"
-VALID_PROFILES: Final[FrozenSet[str]] = frozenset({DEFAULT_PROFILE, FULL_PROFILE})
+KAFKA_PROFILE: Final[str] = "kafka"
+VALID_PROFILES: Final[FrozenSet[str]] = frozenset({DEFAULT_PROFILE, FULL_PROFILE, KAFKA_PROFILE})
 
 VERIFY_PROFILE_HONEYPOT: Final[str] = "honeypot"
 VALID_VERIFY_PROFILES: Final[FrozenSet[str]] = frozenset(
@@ -19,7 +20,8 @@ DEFAULT_STARTUP_MODE: Final[str] = "flink"
 DEFAULT_API_PORT: Final[int] = 8090
 
 PROFILE_HELP: Final[str] = (
-    "Stack profile: 'minimal' (Flink JM/TM only) or 'full' (Cowrie honeypot + Kafka + dashboard)"
+    "Stack profile: 'minimal' (Flink JM/TM), 'full' (honeypot + Kafka + dashboard), "
+    "or 'kafka' (Studio Kafka only)"
 )
 STARTUP_MODE_HELP: Final[str] = (
     "Startup preset: flink (default), honeypot. Run: apemosyne modes"

@@ -9,7 +9,7 @@ from typing import Any
 
 import yaml
 
-from apemosyne.agents.catalog import agent_catalog_path
+from apemosyne.agents.published_copy import write_published_cluster_import_module
 from apemosyne.agents.registry import agent_manifest_path, load_agent_registry
 from apemosyne.designer.definitions.compile import (
     CompileError,
@@ -261,6 +261,7 @@ def publish_agent_definition(
     manifest_slug = _resolve_manifest_slug(definition, repo)
     class_name = _class_name(definition.name)
     shim = _write_published_shim(repo, manifest_slug, definition, class_name)
+    write_published_cluster_import_module(repo, definition.id, class_name)
     manifest_path = _merge_manifest(repo, manifest_slug, definition, class_name)
     catalog_path = _merge_catalog(repo, manifest_slug, definition)
 

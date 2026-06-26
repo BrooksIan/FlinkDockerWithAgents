@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from apemosyne.pipelines.models import Pipeline
 
 from apemosyne.agents.registry import AgentRegistryError, get_agent_spec
+from apemosyne.flink_rest import studio_flink_rest_port
 
 # Flink job names from cluster runner scripts (for job linkage after submit).
 CLUSTER_JOB_NAMES: dict[str, str] = {
@@ -68,12 +72,63 @@ def find_flink_job_for_agent(agent: str) -> str | None:
     return None
 
 
-def flink_job_state(job_id: str) -> str | None:
+def cluster_job_name_for_agent(agent: str) -> str | None:
+    return CLUSTER_JOB_NAMES.get(agent)
+
+
+def cluster_job_name_for_pipeline(pipeline: "Pipeline") -> str:
+    from apemosyne.pipelines.cluster_codegen import cluster_job_name
+
+    return cluster_job_name(pipeline)
+
+
+def find_flink_job_for_pipeline(pipeline: "Pipeline") -> str | None:
+    """Match a Flink job id for a submitted Studio pipeline."""
+    from apemosyne.runtime import flink_cluster_submit
+
+    expected = cluster_job_name_for_pipeline(pipeline)
+    port = studio_flink_rest_port()
+    try:
+        data = flink_cluster_submit.fetch_json("/jobs/overview", rest_port=port)
+    except Exception:
+        return None
+    for job in data.get("jobs") or []:
+        if job.get("name") == expected:
+            jid = job.get("jid")
+            return str(jid) if jid else None
+    return None
+
+
+def resolve_pipeline_for_run(agent: str) -> "Pipeline | None":
+    """Load a pipeline model from a run's ``pipeline:{name}`` agent field."""
+    if not agent.startswith("pipeline:"):
+        return None
+    from apemosyne.pipelines.models import pipeline_from_dict
+    from apemosyne.pipelines.service import default_pipeline_service
+
+    name = agent.removeprefix("pipeline:")
+    for row in default_pipeline_service().list_pipelines(limit=500):
+        if row.get("name") == name:
+            return pipeline_from_dict(row)
+    return None
+
+
+def pipeline_execution_plan_for_run(agent: str) -> list[dict[str, Any]]:
+    pipeline = resolve_pipeline_for_run(agent)
+    if pipeline is None:
+        return []
+    from apemosyne.pipelines.cluster_codegen import pipeline_execution_plan
+
+    return pipeline_execution_plan(pipeline)
+
+
+def flink_job_state(job_id: str, *, rest_port: int | None = None) -> str | None:
     """Return Flink job state string (RUNNING, FINISHED, FAILED, ...) or None."""
     from apemosyne.runtime import flink_cluster_submit
 
+    port = rest_port if rest_port is not None else studio_flink_rest_port()
     try:
-        data = flink_cluster_submit.fetch_json(f"/jobs/{job_id}")
+        data = flink_cluster_submit.fetch_json(f"/jobs/{job_id}", rest_port=port)
     except Exception:
         return None
     state = data.get("state")

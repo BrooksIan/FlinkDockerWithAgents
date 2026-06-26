@@ -118,6 +118,82 @@ h2 {
   color: var(--ok);
 }
 
+.badge.fail {
+  background: #450a0a;
+  color: var(--bad);
+}
+
+.flink-cluster-tool .cluster-stats-grid {
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.flink-cluster-tool .stat.compact {
+  padding: 0.75rem 1rem;
+}
+
+.flink-cluster-tool .cluster-stat-value {
+  font-size: 0.95rem;
+  word-break: break-all;
+}
+
+.flink-cluster-tool .cluster-stat-sub {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: normal;
+  margin-top: 0.2rem;
+}
+
+.cluster-check-list {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+
+.cluster-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+}
+
+.cluster-check:last-child {
+  border-bottom: none;
+}
+
+.cluster-check .badge {
+  flex-shrink: 0;
+  min-width: 1.5rem;
+  text-align: center;
+  font-weight: 700;
+  padding: 0.15rem 0.4rem;
+}
+
+.cluster-check-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.9rem;
+}
+
+.cluster-hint {
+  background: var(--surface-2, #f8fafc);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.cluster-cmd {
+  margin: 0.5rem 0;
+  padding: 0.5rem 0.75rem;
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
 .badge.warn {
   background: #422006;
   color: var(--warn);
@@ -722,6 +798,56 @@ pre.yaml {
 .designer-prompt-textarea {
   margin-bottom: 0.75rem;
   min-height: 4rem;
+}
+
+.designer-prompt-constraint {
+  font-size: 0.85rem;
+  margin: 0.5rem 0 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 6px;
+  border-left: 3px solid var(--accent, #3b82f6);
+  background: color-mix(in srgb, var(--accent, #3b82f6) 8%, transparent);
+}
+
+.designer-prompt-recipes {
+  margin-bottom: 0.85rem;
+}
+
+.designer-prompt-recipes-label {
+  display: block;
+  margin-bottom: 0.4rem;
+}
+
+.designer-prompt-recipe-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.designer-prompt-recipe-btn {
+  font-size: 0.82rem;
+  padding: 0.35rem 0.65rem;
+}
+
+.designer-prompt-preview {
+  margin-top: 0.25rem;
+}
+
+.designer-prompt-preview-meta {
+  font-size: 0.82rem;
+  margin: 0.2rem 0 0.45rem;
+}
+
+.designer-prompt-preview-text {
+  margin: 0;
+  padding: 0.55rem 0.65rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  border-radius: 6px;
+  background: var(--surface-2, rgba(0, 0, 0, 0.04));
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.08));
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .designer-node-prompt-preview {

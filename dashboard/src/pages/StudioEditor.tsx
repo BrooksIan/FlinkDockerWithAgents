@@ -33,6 +33,7 @@ export function StudioEditorPage() {
   const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
   const [validation, setValidation] = useState<PipelineValidation | null>(null);
   const [running, setRunning] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [lastRunId, setLastRunId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [drillAgent, setDrillAgent] = useState<string | null>(null);
@@ -71,6 +72,7 @@ export function StudioEditorPage() {
             .then((updated) => setPipeline(updated))
             .catch((e) => setError(String(e)));
         }
+        api.validatePipeline(id).then(setValidation).catch(() => {});
       })
       .catch((e) => setError(String(e)));
   }, [id, setNodes, setEdges]);
@@ -88,6 +90,9 @@ export function StudioEditorPage() {
         .then((updated) => {
           setPipeline(updated);
           setSaveState("saved");
+          if (id) {
+            api.validatePipeline(id).then(setValidation).catch(() => {});
+          }
         })
         .catch((e) => {
           setError(String(e));
@@ -412,6 +417,56 @@ export function StudioEditorPage() {
     }
   }
 
+  async function handleClusterSubmit() {
+    if (!id) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      let nextEdges = pruneOrphanEdges(nodes, edges);
+      if (nextEdges.length !== edges.length) {
+        setEdges(nextEdges);
+      }
+      if (nextEdges.length < nodes.length - 1 && nodes.length >= 2) {
+        nextEdges = buildLinearChainEdges(nodes);
+        setEdges(nextEdges);
+      }
+      await persist(nodes, nextEdges);
+      const check = await api.validatePipeline(id);
+      setValidation(check);
+      if (!check.valid) {
+        setError(check.errors.join(" · "));
+        return;
+      }
+      const result = await api.submitPipeline(id);
+      setLastRunId(result.run_id);
+      if (result.validation) {
+        setValidation({
+          valid: result.validation.valid,
+          errors: result.validation.errors,
+          warnings: result.validation.warnings,
+        });
+      }
+      navigate(`/runs/${result.run_id}`);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function clusterBatchBlockedReason(): string | null {
+    const source = nodes.find((n) => n.type === "source");
+    const sourceData = source?.data as {
+      sourceType?: string;
+      config?: { source_type?: string };
+    };
+    const sourceType = sourceData?.sourceType || sourceData?.config?.source_type || "records";
+    if (sourceType === "kafka") {
+      return "Flink cluster (batch) needs a static records source. Kafka streaming source is coming next.";
+    }
+    return null;
+  }
+
   if (!id) return null;
 
   return (
@@ -452,10 +507,13 @@ export function StudioEditorPage() {
       <RunPipelineBar
         validation={validation}
         running={running}
+        submitting={submitting}
         lastRunId={lastRunId}
+        clusterBlockedReason={clusterBatchBlockedReason()}
         onValidate={handleValidate}
         onConnectChain={handleConnectChain}
         onRun={handleRun}
+        onClusterSubmit={handleClusterSubmit}
       />
 
       <div className="studio-layout">

@@ -22,6 +22,7 @@ def _pipeline_copy_pairs(root: Path, pipeline: Pipeline) -> list[tuple[str, str]
     for rel in (
         "apemosyne/__init__.py",
         "apemosyne/constants.py",
+        "apemosyne/flink_rest.py",
         "apemosyne/paths.py",
         "apemosyne/agents/__init__.py",
         "apemosyne/agents/registry.py",

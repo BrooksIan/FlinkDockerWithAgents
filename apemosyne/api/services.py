@@ -167,6 +167,12 @@ def pipeline_health(settings: ApiSettings) -> dict[str, Any]:
     }
 
 
+def cluster_readiness(settings: ApiSettings) -> dict[str, Any]:
+    from apemosyne.api.cluster_readiness import cluster_readiness as evaluate
+
+    return evaluate(settings)
+
+
 def list_pipelines(*, limit: int = 100) -> list[dict[str, Any]]:
     return default_pipeline_service().list_pipelines(limit=limit)
 
@@ -198,6 +204,10 @@ def validate_pipeline_by_id(pipeline_id: str) -> dict[str, Any]:
 
 def run_pipeline_local(pipeline_id: str, *, input_override: list[dict[str, Any]] | None = None, profile: str | None = None) -> dict[str, Any]:
     return default_pipeline_service().run_local(pipeline_id, input_override=input_override, profile=profile)
+
+
+def submit_pipeline_cluster_api(pipeline_id: str, *, profile: str | None = None) -> dict[str, Any]:
+    return default_pipeline_service().submit_cluster(pipeline_id, profile=profile)
 
 
 def get_agent_graph(name: str) -> dict[str, Any]:

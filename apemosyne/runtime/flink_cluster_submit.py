@@ -79,6 +79,39 @@ def ensure_flink_agents_jars() -> None:
     shutil.copy2(thin_jars[0], version_dir / thin_jars[0].name)
 
 
+def flink_agents_jar_uris(*, pipeline: bool = False) -> list[str]:
+    """Return Flink Agents dist JAR URIs.
+
+    For ``pipeline=True`` (``add_jars`` / ``pipeline.jars``), attach only the thin
+    Flink-version JAR. Including both common + thin creates separate child
+    classloaders and triggers Pemja ``PyObject`` ClassCastException on TaskManagers.
+    """
+    flink_major = flink_major_version()
+    common_dir = SITE_PACKAGES / "flink_agents" / "lib" / "common"
+    version_dir = SITE_PACKAGES / "flink_agents" / "lib" / f"flink-{flink_major}"
+    if pipeline:
+        jars = sorted(version_dir.glob("*-thin.jar"))
+    else:
+        jars = sorted(common_dir.glob("*.jar")) + sorted(version_dir.glob("*-thin.jar"))
+    return [f"file://{jar.resolve()}" for jar in jars]
+
+
+def attach_flink_agents_jars(stream_env) -> None:
+    """Attach Flink Agents thin dist JAR for cluster pipeline execution."""
+    jar_uris = flink_agents_jar_uris(pipeline=True)
+    if not jar_uris:
+        return
+    joined = ";".join(jar_uris)
+    try:
+        stream_env.get_config().set("pipeline.jars", joined)
+    except Exception:
+        pass
+    try:
+        stream_env.add_jars(*jar_uris)
+    except Exception:
+        pass
+
+
 def bootstrap_cluster_runtime(
     *,
     download_kafka_jars: bool = False,
@@ -90,16 +123,36 @@ def bootstrap_cluster_runtime(
         ensure_flink_agents_jars()
 
 
-def rest_base() -> str:
+def bootstrap_cluster_containers(*, profile: str | None = None) -> None:
+    """Sync Flink Agents JAR layout on JobManager and TaskManagers before submit."""
+    from apemosyne.constants import DEFAULT_PROFILE
+    from apemosyne.docker_utils import container_id, docker_exec
+
+    active_profile = profile or DEFAULT_PROFILE
+
+    command = (
+        "cd /opt/flink && "
+        "export PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:"
+        "/opt/flink/opt/python/pyflink.zip:/opt/flink/opt/python/py4j-src.zip && "
+        "python3 -c 'from apemosyne.runtime.cluster_launch_test import bootstrap_runtime; "
+        "bootstrap_runtime()'"
+    )
+    for service in ("jobmanager", "taskmanager"):
+        cid = container_id(service, profile=active_profile)
+        if cid:
+            docker_exec(cid, command, interactive=False)
+
+
+def rest_base(*, rest_port: int | None = None) -> str:
     from apemosyne.flink_rest import default_flink_rest_port
 
     host = os.environ.get("FLINK_REST_ADDRESS", "localhost").strip()
-    port = default_flink_rest_port()
+    port = rest_port if rest_port is not None else default_flink_rest_port()
     return f"http://{host}:{port}"
 
 
-def fetch_json(path: str) -> dict:
-    with urllib.request.urlopen(f"{rest_base()}{path}", timeout=10) as resp:
+def fetch_json(path: str, *, rest_port: int | None = None) -> dict:
+    with urllib.request.urlopen(f"{rest_base(rest_port=rest_port)}{path}", timeout=10) as resp:
         return json.loads(resp.read().decode())
 
 
@@ -179,9 +232,9 @@ def find_running_jobs(job_name: str) -> List[str]:
     return out
 
 
-def cancel_job(job_id: str) -> None:
+def cancel_job(job_id: str, *, rest_port: int | None = None) -> None:
     """Request cancellation of a Flink job via REST API."""
-    url = f"{rest_base()}/jobs/{job_id}?mode=cancel"
+    url = f"{rest_base(rest_port=rest_port)}/jobs/{job_id}?mode=cancel"
     req = urllib.request.Request(url, method="PATCH")
     with urllib.request.urlopen(req, timeout=10):
         return

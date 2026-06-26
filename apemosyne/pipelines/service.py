@@ -8,7 +8,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from apemosyne.constants import DEFAULT_PROFILE
 from apemosyne.pipelines.executor import run_pipeline_local
+from apemosyne.pipelines.cluster_submit import submit_pipeline_cluster, submit_result_to_dict
 from apemosyne.pipelines.models import Pipeline, PipelineEdge, PipelineNode
 from apemosyne.pipelines.store import PipelineStore, pipelines_db_path
 from apemosyne.pipelines.validate import validate_pipeline
@@ -149,6 +151,26 @@ class PipelineService:
             input_override=input_override,
             profile=profile,
         )
+
+    def submit_cluster(
+        self,
+        pipeline_id: str,
+        *,
+        profile: str | None = None,
+    ) -> dict[str, Any]:
+        from apemosyne.runs.service import default_run_service
+
+        pipeline = self._store.get(pipeline_id)
+        if pipeline is None:
+            raise KeyError(pipeline_id)
+        result = submit_pipeline_cluster(
+            pipeline,
+            runs=default_run_service(),
+            profile=profile or DEFAULT_PROFILE,
+        )
+        if result.return_code != 0:
+            raise RuntimeError(f"Pipeline cluster submit failed with exit code {result.return_code}")
+        return submit_result_to_dict(result, pipeline=pipeline)
 
 
 def seed_counter_echo_pipeline(service: PipelineService) -> dict[str, Any]:

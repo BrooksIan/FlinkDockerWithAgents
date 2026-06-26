@@ -1,5 +1,12 @@
 import type { Node } from "@xyflow/react";
 import { DEFAULT_PROMPT_SYSTEM, DEFAULT_PROMPT_USER } from "./promptDefaults";
+import {
+  PROMPT_CONSTRAINT_NOTE,
+  PROMPT_RECIPES,
+  PROMPT_SAMPLE,
+  applyUserPromptTemplate,
+  type PromptRecipe,
+} from "./promptRecipes";
 
 interface Props {
   nodes: Node[];
@@ -11,6 +18,52 @@ function promptNode(nodes: Node[]): Node | undefined {
   return nodes.find((n) => n.type === "prompt");
 }
 
+export function PromptConstraintNote() {
+  return (
+    <p className="designer-prompt-constraint muted" role="note">
+      {PROMPT_CONSTRAINT_NOTE}
+    </p>
+  );
+}
+
+export function PromptRecipePicker({
+  onApply,
+}: {
+  onApply: (recipe: PromptRecipe) => void;
+}) {
+  return (
+    <div className="designer-prompt-recipes">
+      <span className="studio-label designer-prompt-recipes-label">Start from a recipe</span>
+      <div className="designer-prompt-recipe-buttons">
+        {PROMPT_RECIPES.map((recipe) => (
+          <button
+            key={recipe.id}
+            type="button"
+            className="secondary designer-prompt-recipe-btn"
+            title={recipe.description}
+            onClick={() => onApply(recipe)}
+          >
+            {recipe.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function PromptUserPreview({ userTemplate }: { userTemplate: string }) {
+  const resolved = applyUserPromptTemplate(userTemplate);
+  return (
+    <div className="designer-prompt-preview">
+      <span className="studio-label">Preview (sample input)</span>
+      <p className="muted designer-prompt-preview-meta">
+        Record <code>{JSON.stringify({ key: "1", value: Number(PROMPT_SAMPLE.value) })}</code>
+      </p>
+      <pre className="designer-prompt-preview-text">{resolved}</pre>
+    </div>
+  );
+}
+
 export function DesignerPromptPanel({ nodes, onUpdateNode, onAddPrompt }: Props) {
   const node = promptNode(nodes);
 
@@ -20,9 +73,10 @@ export function DesignerPromptPanel({ nodes, onUpdateNode, onAddPrompt }: Props)
         <div className="designer-prompt-panel-header">
           <h3 style={{ margin: 0 }}>Prompt instructions</h3>
         </div>
+        <PromptConstraintNote />
         <p className="muted" style={{ margin: "0.5rem 0 0" }}>
           ReAct agents need a prompt node on the canvas. Add one to define system and user
-          instructions for the LLM.
+          instructions for the LLM, or start from a recipe after adding the node.
         </p>
         <button type="button" style={{ marginTop: "0.75rem" }} onClick={onAddPrompt}>
           + Add prompt node
@@ -36,6 +90,12 @@ export function DesignerPromptPanel({ nodes, onUpdateNode, onAddPrompt }: Props)
   const system = String(config.system ?? "");
   const user = String(config.user ?? "");
 
+  function applyRecipe(recipe: PromptRecipe) {
+    onUpdateNode(node!.id, {
+      config: { ...config, system: recipe.system, user: recipe.user },
+    });
+  }
+
   return (
     <section className="card designer-prompt-panel">
       <div className="designer-prompt-panel-header">
@@ -45,11 +105,15 @@ export function DesignerPromptPanel({ nodes, onUpdateNode, onAddPrompt }: Props)
           {data.name ? ` · ${data.name}` : ""}
         </span>
       </div>
+
+      <PromptConstraintNote />
+
       <p className="muted designer-prompt-hint">
-        Tell the LLM what to do. System instructions set behavior; the user template receives
-        each input record. Use <code>{"{message}"}</code> and <code>{"{value}"}</code>{" "}
-        placeholders.
+        System instructions set behavior; the user template receives each input record. Use{" "}
+        <code>{"{message}"}</code> and <code>{"{value}"}</code> placeholders.
       </p>
+
+      <PromptRecipePicker onApply={applyRecipe} />
 
       <label className="studio-label">System prompt</label>
       <textarea
@@ -76,6 +140,8 @@ export function DesignerPromptPanel({ nodes, onUpdateNode, onAddPrompt }: Props)
           })
         }
       />
+
+      <PromptUserPreview userTemplate={user} />
     </section>
   );
 }
@@ -93,12 +159,20 @@ export function PromptInstructionFields({
   const system = String(config.system ?? "");
   const user = String(config.user ?? "");
 
+  function applyRecipe(recipe: PromptRecipe) {
+    onUpdate(nodeId, { config: { ...config, system: recipe.system, user: recipe.user } });
+  }
+
   return (
     <>
+      <PromptConstraintNote />
       <p className="muted designer-prompt-hint" style={{ marginTop: 0 }}>
         Instructions sent to the LLM on each run. Edits also appear in the Prompt instructions
         panel above the canvas.
       </p>
+
+      <PromptRecipePicker onApply={applyRecipe} />
+
       <label className="studio-label">System prompt</label>
       <textarea
         className="studio-textarea designer-prompt-textarea"
@@ -115,9 +189,7 @@ export function PromptInstructionFields({
         placeholder={DEFAULT_PROMPT_USER}
         onChange={(e) => onUpdate(nodeId, { config: { ...config, user: e.target.value } })}
       />
-      <p className="muted" style={{ fontSize: "0.82rem" }}>
-        Use <code>{"{message}"}</code> and <code>{"{value}"}</code> placeholders.
-      </p>
+      <PromptUserPreview userTemplate={user} />
     </>
   );
 }

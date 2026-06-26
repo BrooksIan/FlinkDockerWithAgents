@@ -19,6 +19,31 @@ export interface PipelineHealth {
   api_version: string;
 }
 
+export type ClusterCheckStatus = "ok" | "warn" | "fail";
+
+export interface ClusterCheck {
+  id: string;
+  label: string;
+  status: ClusterCheckStatus;
+  detail: string;
+  required: boolean;
+}
+
+export interface ClusterReadiness {
+  ready: boolean;
+  profile: string;
+  compose_file: string;
+  flink_rest_url: string;
+  flink: PipelineHealth["flink"] & { jobs_failed?: number };
+  containers: {
+    jobmanager: { running: boolean; id: string | null };
+    taskmanager: { running: boolean; id: string | null };
+  };
+  image: { name: string; tag: string; exists: boolean };
+  checks: ClusterCheck[];
+  validated_at: string;
+}
+
 export interface AgentSummary {
   name: string;
   type: string;
@@ -308,6 +333,17 @@ export interface PipelineRunResult {
   status: string;
   output: unknown[];
   validation?: PipelineValidation;
+}
+
+export interface PipelineSubmitResult {
+  pipeline_id: string;
+  pipeline_name: string;
+  job_name: string;
+  status: string;
+  run_id: string;
+  flink_job_id?: string | null;
+  validation?: PipelineValidation & { mode?: string };
+  plan?: Array<{ kind: string; name: string; description?: string }>;
 }
 
 export interface AgentGraphNode {

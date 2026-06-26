@@ -86,6 +86,8 @@ def _agent_copy_pairs(spec: AgentSpec, *, root: Path) -> List[Tuple[str, str]]:
 
     for rel in (
         "apemosyne/__init__.py",
+        "apemosyne/constants.py",
+        "apemosyne/flink_rest.py",
         "apemosyne/agents/published_copy.py",
         "apemosyne/runtime/__init__.py",
         "apemosyne/runtime/flink_cluster_submit.py",
@@ -167,6 +169,10 @@ def submit_agent_cluster(
     if stats.failed:
         service.finish_run(run_id, status="failed", error=f"copy failed: {stats.failed} file(s)")
         raise RuntimeError(f"Failed to copy {stats.failed} file(s) to cluster")
+
+    from apemosyne.runtime.flink_cluster_submit import bootstrap_cluster_containers
+
+    bootstrap_cluster_containers(profile=profile)
 
     remote_designer_db = sync_designer_db_to_cluster(root=repo, profile=profile)
     llm_env = react_llm_shell_prefix(root=repo, remote_designer_db=remote_designer_db)

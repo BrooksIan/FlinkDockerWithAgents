@@ -6,9 +6,10 @@ import json
 import os
 import shlex
 import subprocess
+from pathlib import Path
 from typing import Any
 
-from apemosyne.constants import FULL_PROFILE
+from apemosyne.constants import FULL_PROFILE, KAFKA_PROFILE
 from apemosyne.docker_utils import container_id, project_root
 
 # Canonical Cowrie pipeline topics (env overrides applied in pipeline_kafka_topics when honeypot is loaded).
@@ -24,7 +25,16 @@ _STATIC_TOPICS: dict[str, str] = {
     "workflow.test.output": "Studio test sink — workflow_counter doubled output",
 }
 
-_HOST_BOOTSTRAP_CANDIDATES = ("localhost:9093", "localhost:9092", "127.0.0.1:9093", "127.0.0.1:9092")
+STUDIO_KAFKA_EXTERNAL_PORT = 9094
+
+_HOST_BOOTSTRAP_CANDIDATES = (
+    f"localhost:{STUDIO_KAFKA_EXTERNAL_PORT}",
+    "localhost:9093",
+    f"127.0.0.1:{STUDIO_KAFKA_EXTERNAL_PORT}",
+    "127.0.0.1:9093",
+    "localhost:9092",
+    "127.0.0.1:9092",
+)
 
 
 def kafka_bootstrap_candidates() -> list[str]:
@@ -34,7 +44,7 @@ def kafka_bootstrap_candidates() -> list[str]:
         or ""
     ).strip()
     if explicit:
-        return [explicit]
+        return [explicit, *[c for c in _HOST_BOOTSTRAP_CANDIDATES if c != explicit]]
     return list(_HOST_BOOTSTRAP_CANDIDATES)
 
 
@@ -46,13 +56,17 @@ def kafka_bootstrap_servers() -> str:
 
 
 def _kafka_container_id() -> str | None:
+    """Prefer Studio Kafka; fall back to honeypot broker when only full stack is up."""
+    cid = container_id("kafka", profile=KAFKA_PROFILE)
+    if cid:
+        return cid
     return container_id("kafka", profile=FULL_PROFILE)
 
 
 def _docker_kafka_run(command: str, *, timeout_sec: float = 30) -> subprocess.CompletedProcess[str]:
     cid = _kafka_container_id()
     if not cid:
-        raise RuntimeError("Kafka container not running (apemosyne up --profile full)")
+        raise RuntimeError("Kafka container not running (apemosyne kafka up)")
     return subprocess.run(
         ["docker", "exec", cid, "bash", "-c", command],
         cwd=project_root(),
@@ -339,7 +353,7 @@ def sample_topic_records(
         servers = bootstrap or kafka_bootstrap_servers()
         raise RuntimeError(
             f"Kafka broker unreachable at {servers}. "
-            "Start the full stack: apemosyne up --profile full"
+            f"Start Studio Kafka: apemosyne kafka up  (localhost:{STUDIO_KAFKA_EXTERNAL_PORT})"
         )
     return records[:limit]
 
@@ -395,7 +409,7 @@ def _publish_topic_records_host(
 def _publish_topic_records_docker(topic: str, records: list[dict[str, Any]]) -> None:
     cid = _kafka_container_id()
     if not cid:
-        raise RuntimeError("Kafka container not running (apemosyne up --profile full)")
+        raise RuntimeError("Kafka container not running (apemosyne kafka up)")
 
     lines: list[str] = []
     for record in records:
@@ -418,6 +432,41 @@ def _publish_topic_records_docker(topic: str, records: list[dict[str, Any]]) -> 
         raise RuntimeError(detail or f"Failed to publish to Kafka topic {topic!r}")
 
 
+def cluster_kafka_bootstrap_servers() -> str:
+    """Bootstrap servers reachable from Flink TaskManagers (host broker via Docker Desktop)."""
+    explicit = (os.environ.get("KAFKA_BOOTSTRAP_SERVERS") or "").strip()
+    servers = explicit or f"host.docker.internal:{STUDIO_KAFKA_EXTERNAL_PORT}"
+    return (
+        servers.replace("localhost", "host.docker.internal")
+        .replace("127.0.0.1", "host.docker.internal")
+    )
+
+
+def _running_in_flink_container() -> bool:
+    return Path("/opt/flink").is_dir()
+
+
+def _kafka_unavailable_message(*, servers: str) -> str:
+    cid = _kafka_container_id()
+    if cid:
+        result = subprocess.run(
+            ["docker", "inspect", "-f", "{{.State.Running}}", cid],
+            cwd=project_root(),
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0 and result.stdout.strip().lower() != "true":
+            return (
+                f"Kafka broker unreachable at {servers}. "
+                "The Studio Kafka container is stopped — run: "
+                f"apemosyne kafka up  (broker: localhost:{STUDIO_KAFKA_EXTERNAL_PORT})"
+            )
+    return (
+        f"Kafka broker unreachable at {servers}. "
+        f"Start Studio Kafka: apemosyne kafka up  (localhost:{STUDIO_KAFKA_EXTERNAL_PORT})"
+    )
+
+
 def publish_topic_records(
     topic: str,
     records: list[dict[str, Any]],
@@ -430,26 +479,24 @@ def publish_topic_records(
     if not records:
         return 0
 
-    if bootstrap:
-        try:
-            _publish_topic_records_host(topic, records, bootstrap=bootstrap)
-            return len(records)
-        except Exception:
-            pass
+    if bootstrap and _host_kafka_reachable(bootstrap=bootstrap):
+        _publish_topic_records_host(topic, records, bootstrap=bootstrap)
+        return len(records)
 
     host = resolve_host_bootstrap()
     if host:
-        try:
-            _publish_topic_records_host(topic, records, bootstrap=host)
+        _publish_topic_records_host(topic, records, bootstrap=host)
+        return len(records)
+
+    if _running_in_flink_container():
+        cluster_bs = cluster_kafka_bootstrap_servers()
+        if _host_kafka_reachable(bootstrap=cluster_bs):
+            _publish_topic_records_host(topic, records, bootstrap=cluster_bs)
             return len(records)
-        except Exception:
-            pass
 
     if docker_kafka_reachable():
         _publish_topic_records_docker(topic, records)
         return len(records)
 
     servers = bootstrap or kafka_bootstrap_servers()
-    raise RuntimeError(
-        f"Kafka broker unreachable at {servers}. Start the full stack: apemosyne up --profile full"
-    )
+    raise RuntimeError(_kafka_unavailable_message(servers=servers))

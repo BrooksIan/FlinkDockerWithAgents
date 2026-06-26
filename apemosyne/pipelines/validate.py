@@ -141,8 +141,8 @@ def _check_kafka_nodes(pipeline: Pipeline, warnings: list[str]) -> None:
 
     if kafka_configured and not kafka_reachable():
         warnings.append(
-            "Kafka broker unreachable from the host — pipeline runs will use the Docker "
-            "Kafka container when available, or start the full stack: apemosyne up --profile full"
+            "Kafka broker unreachable from the host — start Studio Kafka: "
+            "apemosyne kafka up  (or honeypot: apemosyne up --profile full)"
         )
 
 

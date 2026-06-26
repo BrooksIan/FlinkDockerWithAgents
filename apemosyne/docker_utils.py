@@ -8,13 +8,14 @@ import sys
 from pathlib import Path
 from typing import List, Optional, Sequence
 
-from apemosyne.constants import DEFAULT_PROFILE
+from apemosyne.constants import DEFAULT_PROFILE, FULL_PROFILE, KAFKA_PROFILE
 from apemosyne.paths import project_root
 
 IMAGE_NAME = "agent_flink_image"
 IMAGE_TAG = "latest"
 COMPOSE_MINIMAL = "docker-compose.yml"
 COMPOSE_FULL = "honeypot/docker-compose.yml"
+COMPOSE_KAFKA = "docker-compose.kafka.yml"
 PYFLINK_PYTHONPATH = (
     "/opt/flink:/opt/flink/pythonpath/agent-site-packages:"
     "/opt/flink/opt/python/pyflink.zip:/opt/flink/opt/python/py4j-src.zip"
@@ -31,6 +32,8 @@ def compose_available() -> bool:
 
 def compose_file(profile: str = DEFAULT_PROFILE) -> Path:
     root = project_root()
+    if profile == KAFKA_PROFILE:
+        return root / COMPOSE_KAFKA
     name = COMPOSE_MINIMAL if profile == DEFAULT_PROFILE else COMPOSE_FULL
     return root / name
 

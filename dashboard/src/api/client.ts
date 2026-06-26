@@ -9,9 +9,11 @@ import type {
   AgentGraph,
   AgentSummary,
   JobSummary,
+  ClusterReadiness,
   KafkaTopicsResponse,
   PipelineHealth,
   PipelineRunResult,
+  PipelineSubmitResult,
   PipelineSummary,
   PipelineValidation,
   ReactLlmSettings,
@@ -46,6 +48,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   health: () => request<PipelineHealth>("/v1/health"),
+
+  clusterStatus: () => request<ClusterReadiness>("/v1/cluster/status"),
+
+  validateCluster: () =>
+    request<ClusterReadiness>("/v1/cluster/validate", { method: "POST" }),
 
   agents: () => request<AgentSummary[]>("/v1/agents"),
 
@@ -165,6 +172,11 @@ export const api = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(records ? { records } : {}),
+    }),
+
+  submitPipeline: (id: string) =>
+    request<PipelineSubmitResult>(`/v1/pipelines/${encodeURIComponent(id)}/submit`, {
+      method: "POST",
     }),
 
   agentGraph: (name: string) =>
