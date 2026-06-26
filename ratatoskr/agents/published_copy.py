@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from ratatoskr.agents.registry import AgentSpec
+from ratatoskr.paths import canonical_runtime_rel, published_agent_dir
 
 
 def _compiled_agent_uses_skills(agent_dir: Path) -> bool:
@@ -15,7 +16,7 @@ def _compiled_agent_uses_skills(agent_dir: Path) -> bool:
 
 
 def is_published_agent_spec(spec: AgentSpec) -> bool:
-    return spec.runner.startswith(".ratatoskr/") or "published_shims" in spec.module
+    return spec.runner.startswith((".ratatoskr/", ".apemosyne/")) or "published_shims" in spec.module
 
 
 def published_cluster_module_name(definition_id: str) -> str:
@@ -74,7 +75,7 @@ globals()[_CLASS_NAME] = _namespace[_CLASS_NAME]
 
 def published_cluster_import_line(spec: AgentSpec) -> str:
     """Import statement for cluster runners (matches Flink worker module names)."""
-    if spec.runner.startswith(".ratatoskr/"):
+    if spec.runner.startswith((".ratatoskr/", ".apemosyne/")):
         definition_id = Path(spec.runner).parent.name
         module = published_cluster_module_name(definition_id)
         return f"from {module} import {spec.class_name}"
@@ -83,18 +84,14 @@ def published_cluster_import_line(spec: AgentSpec) -> str:
 
 def published_agent_artifact_pairs(root: Path, spec: AgentSpec) -> list[tuple[str, str]]:
     """Host → cluster paths for compiled designer agents under ``.ratatoskr/agents/``."""
-    if not spec.runner.startswith(".ratatoskr/"):
+    if not spec.runner.startswith((".ratatoskr/", ".apemosyne/")):
+        return []
+
+    agent_dir = published_agent_dir(root, spec.runner)
+    if agent_dir is None:
         return []
 
     pairs: list[tuple[str, str]] = []
-    runner = root / spec.runner
-    if not runner.is_file():
-        return pairs
-
-    agent_dir = runner.parent
-    if not agent_dir.is_dir():
-        return pairs
-
     definition_id = agent_dir.name
     cluster_import = write_published_cluster_import_module(
         root,
@@ -113,7 +110,7 @@ def published_agent_artifact_pairs(root: Path, spec: AgentSpec) -> list[tuple[st
             continue
         if path.suffix not in {".py", ".yaml"}:
             continue
-        rel = path.relative_to(root).as_posix()
+        rel = canonical_runtime_rel(root, path)
         pairs.append((str(path), f"/opt/flink/{rel}"))
 
     shims_dir = root / "examples" / "agents" / "published_shims"

@@ -8,7 +8,7 @@ from typing import Any
 
 from ratatoskr.constants import DEFAULT_PROFILE
 from ratatoskr.copy_manifest import CopyStats, copy_pairs_to_cluster
-from ratatoskr.docker_utils import project_root
+from ratatoskr.paths import canonical_runtime_rel, project_root
 from ratatoskr.flink_rest import studio_flink_rest_port
 from ratatoskr.runtime import flink_cluster_submit
 
@@ -97,10 +97,16 @@ def studio_cluster_copy_pairs(*, root: Path | None = None) -> list[tuple[str, st
             rel = path.relative_to(repo).as_posix()
             pairs.append((str(path), f"/opt/flink/{rel}"))
 
-    agents_pub = repo / ".ratatoskr" / "agents"
-    if agents_pub.is_dir():
+    agents_pub_dirs = [repo / ".ratatoskr" / "agents", repo / ".apemosyne" / "agents"]
+    seen_agent_files: set[str] = set()
+    for agents_pub in agents_pub_dirs:
+        if not agents_pub.is_dir():
+            continue
         for path in agents_pub.rglob("*.py"):
-            rel = path.relative_to(repo).as_posix()
+            rel = canonical_runtime_rel(repo, path)
+            if rel in seen_agent_files:
+                continue
+            seen_agent_files.add(rel)
             pairs.append((str(path), f"/opt/flink/{rel}"))
 
     seen: set[tuple[str, str]] = set()

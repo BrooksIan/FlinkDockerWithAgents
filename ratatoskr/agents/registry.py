@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Mapping, Optional
 
 import yaml
 
-from ratatoskr.paths import agents_dir, project_root
+from ratatoskr.paths import agents_dir, project_root, published_agent_dir, resolve_repo_rel_path
 
 
 class AgentRegistryError(Exception):
@@ -87,21 +87,24 @@ def load_agent_registry(
             raise AgentRegistryError(f"Agent {name!r} must be a mapping")
         spec = _parse_agent(str(name), raw)
         if validate:
-            runner = repo / spec.runner if spec.runner else None
-            cluster = repo / spec.cluster_script if spec.cluster_script else None
-            flink_yaml = repo / spec.flink_yaml if spec.flink_yaml else None
-            if spec.runner and (runner is None or not runner.is_file()):
+            runner_path = resolve_repo_rel_path(repo, spec.runner) if spec.runner else None
+            cluster_path = (
+                resolve_repo_rel_path(repo, spec.cluster_script) if spec.cluster_script else None
+            )
+            flink_yaml_path = (
+                resolve_repo_rel_path(repo, spec.flink_yaml) if spec.flink_yaml else None
+            )
+            if spec.runner:
                 published = "published_shims" in spec.module
-                agent_py = runner.parent / "agent.py" if runner else None
-                if published and agent_py is not None and agent_py.is_file():
-                    pass
-                else:
+                agent_dir = published_agent_dir(repo, spec.runner) if published else None
+                runner_ok = runner_path is not None and runner_path.is_file()
+                if not runner_ok and not (published and agent_dir is not None):
                     raise AgentRegistryError(f"Agent {name!r} runner missing: {spec.runner}")
-            if spec.cluster_script and (cluster is None or not cluster.is_file()):
+            if spec.cluster_script and cluster_path is None:
                 raise AgentRegistryError(
                     f"Agent {name!r} cluster script missing: {spec.cluster_script}"
                 )
-            if spec.flink_yaml and (flink_yaml is None or not flink_yaml.is_file()):
+            if spec.flink_yaml and flink_yaml_path is None:
                 raise AgentRegistryError(
                     f"Agent {name!r} flink_yaml missing: {spec.flink_yaml}"
                 )

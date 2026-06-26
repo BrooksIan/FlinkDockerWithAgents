@@ -12,7 +12,19 @@ _MODULE_NAME = f"ratatoskr_published_{_DEFINITION_ID}"
 
 def _load_class():
     repo = Path(__file__).resolve().parents[3]
-    module_path = repo / ".ratatoskr" / "agents" / _DEFINITION_ID / "agent.py"
+    if str(repo) not in sys.path:
+        sys.path.insert(0, str(repo))
+    from ratatoskr.paths import published_agent_dir
+
+    agent_dir = published_agent_dir(
+        repo,
+        f".ratatoskr/agents/{_DEFINITION_ID}/run_local.py",
+    )
+    if agent_dir is None:
+        raise RuntimeError(
+            f"Cannot load published agent {_DEFINITION_ID}: compiled agent.py not found"
+        )
+    module_path = agent_dir / "agent.py"
     spec = importlib.util.spec_from_file_location(_MODULE_NAME, module_path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Cannot load published agent from {module_path}")

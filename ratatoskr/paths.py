@@ -28,6 +28,53 @@ def project_root() -> Path:
     return Path(__file__).resolve().parent.parent
 
 
+def runtime_state_dir(root: Path | None = None) -> Path:
+    """Platform state directory (``.ratatoskr/``, with legacy ``.apemosyne/`` fallback)."""
+    repo = root or project_root()
+    preferred = repo / ".ratatoskr"
+    if preferred.is_dir():
+        return preferred
+    return repo / ".apemosyne"
+
+
+def resolve_repo_rel_path(repo: Path, rel: str) -> Path | None:
+    """Resolve a repo-relative file/dir, including post-rename runtime path fallback."""
+    if not rel:
+        return None
+    primary = repo / rel
+    if primary.exists():
+        return primary
+    if ".ratatoskr/" in rel:
+        legacy = repo / rel.replace(".ratatoskr/", ".apemosyne/", 1)
+        if legacy.exists():
+            return legacy
+    elif ".apemosyne/" in rel:
+        current = repo / rel.replace(".apemosyne/", ".ratatoskr/", 1)
+        if current.exists():
+            return current
+    return None
+
+
+def canonical_runtime_rel(repo: Path, path: Path) -> str:
+    """Normalize runtime paths to ``.ratatoskr/`` for manifests and cluster copies."""
+    rel = path.relative_to(repo).as_posix()
+    if rel.startswith(".apemosyne/"):
+        return rel.replace(".apemosyne/", ".ratatoskr/", 1)
+    return rel
+
+
+def published_agent_dir(repo: Path, runner_rel: str) -> Path | None:
+    """Return compiled designer agent dir when ``agent.py`` exists (either runtime root)."""
+    if not runner_rel.startswith((".ratatoskr/", ".apemosyne/")):
+        return None
+    definition_id = Path(runner_rel).parent.name
+    for prefix in (".ratatoskr", ".apemosyne"):
+        agent_dir = repo / prefix / "agents" / definition_id
+        if (agent_dir / "agent.py").is_file():
+            return agent_dir
+    return None
+
+
 def workspace_dir(root: Path | None = None) -> Path:
     """Return the ``ratatoskr/`` package directory."""
     return (root or project_root()) / "ratatoskr"
