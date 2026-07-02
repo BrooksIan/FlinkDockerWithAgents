@@ -74,6 +74,19 @@ Stop: `./scripts/dev-stop.sh`
 
 Dashboard: http://localhost:3000 — Overview, agent catalog, **Agent Designer**, **Agentic Studio**, runs, jobs, and LLM settings.
 
+![Ratatoskr Overview — live health, Flink status, and recent jobs](docs/images/UIScreenshots/Overview.png)
+
+### Screenshots
+
+| | |
+|---|---|
+| Agent catalog | ![Agent catalog — browse workflow and ReAct agents](docs/images/UIScreenshots/AgentCatalog.png) |
+| Agent Designer | ![Agent Designer — visual workflow and ReAct authoring](docs/images/UIScreenshots/AgentDesigner.png) |
+| Agentic Studio | ![Agentic Studio — pipeline list and templates](docs/images/UIScreenshots/PipelineStudio.png) |
+| Studio canvas | ![Studio canvas — compose source → agent → sink pipelines](docs/images/UIScreenshots/JobsCanvas.png) |
+| Runs | ![Runs — local and cluster execution history](docs/images/UIScreenshots/JobsView.png) |
+| Settings | ![Settings — LLM connection and MCP servers](docs/images/UIScreenshots/Settings_LLMs.png) |
+
 See [dashboard/README.md](dashboard/README.md) and [docs/PLATFORM.md](docs/PLATFORM.md).
 
 | URL | Service |
