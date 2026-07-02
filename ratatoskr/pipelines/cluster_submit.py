@@ -26,16 +26,90 @@ if TYPE_CHECKING:
     from ratatoskr.runs.service import RunService
 
 
-def _sync_cluster_run_status(service: "RunService", run_id: str, job_id: str | None) -> None:
+def _sync_cluster_run_status(
+    service: "RunService",
+    run_id: str,
+    job_id: str | None,
+    *,
+    record_count: int | None = None,
+) -> None:
     if not job_id:
         return
     from ratatoskr.runs.plan import flink_job_state
 
     state = flink_job_state(job_id)
     if state in ("FINISHED", "SUCCEEDED"):
-        service.finish_run(run_id, status="finished", flink_job_id=job_id)
+        service.finish_run(
+            run_id, status="finished", flink_job_id=job_id, record_count=record_count
+        )
     elif state in ("FAILED", "CANCELED", "CANCELLED"):
         service.finish_run(run_id, status="failed", flink_job_id=job_id, error=f"Flink job {state}")
+
+
+def _record_cluster_sink_span(
+    service: "RunService",
+    run_id: str,
+    pipeline: Pipeline,
+    sink_output: list[dict[str, Any]] | None,
+) -> int | None:
+    """Persist the delivered Kafka sink output as a run span (parity with local runs)."""
+    if sink_output is None:
+        return None
+
+    sink_node = next((n for n in pipeline.nodes if n.kind == "sink"), None)
+    if sink_node is None:
+        return None
+
+    sink_type = str(sink_node.config.get("sink_type") or "capture").strip().lower()
+    topic = _resolved_kafka_sink_topic(sink_node.config) if sink_type == "kafka" else ""
+    service.append_span(
+        run_id,
+        kind="sink",
+        name=topic or "capture",
+        output_data=sink_output,
+        input_data={"sink_type": sink_type, "topic": topic or sink_node.config.get("topic")},
+    )
+    # Persist the count now so the "Records" stat is correct even if the Flink
+    # job is still running when the run detail is next fetched.
+    record_count = len(sink_output)
+    service.set_record_count(run_id, record_count)
+    return record_count
+
+
+def _resolved_kafka_sink_topic(config: dict[str, Any]) -> str:
+    topic = str(config.get("topic") or "").strip()
+    if topic:
+        return topic
+
+    from ratatoskr.kafka_sources import DEFAULT_KAFKA_OUTPUT_TOPIC
+
+    return DEFAULT_KAFKA_OUTPUT_TOPIC
+
+
+def _sample_cluster_kafka_sink_output(pipeline: Pipeline) -> list[dict[str, Any]] | None:
+    """Best-effort snapshot for sinks that publish from the running Flink job."""
+    sink_node = next((n for n in pipeline.nodes if n.kind == "sink"), None)
+    if sink_node is None:
+        return None
+
+    sink_type = str(sink_node.config.get("sink_type") or "capture").strip().lower()
+    if sink_type != "kafka":
+        return None
+
+    from ratatoskr.kafka_sources import sample_topic_records
+
+    topic = _resolved_kafka_sink_topic(sink_node.config)
+    limit = int(sink_node.config.get("sample_limit") or sink_node.config.get("max_records") or 10)
+    bootstrap = sink_node.config.get("bootstrap")
+    try:
+        return sample_topic_records(
+            topic,
+            limit=limit,
+            bootstrap=str(bootstrap) if bootstrap else None,
+            timeout_ms=8000,
+        )
+    except Exception:
+        return None
 
 
 @dataclass(frozen=True)
@@ -198,7 +272,7 @@ def submit_pipeline_cluster(
             if not job_id:
                 job_id = find_flink_job_for_pipeline(pipeline)
             try:
-                deliver_pipeline_kafka_sink(pipeline, root=repo, profile=profile)
+                sink_output = deliver_pipeline_kafka_sink(pipeline, root=repo, profile=profile)
             except Exception as exc:
                 service.finish_run(
                     run_id,
@@ -212,8 +286,11 @@ def submit_pipeline_cluster(
                     flink_job_id=job_id,
                     validation=validation,
                 )
+            if sink_output is None:
+                sink_output = _sample_cluster_kafka_sink_output(pipeline)
+            record_count = _record_cluster_sink_span(service, run_id, pipeline, sink_output)
             service.set_running(run_id, flink_job_id=job_id)
-            _sync_cluster_run_status(service, run_id, job_id)
+            _sync_cluster_run_status(service, run_id, job_id, record_count=record_count)
         else:
             detail = (stderr or stdout or "").strip()
             service.finish_run(

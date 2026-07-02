@@ -62,8 +62,8 @@ export function DesignerReadinessBanner({
         )}
         {needsMcp && (
           <li>
-            This graph has MCP tool nodes but no MCP servers attached. Select the canvas background
-            in the inspector to attach servers.
+            This graph has MCP tool nodes but no MCP servers attached. Open{" "}
+            <strong>Agent settings</strong> to attach servers.
           </li>
         )}
       </ul>

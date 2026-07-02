@@ -123,6 +123,9 @@ class RunService:
     def set_running(self, run_id: str, *, flink_job_id: str | None = None) -> None:
         self._store.update_run(run_id, status="running", flink_job_id=flink_job_id)
 
+    def set_record_count(self, run_id: str, count: int) -> None:
+        self._store.update_run(run_id, record_count=count)
+
     def append_span(
         self,
         run_id: str,

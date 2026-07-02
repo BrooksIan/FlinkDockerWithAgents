@@ -771,6 +771,84 @@ pre.yaml {
   min-width: 220px;
 }
 
+.designer-assist-panel {
+  margin-bottom: 1.25rem;
+}
+
+.designer-assist-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.designer-assist-hint {
+  margin: 0.35rem 0 0;
+  max-width: 52rem;
+}
+
+.designer-assist-llm-warning {
+  margin: 0;
+  max-width: 20rem;
+}
+
+.designer-assist-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.designer-assist-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.65rem;
+}
+
+.designer-assist-preview {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.designer-assist-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 0.75rem;
+}
+
+.designer-assist-block {
+  margin-bottom: 0.85rem;
+}
+
+.designer-assist-warnings,
+.designer-assist-diff-list {
+  margin: 0.35rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.designer-assist-code {
+  margin: 0.35rem 0 0;
+  padding: 0.65rem;
+  background: var(--surface-2);
+  border-radius: 6px;
+  overflow: auto;
+  font-size: 0.82rem;
+}
+
+.designer-assist-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.designer-assist-diff-block + .designer-assist-diff-block {
+  margin-top: 0.5rem;
+}
+
 .designer-editor-header {
   margin-bottom: 0.5rem;
 }
@@ -1240,4 +1318,253 @@ pre.yaml {
 
 .designer-catalog-category:first-child {
   margin-top: 0;
+}
+
+.designer-canvas {
+  position: relative;
+}
+
+.designer-canvas-toolbar {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.65rem;
+  z-index: 5;
+}
+
+.designer-canvas-fit {
+  font-size: 0.82rem;
+  padding: 0.3rem 0.55rem;
+}
+
+.designer-node-highlight {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--warn) 70%, transparent);
+}
+
+.designer-validation-issues {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.designer-validation-issue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.45rem 0.6rem;
+  color: inherit;
+  font: inherit;
+}
+
+.designer-validation-issue.clickable:not(:disabled) {
+  cursor: pointer;
+}
+
+.designer-validation-issue.clickable:not(:disabled):hover {
+  border-color: var(--accent);
+}
+
+.designer-validation-issue.error {
+  border-color: color-mix(in srgb, var(--bad, #e5534b) 35%, var(--border));
+}
+
+.designer-validation-target {
+  font-size: 0.82rem;
+}
+
+.designer-publish-step-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
+.designer-step-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 150px;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.designer-step-card.done {
+  border-color: color-mix(in srgb, var(--ok, #3d9970) 45%, var(--border));
+}
+
+.designer-step-card.blocked {
+  border-color: color-mix(in srgb, var(--bad, #e5534b) 35%, var(--border));
+}
+
+.designer-step-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.designer-step-action {
+  align-self: flex-start;
+}
+
+.designer-publish-next {
+  margin: 0.75rem 0 0;
+  font-size: 0.88rem;
+}
+
+.designer-settings-drawer {
+  margin-top: 1rem;
+}
+
+.designer-settings-section {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.designer-settings-section:first-of-type {
+  margin-top: 0.75rem;
+  padding-top: 0;
+  border-top: none;
+}
+
+.designer-settings-section h4 {
+  margin: 0 0 0.5rem;
+}
+
+.designer-schema-textarea,
+.designer-test-run-input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.82rem;
+}
+
+.designer-bottom-panels {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(280px, 1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+@media (max-width: 900px) {
+  .designer-bottom-panels {
+    grid-template-columns: 1fr;
+  }
+}
+
+.designer-test-run-panel {
+  min-height: 220px;
+}
+
+.designer-test-run-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.designer-test-run-hint,
+.designer-test-run-preview {
+  font-size: 0.88rem;
+}
+
+.designer-test-run-result {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.designer-test-run-result.ok {
+  border-top-color: color-mix(in srgb, var(--ok, #3d9970) 35%, var(--border));
+}
+
+.designer-test-run-output {
+  overflow: auto;
+  max-height: 220px;
+  margin: 0.35rem 0 0.75rem;
+  padding: 0.65rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+}
+
+.designer-definition-summary-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.designer-definition-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem 1rem;
+  margin: 0.75rem 0 0;
+}
+
+.designer-definition-summary-grid dt {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.designer-definition-summary-grid dd {
+  margin: 0.15rem 0 0;
+}
+
+.designer-definition-summary-nodes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.75rem;
+}
+
+.designer-inspector-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem 0.75rem;
+  margin: 0.75rem 0;
+}
+
+.designer-inspector-summary dt {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.designer-inspector-summary dd {
+  margin: 0.1rem 0 0;
+}
+
+.designer-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.designer-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.82rem;
+}
+
+.designer-inline-link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+  text-decoration: underline;
 }

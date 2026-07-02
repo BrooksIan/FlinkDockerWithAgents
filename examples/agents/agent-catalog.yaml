@@ -67,6 +67,32 @@ categories:
             type: array
           agent:
             type: string
+    - id: square_workflow_agent
+      manifest: square_workflow_agent
+      display_name: Square Workflow Agent
+      description: A workflow agent that takes an integer as input and outputs the
+        squared value.
+      tags:
+      - custom
+      - llm-assisted
+      - designer
+      input_schema:
+        type: object
+        required:
+        - value
+        properties:
+          value:
+            type: integer
+            description: Number to square
+      output_schema:
+        type: object
+        properties:
+          input:
+            type: integer
+          squared:
+            type: integer
+          agent:
+            type: string
 - id: react
   label: ReAct Agents
   description: Tool-chaining agents with planning loops (lab / enrichment paths).

@@ -294,10 +294,18 @@ export interface AgentDefinition extends AgentDefinitionSummary {
   output_schema: Record<string, unknown>;
 }
 
+export interface AgentDefinitionValidationIssue {
+  message: string;
+  level: "error" | "warning";
+  node_id?: string | null;
+  edge_id?: string | null;
+}
+
 export interface AgentDefinitionValidation {
   valid: boolean;
   errors: string[];
   warnings: string[];
+  issues?: AgentDefinitionValidationIssue[];
 }
 
 export interface AgentDefinitionCompileFile {
@@ -333,6 +341,10 @@ export interface AgentDefinitionRunResult {
   mode: "manifest" | "compiled";
   agent?: string;
   definition_id?: string;
+  stdout?: string;
+  stderr?: string;
+  output?: unknown;
+  records?: Record<string, unknown>[];
 }
 
 export interface AgentDefinitionCreate {
@@ -349,6 +361,36 @@ export interface AgentDefinitionCreate {
   catalog_subcategory_id?: string | null;
   catalog_tags?: string[];
   mcp_servers?: string[];
+}
+
+export type AgentAssistTypePreference = "auto" | "workflow" | "react";
+
+export interface AgentDefinitionAssistGenerateRequest {
+  goal: string;
+  agent_type_preference?: AgentAssistTypePreference | null;
+  constraints?: Record<string, unknown> | null;
+}
+
+export interface AgentDefinitionAssistRefineRequest {
+  instruction: string;
+  agent_type_preference?: AgentAssistTypePreference | null;
+}
+
+export interface AgentDefinitionAssistDiff {
+  nodes_added: string[];
+  nodes_removed: string[];
+  edges_added: string[];
+  edges_removed: string[];
+  fields_changed: string[];
+}
+
+export interface AgentDefinitionAssistResult {
+  definition: AgentDefinitionCreate;
+  rationale: string;
+  test_records: Record<string, unknown>[];
+  warnings: string[];
+  validation: AgentDefinitionValidation;
+  diff?: AgentDefinitionAssistDiff | null;
 }
 
 export interface AgentDetail extends AgentSummary {

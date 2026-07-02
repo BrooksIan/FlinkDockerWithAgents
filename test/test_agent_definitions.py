@@ -126,6 +126,105 @@ def test_validation_detects_missing_action() -> None:
     result = validate_agent_definition(definition)
     assert result["valid"] is False
     assert any("action" in err for err in result["errors"])
+    assert "issues" in result
+    assert any(issue["level"] == "error" for issue in result["issues"])
+
+
+def test_validation_issues_include_node_ids() -> None:
+    from ratatoskr.designer.definitions.models import agent_definition_from_dict
+    from ratatoskr.designer.definitions.validate import validate_agent_definition
+
+    definition = agent_definition_from_dict(
+        {
+            "id": "def_mcp",
+            "name": "MCP bad",
+            "type": "workflow",
+            "version": 1,
+            "description": "",
+            "status": "draft",
+            "nodes": [
+                {"id": "in1", "kind": "input_event", "name": "InputEvent"},
+                {
+                    "id": "act1",
+                    "kind": "action",
+                    "name": "process",
+                    "config": {"listens_to": ["_input_event"]},
+                },
+                {
+                    "id": "mcp1",
+                    "kind": "mcp_tool",
+                    "name": "check_ip",
+                    "config": {"server_ref": "", "tool_name": ""},
+                },
+                {"id": "out1", "kind": "output_event", "name": "OutputEvent"},
+            ],
+            "edges": [
+                {"id": "e1", "source": "in1", "target": "act1", "kind": "listens_to"},
+                {"id": "e2", "source": "act1", "target": "mcp1", "kind": "calls"},
+                {"id": "e3", "source": "act1", "target": "out1", "kind": "emits"},
+            ],
+        }
+    )
+    result = validate_agent_definition(definition)
+    assert result["valid"] is False
+    mcp_issues = [issue for issue in result["issues"] if issue.get("node_id") == "mcp1"]
+    assert mcp_issues
+    assert any("MCP tool" in issue["message"] for issue in mcp_issues)
+
+
+def test_normalize_records_for_runtime() -> None:
+    from ratatoskr.designer.definitions.service import AgentDefinitionService
+
+    normalize = AgentDefinitionService._normalize_records_for_runtime
+
+    # Records already carrying value/v are left untouched.
+    assert normalize([{"key": "1", "value": 3}]) == [{"key": "1", "value": 3}]
+    assert normalize([{"k": "1", "v": 9}]) == [{"k": "1", "v": 9}]
+
+    # Domain-only fields are wrapped under value, preserving the key.
+    assert normalize([{"key": "1", "message": "hi"}]) == [
+        {"key": "1", "value": {"message": "hi"}}
+    ]
+
+    # Non-dict records become a value payload.
+    assert normalize([5]) == [{"value": 5}]
+
+
+def test_default_sample_records_shape() -> None:
+    from ratatoskr.designer.definitions.models import agent_definition_from_dict
+    from ratatoskr.designer.definitions.service import AgentDefinitionService
+
+    workflow = agent_definition_from_dict(
+        {
+            "id": "def_wf",
+            "name": "wf",
+            "type": "workflow",
+            "version": 1,
+            "description": "",
+            "status": "draft",
+            "input_schema": {"required": ["value"], "properties": {"value": {}}},
+            "nodes": [],
+            "edges": [],
+        }
+    )
+    wf_records = AgentDefinitionService._default_sample_records(workflow)
+    assert all("value" in record for record in wf_records)
+
+    react = agent_definition_from_dict(
+        {
+            "id": "def_rx",
+            "name": "rx",
+            "type": "react",
+            "version": 1,
+            "description": "",
+            "status": "draft",
+            "input_schema": {"required": ["message"], "properties": {"message": {}}},
+            "nodes": [],
+            "edges": [],
+        }
+    )
+    rx_records = AgentDefinitionService._default_sample_records(react)
+    assert all("message" in record for record in rx_records)
 
 
 if __name__ == "__main__":

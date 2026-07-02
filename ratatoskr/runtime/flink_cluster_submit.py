@@ -96,6 +96,34 @@ def install_flink_agents_common_lib_jar() -> None:
             continue
 
 
+def ensure_pemja_parent_classpath() -> None:
+    """Place ``flink-python`` (Pemja classes) on the parent/app classpath.
+
+    ``pemja.core.object.PyObject``/``PyIterator`` ship inside ``flink-python`` under
+    ``/opt/flink/opt`` (not on the default classpath). When both the PyFlink task
+    classloader and the Flink Agents action-operator classloader load Pemja from
+    their own user jars, the two class identities differ and casts fail with a
+    ``ClassCastException`` (FLINK-39226). Copying the jar into ``/opt/flink/lib`` so
+    the app classloader owns Pemja, combined with
+    ``classloader.parent-first-patterns.additional: pemja``, gives one shared
+    identity across all child-first classloaders.
+
+    Note: the jar must be present before the JVM starts, so callers should restart
+    the JobManager/TaskManager after this runs (the Studio restart flow does).
+    """
+    import shutil
+
+    opt_dir = Path("/opt/flink/opt")
+    for jar in sorted(opt_dir.glob("flink-python-*.jar")):
+        target = FLINK_LIB / jar.name
+        if target.exists() and target.stat().st_size == jar.stat().st_size:
+            continue
+        try:
+            shutil.copy2(jar, target)
+        except OSError:
+            continue
+
+
 def remove_flink_agents_common_from_classpath() -> None:
     """Remove common JAR from ``/opt/flink/lib`` (used when resetting cluster state)."""
     for jar in FLINK_LIB.glob("flink-agents-dist-common-*.jar"):
@@ -217,6 +245,7 @@ def bootstrap_cluster_runtime(
 ) -> None:
     """Prepare Python workers and optional Flink Agents JARs."""
     ensure_python_symlink()
+    ensure_pemja_parent_classpath()
     remove_flink_agents_common_from_classpath()
     ensure_pemja_embed_runtime()
     ensure_pyflink_beam_runtime()

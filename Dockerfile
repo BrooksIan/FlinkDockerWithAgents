@@ -43,6 +43,13 @@ RUN git clone --depth 1 --branch "${FLINK_AGENTS_VERSION}" https://github.com/ap
     && cp dist/common/target/flink-agents-dist-common-*.jar /opt/flink/lib/ \
     && rm -rf /tmp/flink-agents
 
+# Pemja (pemja.core.object.PyObject/PyIterator) lives in flink-python. It must be
+# loaded by a single, stable parent classloader; otherwise concurrent user-code
+# ChildFirstClassLoaders (PyFlink task + flink-agents action operator) each load
+# their own copy and casts fail with ClassCastException (FLINK-39226). Placing the
+# jar in lib/ + classloader.parent-first-patterns.additional=pemja gives one identity.
+RUN cp /opt/flink/opt/flink-python-*.jar /opt/flink/lib/
+
 COPY examples/demo_datastream.py examples/demo_table.py examples/demo_datastream_local.py /opt/flink/
 COPY examples/agents /opt/flink/examples/agents
 COPY ratatoskr/__init__.py ratatoskr/constants.py ratatoskr/paths.py ratatoskr/docker_utils.py ratatoskr/kafka_sources.py /opt/flink/ratatoskr/

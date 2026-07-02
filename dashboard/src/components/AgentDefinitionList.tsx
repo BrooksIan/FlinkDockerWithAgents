@@ -1,26 +1,17 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
-import type {
-  AgentDefinition,
-  AgentDefinitionCompileResult,
-  AgentDefinitionValidation,
-} from "../api/types";
+import type { AgentDefinition } from "../api/types";
 
 interface Props {
   onSelect?: (definition: AgentDefinition) => void;
-  onCompiled?: (result: AgentDefinitionCompileResult) => void;
 }
 
-export function AgentDefinitionList({ onSelect, onCompiled }: Props) {
+export function AgentDefinitionList({ onSelect }: Props) {
   const [definitions, setDefinitions] = useState<AgentDefinition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [validatingId, setValidatingId] = useState<string | null>(null);
-  const [compilingId, setCompilingId] = useState<string | null>(null);
-  const [publishingId, setPublishingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [validation, setValidation] = useState<AgentDefinitionValidation | null>(null);
 
   function reload() {
     setLoading(true);
@@ -34,55 +25,6 @@ export function AgentDefinitionList({ onSelect, onCompiled }: Props) {
   useEffect(() => {
     reload();
   }, []);
-
-  async function handleValidate(id: string) {
-    setValidatingId(id);
-    setValidation(null);
-    setError(null);
-    try {
-      const result = await api.validateAgentDefinition(id);
-      setValidation(result);
-    } catch (err) {
-      setError(String(err));
-    } finally {
-      setValidatingId(null);
-    }
-  }
-
-  async function handleCompile(id: string) {
-    setCompilingId(id);
-    setError(null);
-    try {
-      const result = await api.compileAgentDefinition(id);
-      if (result.definition) {
-        setDefinitions((current) =>
-          current.map((item) => (item.id === id ? result.definition! : item)),
-        );
-      }
-      onCompiled?.(result);
-    } catch (err) {
-      setError(String(err));
-    } finally {
-      setCompilingId(null);
-    }
-  }
-
-  async function handlePublish(id: string) {
-    setPublishingId(id);
-    setError(null);
-    try {
-      const result = await api.publishAgentDefinition(id);
-      if (result.definition) {
-        setDefinitions((current) =>
-          current.map((item) => (item.id === id ? result.definition! : item)),
-        );
-      }
-    } catch (err) {
-      setError(String(err));
-    } finally {
-      setPublishingId(null);
-    }
-  }
 
   async function handleDelete(id: string, name: string) {
     if (!window.confirm(`Delete agent definition "${name}"? This cannot be undone.`)) return;
@@ -111,8 +53,8 @@ export function AgentDefinitionList({ onSelect, onCompiled }: Props) {
         <span className="badge">{definitions.length}</span>
       </div>
       <p className="muted">
-        Visual agent logic designs stored in the platform. Templates seed automatically on first
-        load.
+        Visual agent logic designs stored in the platform. Open an agent in the editor to validate,
+        compile, publish, and test.
       </p>
 
       {error && <p className="error">{error}</p>}
@@ -146,43 +88,16 @@ export function AgentDefinitionList({ onSelect, onCompiled }: Props) {
               </div>
               <div className="actions" style={{ margin: "0.5rem 0 0" }}>
                 <Link to={`/designer/${def.id}`} className="secondary-link">
-                  Edit canvas
+                  Open editor
                 </Link>
-                <button
-                  type="button"
-                  className="secondary"
-                  disabled={validatingId === def.id || compilingId === def.id}
-                  onClick={() => handleValidate(def.id)}
-                >
-                  {validatingId === def.id ? "Validating…" : "Validate"}
-                </button>
-                <button
-                  type="button"
-                  disabled={validatingId === def.id || compilingId === def.id || publishingId === def.id}
-                  onClick={() => handleCompile(def.id)}
-                >
-                  {compilingId === def.id ? "Compiling…" : "Compile"}
-                </button>
-                <button
-                  type="button"
-                  className="secondary"
-                  disabled={validatingId === def.id || compilingId === def.id || publishingId === def.id}
-                  onClick={() => handlePublish(def.id)}
-                >
-                  {publishingId === def.id ? "Publishing…" : "Add to catalog"}
+                <button type="button" className="secondary" onClick={() => onSelect?.(def)}>
+                  Summary
                 </button>
                 {def.manifest_name && (
                   <Link to={`/agents/${def.manifest_name}`} className="secondary-link">
                     View runtime agent
                   </Link>
                 )}
-                <button
-                  type="button"
-                  className="secondary"
-                  onClick={() => onSelect?.(def)}
-                >
-                  Inspect JSON
-                </button>
                 <button
                   type="button"
                   className="secondary"
@@ -195,32 +110,6 @@ export function AgentDefinitionList({ onSelect, onCompiled }: Props) {
             </li>
           ))}
         </ul>
-      )}
-
-      {validation && (
-        <div className={`llm-test-result ${validation.valid ? "ok" : ""}`} style={{ marginTop: "1rem" }}>
-          <p className={`badge ${validation.valid ? "ok" : "warn"}`} style={{ margin: 0 }}>
-            {validation.valid ? "Graph is valid" : "Validation failed"}
-          </p>
-          {validation.errors.length > 0 && (
-            <ul className="designer-validation-list">
-              {validation.errors.map((msg) => (
-                <li key={msg} className="error">
-                  {msg}
-                </li>
-              ))}
-            </ul>
-          )}
-          {validation.warnings.length > 0 && (
-            <ul className="designer-validation-list">
-              {validation.warnings.map((msg) => (
-                <li key={msg} className="muted">
-                  {msg}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
       )}
     </div>
   );

@@ -1,5 +1,9 @@
 # Ratatoskr — name, myth, and icon
 
+<p align="center">
+  <img src="Ratatoskr_title_image.png" alt="Ratatoskr — wood-textured wordmark and squirrel mascot" width="480" />
+</p>
+
 Ratatoskr is the project name for this Flink Agents platform (CLI, Control API, Designer, Studio).
 
 ## Mythology
@@ -50,12 +54,15 @@ Scholars disagree on how much weight to give the squirrel: Rudolf Simek treated 
 
 The Snorri gloss (malicious gossip) is *not* the product metaphor — the Poetic Edda’s neutral messenger role matches event-driven systems better.
 
-## Icon design language
+## Brand assets
 
-Assets live in [`dashboard/public/`](../dashboard/public/):
+| Asset | Location | Use |
+|-------|----------|-----|
+| **`Ratatoskr_title_image.png`** | `docs/branding/` | README and docs headers — wood-textured wordmark + squirrel mascot |
+| **`ratatoskr-icon.svg`** | [`dashboard/public/`](../dashboard/public/) | Full mark (tree + squirrel + event dots) |
+| **`favicon.svg`** | [`dashboard/public/`](../dashboard/public/) | Simplified mark for small sizes |
 
-- **`ratatoskr-icon.svg`** — full mark (tree + squirrel + event dots)
-- **`favicon.svg`** — simplified mark for small sizes
+### Icon design language
 
 Visual elements:
 
@@ -66,8 +73,8 @@ Visual elements:
 
 ## Usage
 
-- Dashboard favicon and sidebar brand mark
-- README and docs headers
+- **`Ratatoskr_title_image.png`** — centered banner in root and package READMEs, docs index, and platform guides
+- **`ratatoskr-icon.svg`** / **`favicon.svg`** — dashboard favicon and sidebar brand mark
 - Future: CLI `--version` banner, Docker label icon, GitHub social preview
 
 ## References

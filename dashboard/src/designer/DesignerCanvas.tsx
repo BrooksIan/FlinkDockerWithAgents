@@ -13,8 +13,9 @@ import {
   type OnNodesChange,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useCallback, useEffect, useMemo, type DragEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, type DragEvent } from "react";
 import type { DesignerDroppedSpec } from "./definitionUtils";
+import { connectionInvalidReason, isValidDesignerConnection } from "./definitionUtils";
 import { LogicNode } from "./nodes/LogicNode";
 
 const nodeTypes = {
@@ -30,39 +31,84 @@ const nodeTypes = {
 interface InnerProps {
   nodes: Node[];
   edges: Edge[];
+  highlightedNodeIds?: string[];
+  highlightedEdgeIds?: string[];
   onNodesChange: OnNodesChange;
   onEdgesChange: OnEdgesChange;
   onConnect: OnConnect;
   onNodeDragStop?: (nodes: Node[]) => void;
   onSelectionChange: (selection: { nodes: Node[]; edges: Edge[] }) => void;
   onDropNode: (spec: DesignerDroppedSpec, position: { x: number; y: number }) => void;
+  onInvalidConnection?: (message: string) => void;
 }
 
 function DesignerCanvasInner({
   nodes,
   edges,
+  highlightedNodeIds = [],
+  highlightedEdgeIds = [],
   onNodesChange,
   onEdgesChange,
   onConnect,
   onNodeDragStop,
   onSelectionChange,
   onDropNode,
+  onInvalidConnection,
 }: InnerProps) {
   const { screenToFlowPosition, fitView } = useReactFlow();
   const proOptions = useMemo(() => ({ hideAttribution: true }), []);
+  const initialFitDone = useRef(false);
 
   useEffect(() => {
-    if (nodes.length > 0) {
+    if (nodes.length > 0 && !initialFitDone.current) {
       fitView({ padding: 0.2, duration: 200 });
+      initialFitDone.current = true;
     }
   }, [nodes.length, fitView]);
 
-  const isValidConnection = useCallback((connection: Connection | Edge) => {
-    const source = "source" in connection ? connection.source : null;
-    const target = "target" in connection ? connection.target : null;
-    if (!source || !target) return false;
-    return source !== target;
-  }, []);
+  const decoratedNodes = useMemo(
+    () =>
+      nodes.map((node) => ({
+        ...node,
+        className: highlightedNodeIds.includes(node.id) ? "designer-node-highlight" : undefined,
+      })),
+    [nodes, highlightedNodeIds],
+  );
+
+  const decoratedEdges = useMemo(
+    () =>
+      edges.map((edge) => ({
+        ...edge,
+        animated: highlightedEdgeIds.includes(edge.id),
+        style: highlightedEdgeIds.includes(edge.id)
+          ? { stroke: "var(--warn)", strokeWidth: 2 }
+          : undefined,
+      })),
+    [edges, highlightedEdgeIds],
+  );
+
+  const isValidConnection = useCallback(
+    (connection: Connection | Edge) => {
+      const source = nodes.find((node) => node.id === connection.source);
+      const target = nodes.find((node) => node.id === connection.target);
+      return isValidDesignerConnection(source, target);
+    },
+    [nodes],
+  );
+
+  const handleConnect = useCallback(
+    (connection: Connection) => {
+      const source = nodes.find((node) => node.id === connection.source);
+      const target = nodes.find((node) => node.id === connection.target);
+      const reason = connectionInvalidReason(source, target);
+      if (reason) {
+        onInvalidConnection?.(reason);
+        return;
+      }
+      onConnect(connection);
+    },
+    [nodes, onConnect, onInvalidConnection],
+  );
 
   const onDragOver = useCallback((event: DragEvent) => {
     event.preventDefault();
@@ -87,12 +133,21 @@ function DesignerCanvasInner({
 
   return (
     <div className="studio-canvas card designer-canvas" onDragOver={onDragOver} onDrop={onDrop}>
+      <div className="designer-canvas-toolbar">
+        <button
+          type="button"
+          className="secondary designer-canvas-fit"
+          onClick={() => fitView({ padding: 0.2, duration: 200 })}
+        >
+          Fit view
+        </button>
+      </div>
       <ReactFlow
-        nodes={nodes}
-        edges={edges}
+        nodes={decoratedNodes}
+        edges={decoratedEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
+        onConnect={handleConnect}
         isValidConnection={isValidConnection}
         onNodeDragStop={(_, __, draggedNodes) => onNodeDragStop?.(draggedNodes)}
         onSelectionChange={({ nodes: ns, edges: es }) => onSelectionChange({ nodes: ns, edges: es })}

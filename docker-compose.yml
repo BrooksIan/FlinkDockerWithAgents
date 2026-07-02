@@ -20,6 +20,7 @@ services:
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
+        classloader.parent-first-patterns.additional: pemja
     networks:
       - flink-network
 
@@ -34,6 +35,7 @@ services:
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
+        classloader.parent-first-patterns.additional: pemja
         taskmanager.numberOfTaskSlots: 4
         taskmanager.memory.process.size: 4096m
     networks:

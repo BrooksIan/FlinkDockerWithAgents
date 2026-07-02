@@ -25,8 +25,13 @@ def deliver_pipeline_kafka_sink(
     *,
     root: Path | None = None,
     profile: str | None = None,
-) -> int | None:
-    """Publish pipeline output to Kafka after cluster submit (agents run in JobManager)."""
+) -> list[dict[str, Any]] | None:
+    """Publish pipeline output to Kafka after cluster submit (agents run in JobManager).
+
+    Returns the delivered output records (so the caller can record a sink span),
+    or ``None`` when this pipeline handles its own sink (window/streaming) or has
+    no Kafka sink.
+    """
     from ratatoskr.constants import DEFAULT_PROFILE
     from ratatoskr.pipelines.docker_runner import run_pipeline_in_container
     from ratatoskr.pipelines.executor import _deliver_sink_output
@@ -49,7 +54,7 @@ def deliver_pipeline_kafka_sink(
         profile=profile or DEFAULT_PROFILE,
     )
     _deliver_sink_output(sink.config, output)
-    return len(output)
+    return output
 
 
 def publish_record_to_kafka(

@@ -1,5 +1,9 @@
 # Apache Flink Agents — Workflow vs ReAct
 
+<p align="center">
+  <img src="branding/Ratatoskr_title_image.png" alt="Ratatoskr — wood-textured wordmark and squirrel mascot" width="400" />
+</p>
+
 A practical review of the two agent paradigms in [Apache Flink Agents](https://github.com/apache/flink-agents) (release 0.3), with diagrams and guidance from the **Ratatoskr** workspace (including the [honeypot](../honeypot/README.md) reference pipeline).
 
 **Related docs**

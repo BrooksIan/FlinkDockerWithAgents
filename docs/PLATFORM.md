@@ -1,5 +1,9 @@
 # Ratatoskr platform — Flink Agents control plane
 
+<p align="center">
+  <img src="branding/Ratatoskr_title_image.png" alt="Ratatoskr — wood-textured wordmark and squirrel mascot" width="400" />
+</p>
+
 This document describes the **generic Flink Agents platform** in this workspace: CLI lifecycle, registered agents, the **Control API**, and the [dashboard](../dashboard/README.md). It does not cover the optional [honeypot](../honeypot/README.md) subproject.
 
 ## Architecture

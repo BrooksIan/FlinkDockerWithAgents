@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import type { Edge, Node } from "@xyflow/react";
+import { useMemo, useState } from "react";
 import type {
   AgentDefinition,
   AgentEdgeKind,
@@ -9,6 +10,7 @@ import type {
 } from "../api/types";
 import { DesignerLlmCallFields } from "./DesignerLlmCallFields";
 import { PromptInstructionFields } from "./DesignerPromptPanel";
+import { BUILTIN_TOOLS, builtinToolByName } from "./builtinTools";
 import { kindLabel } from "./definitionUtils";
 import {
   attachedMcpOptions,
@@ -18,11 +20,12 @@ import {
 
 interface Props {
   definition: AgentDefinition | null;
+  nodes: Node[];
   mcpInstances: McpInstance[];
   mcpCatalog: McpCatalog | null;
   selectedNode: Node | null;
   selectedEdge: Edge | null;
-  onUpdateDefinition: (patch: Partial<AgentDefinition>) => void;
+  onOpenSettings?: () => void;
   onUpdateNode: (nodeId: string, patch: { name?: string; config?: Record<string, unknown> }) => void;
   onUpdateEdge: (edgeId: string, kind: AgentEdgeKind) => void;
   onDeleteNode: (nodeId: string) => void;
@@ -31,59 +34,82 @@ interface Props {
 
 const EDGE_KINDS: AgentEdgeKind[] = ["listens_to", "calls", "emits"];
 
+function eventTypeOptions(nodes: Node[]): string[] {
+  const values = new Set<string>(["_input_event", "_output_event"]);
+  for (const node of nodes) {
+    if (node.type === "input_event" || node.type === "output_event") {
+      const config = (node.data as { config?: Record<string, unknown> })?.config || {};
+      const eventType = String(config.event_type || "").trim();
+      if (eventType) values.add(eventType);
+    }
+  }
+  return Array.from(values);
+}
+
 export function DesignerInspector({
   definition,
+  nodes,
   mcpInstances,
   mcpCatalog,
   selectedNode,
   selectedEdge,
-  onUpdateDefinition,
+  onOpenSettings,
   onUpdateNode,
   onUpdateEdge,
   onDeleteNode,
   onDeleteEdge,
 }: Props) {
+  const [listensDraft, setListensDraft] = useState<string | null>(null);
+  const [listensError, setListensError] = useState<string | null>(null);
+
+  const eventOptions = useMemo(() => eventTypeOptions(nodes), [nodes]);
+
   if (!selectedNode && !selectedEdge) {
-    const attached = definition?.mcp_servers || [];
-    const options = attachedMcpOptions(mcpInstances, attached);
+    const attachedCount = definition?.mcp_servers?.length || 0;
     return (
       <div className="studio-inspector card">
-        <h3 style={{ marginTop: 0 }}>Agent</h3>
+        <h3 style={{ marginTop: 0 }}>Inspector</h3>
         <p className="muted">
-          Attach platform MCP instances this agent may call. Configure servers in{" "}
-          <Link to="/settings">Settings</Link>.
+          Select a node or edge on the canvas to edit it. Agent-wide settings — MCP servers,
+          schemas, and catalog metadata — live in{" "}
+          {onOpenSettings ? (
+            <button type="button" className="designer-inline-link" onClick={onOpenSettings}>
+              Agent settings
+            </button>
+          ) : (
+            "Agent settings"
+          )}
+          .
         </p>
-        {options.length === 0 ? (
-          <p className="muted">No enabled MCP instances. Enable one in Settings first.</p>
-        ) : (
-          <div className="designer-mcp-attach-list">
-            {options.map((inst) => {
-              const checked = attached.includes(inst.instance_id);
-              return (
-                <label key={inst.instance_id} className="designer-field designer-checkbox-field">
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={(e) => {
-                      const next = e.target.checked
-                        ? [...attached, inst.instance_id]
-                        : attached.filter((id) => id !== inst.instance_id);
-                      onUpdateDefinition({ mcp_servers: next });
-                    }}
-                  />
-                  <span>
-                    {inst.display_name} <code>{inst.instance_id}</code>
-                  </span>
-                </label>
-              );
-            })}
+        <dl className="designer-inspector-summary">
+          <div>
+            <dt>Type</dt>
+            <dd>{definition?.type || "—"}</dd>
           </div>
+          <div>
+            <dt>Status</dt>
+            <dd>{definition?.status || "—"}</dd>
+          </div>
+          <div>
+            <dt>MCP attached</dt>
+            <dd>{attachedCount}</dd>
+          </div>
+          <div>
+            <dt>Schemas</dt>
+            <dd>
+              {Object.keys(definition?.input_schema?.properties || {}).length || 0} in /{" "}
+              {Object.keys(definition?.output_schema?.properties || {}).length || 0} out
+            </dd>
+          </div>
+        </dl>
+        {onOpenSettings && (
+          <button type="button" className="secondary" onClick={onOpenSettings}>
+            Open agent settings
+          </button>
         )}
-        {definition?.type === "react" && attached.length > 0 && (
-          <p className="muted" style={{ fontSize: "0.85rem", marginTop: "1rem" }}>
-            ReAct agents expose attached MCP tools to the LLM planner loop.
-          </p>
-        )}
+        <p className="muted" style={{ fontSize: "0.85rem", marginTop: "1rem" }}>
+          Configure MCP servers in <Link to="/settings">Settings</Link> before attaching them here.
+        </p>
       </div>
     );
   }
@@ -128,6 +154,9 @@ export function DesignerInspector({
   const name = data.name || "";
   const attached = definition?.mcp_servers || [];
   const mcpServerOptions = attachedMcpOptions(mcpInstances, attached);
+  const listensTo = Array.isArray(config.listens_to)
+    ? (config.listens_to as string[])
+    : ["_input_event"];
 
   return (
     <div className="studio-inspector card">
@@ -162,21 +191,58 @@ export function DesignerInspector({
 
       {kind === "action" ? (
         <>
-          <label className="studio-label">Listens to (JSON array)</label>
-          <textarea
-            className="studio-textarea"
-            rows={3}
-            defaultValue={JSON.stringify(config.listens_to || ["_input_event"])}
-            key={`${selectedNode.id}-listens`}
-            onBlur={(e) => {
-              try {
-                const listens_to = JSON.parse(e.target.value) as string[];
-                onUpdateNode(selectedNode.id, { config: { ...config, listens_to } });
-              } catch {
-                /* keep previous */
-              }
-            }}
-          />
+          <label className="studio-label">Listens to</label>
+          <div className="designer-chip-list">
+            {eventOptions.map((eventType) => {
+              const checked = listensTo.includes(eventType);
+              return (
+                <label key={eventType} className="designer-chip">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) => {
+                      const next = e.target.checked
+                        ? [...listensTo, eventType]
+                        : listensTo.filter((item) => item !== eventType);
+                      onUpdateNode(selectedNode.id, {
+                        config: { ...config, listens_to: next.length ? next : ["_input_event"] },
+                      });
+                    }}
+                  />
+                  <span>{eventType}</span>
+                </label>
+              );
+            })}
+          </div>
+          <details className="designer-env-hint">
+            <summary>Advanced JSON</summary>
+            <textarea
+              className="studio-textarea"
+              rows={3}
+              value={listensDraft ?? JSON.stringify(listensTo, null, 2)}
+              onChange={(e) => {
+                setListensDraft(e.target.value);
+                setListensError(null);
+              }}
+              onBlur={(e) => {
+                try {
+                  const parsed = JSON.parse(e.target.value) as unknown;
+                  if (!Array.isArray(parsed) || !parsed.every((item) => typeof item === "string")) {
+                    setListensError("Must be a JSON array of strings.");
+                    return;
+                  }
+                  onUpdateNode(selectedNode.id, {
+                    config: { ...config, listens_to: parsed },
+                  });
+                  setListensDraft(null);
+                  setListensError(null);
+                } catch {
+                  setListensError("Invalid JSON.");
+                }
+              }}
+            />
+            {listensError && <p className="error">{listensError}</p>}
+          </details>
         </>
       ) : null}
 
@@ -186,16 +252,26 @@ export function DesignerInspector({
           <select
             className="studio-select"
             value={String(config.tool_ref || "double")}
-            onChange={(e) =>
+            onChange={(e) => {
+              const tool = builtinToolByName(e.target.value);
               onUpdateNode(selectedNode.id, {
-                config: { ...config, tool_ref: e.target.value },
-              })
-            }
+                config: {
+                  ...config,
+                  tool_ref: e.target.value,
+                  expression: tool?.defaultExpression || config.expression,
+                },
+              });
+            }}
           >
-            <option value="double">double</option>
-            <option value="scale">scale</option>
-            <option value="identity">identity</option>
+            {BUILTIN_TOOLS.map((tool) => (
+              <option key={tool.name} value={tool.name}>
+                {tool.name}
+              </option>
+            ))}
           </select>
+          <p className="muted" style={{ fontSize: "0.85rem" }}>
+            {builtinToolByName(String(config.tool_ref || "double"))?.description}
+          </p>
           <label className="studio-label">Expression</label>
           <input
             className="studio-input"

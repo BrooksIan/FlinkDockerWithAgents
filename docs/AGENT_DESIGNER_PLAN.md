@@ -1,5 +1,9 @@
 # Agent Designer — implementation plan
 
+<p align="center">
+  <img src="branding/Ratatoskr_title_image.png" alt="Ratatoskr — wood-textured wordmark and squirrel mascot" width="400" />
+</p>
+
 This document outlines a phased plan to build a **visual Agent Designer** in the Ratatoskr dashboard, complementing the existing **Agent Catalog** (`examples/agents/agent-catalog.yaml`) and **Agentic Studio** (pipeline canvas).
 
 ## Goals

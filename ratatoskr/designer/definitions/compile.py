@@ -900,7 +900,7 @@ def _render_agent_module(
     )
     output_dict = ", ".join(f'"{k}": {v}' for k, v in output_lines)
 
-    return textwrap.dedent(
+    header = textwrap.dedent(
         f'''\
         """Generated workflow agent — {definition.name}."""
 
@@ -912,26 +912,34 @@ def _render_agent_module(
         from flink_agents.api.runner_context import RunnerContext
 
         _INPUT_EVENT = InputEvent.EVENT_TYPE
-
-{input_helpers}
-
-        class {class_name}(Agent):
-            """{definition.description or definition.name}"""
-
-            {"\n\n    ".join(tool_methods)}
-
-            @action(_INPUT_EVENT)
-            @staticmethod
-            def {action.name}(event: Event, ctx: RunnerContext) -> None:
-                {input_extract}
-                result = {class_name}.{primary_tool}(n)
-                ctx.send_event(
-                    OutputEvent(
-                        output={{{output_dict}}}
-                    )
-                )
         '''
-    ).strip() + "\n"
+    ).strip()
+
+    class_body_blocks = [textwrap.indent(method, "    ") for method in tool_methods]
+    action_method = textwrap.dedent(
+        f'''\
+        @action(_INPUT_EVENT)
+        @staticmethod
+        def {action.name}(event: Event, ctx: RunnerContext) -> None:
+            {input_extract}
+            result = {class_name}.{primary_tool}(n)
+            ctx.send_event(
+                OutputEvent(
+                    output={{{output_dict}}}
+                )
+            )
+        '''
+    ).strip()
+    class_body_blocks.append(textwrap.indent(action_method, "    "))
+    class_body = "\n\n".join(class_body_blocks)
+
+    return (
+        f"{header}\n\n"
+        f"{input_helpers}\n\n\n"
+        f"class {class_name}(Agent):\n"
+        f'    """{definition.description or definition.name}"""\n\n'
+        f"{class_body}\n"
+    )
 
 
 def _render_actions_module(
@@ -998,21 +1006,19 @@ def _render_actions_module(
     )
     output_dict = ", ".join(f'"{k}": {v}' for k, v in output_lines)
 
-    return textwrap.dedent(
-        f'''\
+    header = textwrap.dedent(
+        '''\
         """Generated module-level actions for Flink YAML."""
 
         from __future__ import annotations
 
         from flink_agents.api.events.event import Event, InputEvent, OutputEvent
         from flink_agents.api.runner_context import RunnerContext
+        '''
+    ).strip()
 
-        {"\n\n".join(tool_functions)}
-
-
-        {input_helper}
-
-
+    action_fn = textwrap.dedent(
+        f'''\
         def {action.name}(event: Event, ctx: RunnerContext) -> None:
             {input_extract}
             result = {primary_tool}(n)
@@ -1022,7 +1028,16 @@ def _render_actions_module(
                 )
             )
         '''
-    ).strip() + "\n"
+    ).strip()
+
+    tool_block = "\n\n\n".join(tool_functions)
+
+    return (
+        f"{header}\n\n"
+        f"{tool_block}\n\n\n"
+        f"{input_helper}\n\n\n"
+        f"{action_fn}\n"
+    )
 
 
 def _render_flink_yaml(

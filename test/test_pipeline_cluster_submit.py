@@ -84,6 +84,105 @@ def test_validate_pipeline_cluster_allows_kafka_sink() -> None:
     assert result["mode"] == "batch_kafka_sink"
 
 
+def test_sample_cluster_kafka_sink_output_uses_configured_topic(monkeypatch: pytest.MonkeyPatch) -> None:
+    from ratatoskr.pipelines.cluster_submit import _sample_cluster_kafka_sink_output
+    from ratatoskr.pipelines.models import Pipeline, PipelineNode
+
+    calls: dict[str, object] = {}
+
+    def fake_sample_topic_records(
+        topic: str,
+        *,
+        limit: int,
+        bootstrap: str | None,
+        timeout_ms: int,
+    ) -> list[dict[str, object]]:
+        calls.update(
+            {
+                "topic": topic,
+                "limit": limit,
+                "bootstrap": bootstrap,
+                "timeout_ms": timeout_ms,
+            }
+        )
+        return [{"key": "1", "value": {"squared": 9}}]
+
+    monkeypatch.setattr(
+        "ratatoskr.kafka_sources.sample_topic_records",
+        fake_sample_topic_records,
+    )
+    pipeline = Pipeline(
+        id="pipe_sample",
+        name="sample",
+        nodes=[
+            PipelineNode(id="src1", kind="source"),
+            PipelineNode(
+                id="sink1",
+                kind="sink",
+                config={
+                    "sink_type": "kafka",
+                    "topic": "workflow.test.output",
+                    "sample_limit": 3,
+                    "bootstrap": "localhost:9094",
+                },
+            ),
+        ],
+        edges=[],
+    )
+
+    output = _sample_cluster_kafka_sink_output(pipeline)
+
+    assert output == [{"key": "1", "value": {"squared": 9}}]
+    assert calls == {
+        "topic": "workflow.test.output",
+        "limit": 3,
+        "bootstrap": "localhost:9094",
+        "timeout_ms": 8000,
+    }
+
+
+def test_record_cluster_sink_span_persists_default_topic_and_count() -> None:
+    from ratatoskr.pipelines.cluster_submit import _record_cluster_sink_span
+    from ratatoskr.pipelines.models import Pipeline, PipelineNode
+
+    class FakeRunService:
+        def __init__(self) -> None:
+            self.spans: list[dict[str, object]] = []
+            self.record_count: int | None = None
+
+        def append_span(self, run_id: str, **kwargs: object) -> None:
+            self.spans.append({"run_id": run_id, **kwargs})
+
+        def set_record_count(self, run_id: str, count: int) -> None:
+            self.record_count = count
+
+    pipeline = Pipeline(
+        id="pipe_record",
+        name="record",
+        nodes=[
+            PipelineNode(id="src1", kind="source"),
+            PipelineNode(id="sink1", kind="sink", config={"sink_type": "kafka"}),
+        ],
+        edges=[],
+    )
+    service = FakeRunService()
+    output = [{"input": 3, "squared": 9}]
+
+    count = _record_cluster_sink_span(service, "run_123", pipeline, output)  # type: ignore[arg-type]
+
+    assert count == 1
+    assert service.record_count == 1
+    assert service.spans == [
+        {
+            "run_id": "run_123",
+            "kind": "sink",
+            "name": "workflow.test.output",
+            "output_data": output,
+            "input_data": {"sink_type": "kafka", "topic": "workflow.test.output"},
+        }
+    ]
+
+
 def test_validate_pipeline_cluster_warns_published_react() -> None:
     from pathlib import Path
 

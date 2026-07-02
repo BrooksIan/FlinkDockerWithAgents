@@ -1,6 +1,9 @@
 import type {
   AgentCatalog,
   AgentDefinition,
+  AgentDefinitionAssistGenerateRequest,
+  AgentDefinitionAssistRefineRequest,
+  AgentDefinitionAssistResult,
   AgentDefinitionCompileResult,
   AgentDefinitionCreate,
   AgentDefinitionPublishResult,
@@ -33,6 +36,7 @@ import type {
   RunDetail,
   RunSummary,
 } from "./types";
+import { friendlyApiError } from "./errorMessage";
 
 const API_BASE =
   (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") || "";
@@ -50,7 +54,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`${res.status} ${path}: ${text}`);
+    throw new Error(friendlyApiError(`${res.status} ${path}: ${text}`));
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
@@ -157,10 +161,31 @@ export const api = {
       { method: "DELETE" },
     ),
 
-  runAgentDefinitionLocal: (id: string) =>
+  runAgentDefinitionLocal: (id: string, body?: { records?: Record<string, unknown>[] }) =>
     request<AgentDefinitionRunResult>(
       `/v1/agent-definitions/${encodeURIComponent(id)}/run-local`,
-      { method: "POST" },
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body ?? {}),
+      },
+    ),
+
+  assistGenerateAgentDefinition: (body: AgentDefinitionAssistGenerateRequest) =>
+    request<AgentDefinitionAssistResult>("/v1/agent-definitions/assist/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+
+  assistRefineAgentDefinition: (id: string, body: AgentDefinitionAssistRefineRequest) =>
+    request<AgentDefinitionAssistResult>(
+      `/v1/agent-definitions/${encodeURIComponent(id)}/assist/refine`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
     ),
 
   agent: (name: string) => request<AgentDetail>(`/v1/agents/${encodeURIComponent(name)}`),

@@ -47,3 +47,10 @@ agents:
     description: "ReAct agent with native Flink skills \u2014 configure LLM in Settings."
     entry: examples.agents.published_shims.gen_ae8f2dde763f:React1Agent
     runner: .ratatoskr/agents/def_ae8f2dde763f/run_local.py
+  square_workflow_agent:
+    type: workflow
+    description: A workflow agent that takes an integer as input and outputs the squared
+      value.
+    entry: examples.agents.published_shims.square_workflow_agent:SquareWorkflowAgentAgent
+    runner: .ratatoskr/agents/def_c9bf03ff73d0/run_local.py
+    flink_yaml: .ratatoskr/agents/def_c9bf03ff73d0/agent.yaml

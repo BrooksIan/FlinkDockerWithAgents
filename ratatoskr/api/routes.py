@@ -125,6 +125,21 @@ class AgentDefinitionUpdate(BaseModel):
     mcp_servers: list[str] | None = None
 
 
+class AgentDefinitionRunRequest(BaseModel):
+    records: list[dict[str, Any]] | None = None
+
+
+class AgentDefinitionAssistGenerateRequest(BaseModel):
+    goal: str
+    agent_type_preference: str | None = None
+    constraints: dict[str, Any] | None = None
+
+
+class AgentDefinitionAssistRefineRequest(BaseModel):
+    instruction: str
+    agent_type_preference: str | None = None
+
+
 def _settings(request: Request) -> ApiSettings:
     return request.app.state.settings
 
@@ -402,15 +417,58 @@ def agent_definitions_publish(definition_id: str) -> dict[str, Any]:
     tags=["designer"],
     dependencies=[Depends(require_api_key)],
 )
-def agent_definitions_run_local(definition_id: str) -> dict[str, Any]:
+def agent_definitions_run_local(
+    definition_id: str,
+    body: AgentDefinitionRunRequest | None = None,
+) -> dict[str, Any]:
     try:
-        return services.run_agent_definition_local(definition_id)
+        records = body.records if body else None
+        return services.run_agent_definition_local(definition_id, records=records)
     except KeyError as exc:
         raise HTTPException(
             status_code=404, detail=f"Agent definition not found: {definition_id}"
         ) from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post(
+    "/agent-definitions/assist/generate",
+    tags=["designer"],
+    dependencies=[Depends(require_api_key)],
+)
+def agent_definitions_assist_generate(
+    payload: AgentDefinitionAssistGenerateRequest,
+) -> dict[str, Any]:
+    try:
+        return services.generate_agent_definition_assist(payload.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@router.post(
+    "/agent-definitions/{definition_id}/assist/refine",
+    tags=["designer"],
+    dependencies=[Depends(require_api_key)],
+)
+def agent_definitions_assist_refine(
+    definition_id: str,
+    payload: AgentDefinitionAssistRefineRequest,
+) -> dict[str, Any]:
+    try:
+        return services.refine_agent_definition_assist(
+            definition_id, payload.model_dump()
+        )
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=404, detail=f"Agent definition not found: {definition_id}"
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @router.get("/kafka/topics", tags=["kafka"], dependencies=[Depends(require_api_key)])

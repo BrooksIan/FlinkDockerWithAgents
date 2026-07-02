@@ -1,5 +1,9 @@
 # Tests
 
+<p align="center">
+  <img src="../docs/branding/Ratatoskr_title_image.png" alt="Ratatoskr — wood-textured wordmark and squirrel mascot" width="320" />
+</p>
+
 Tests for the **Ratatoskr Flink Agents platform** and workspace-wide CLI behavior. Honeypot-specific tests live under [`honeypot/test/`](../honeypot/test/).
 
 ## Layout

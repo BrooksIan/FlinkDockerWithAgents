@@ -1,5 +1,9 @@
 # Documentation
 
+<p align="center">
+  <img src="branding/Ratatoskr_title_image.png" alt="Ratatoskr — wood-textured wordmark and squirrel mascot" width="400" />
+</p>
+
 Guides for the **Ratatoskr** Flink Agents workspace. Honeypot-specific docs live under [`honeypot/docs/`](../honeypot/docs/).
 
 ## Getting started
@@ -16,6 +20,7 @@ Guides for the **Ratatoskr** Flink Agents workspace. Honeypot-specific docs live
 | Doc | Description |
 |-----|-------------|
 | [PLATFORM.md](PLATFORM.md) | Platform control plane — API, agent registry, Studio cluster, verify |
+| [branding/RATATOSKR.md](branding/RATATOSKR.md) | Name, mythology, icon and title banner assets |
 | [FLINK_AGENTS.md](FLINK_AGENTS.md) | Workflow vs ReAct agents — concepts, comparison, diagrams |
 | [AGENT_DESIGNER_PLAN.md](AGENT_DESIGNER_PLAN.md) | Agent Designer — visual agent authoring, codegen, roadmap |
 | [../dashboard/README.md](../dashboard/README.md) | Dashboard — pages, dev setup, project structure |

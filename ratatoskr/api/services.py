@@ -354,7 +354,51 @@ def publish_agent_definition_by_id(definition_id: str) -> dict[str, Any]:
     return default_agent_definition_service().publish(definition_id)
 
 
-def run_agent_definition_local(definition_id: str) -> dict[str, Any]:
+def run_agent_definition_local(
+    definition_id: str,
+    *,
+    records: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     from ratatoskr.designer.definitions.service import default_agent_definition_service
 
-    return default_agent_definition_service().run_local(definition_id)
+    return default_agent_definition_service().run_local(definition_id, records=records)
+
+
+def generate_agent_definition_assist(body: dict[str, Any]) -> dict[str, Any]:
+    from ratatoskr.designer.definitions.assist import (
+        assist_result_to_dict,
+        generate_agent_definition,
+    )
+    from ratatoskr.designer.llm_client import LlmNotConfiguredError
+
+    try:
+        result = generate_agent_definition(
+            body.get("goal") or "",
+            agent_type_preference=body.get("agent_type_preference"),
+            constraints=body.get("constraints"),
+        )
+    except LlmNotConfiguredError as exc:
+        raise ValueError(str(exc)) from exc
+    return assist_result_to_dict(result)
+
+
+def refine_agent_definition_assist(
+    definition_id: str, body: dict[str, Any]
+) -> dict[str, Any]:
+    from ratatoskr.designer.definitions.assist import (
+        assist_result_to_dict,
+        refine_agent_definition,
+    )
+    from ratatoskr.designer.definitions.service import default_agent_definition_service
+    from ratatoskr.designer.llm_client import LlmNotConfiguredError
+
+    definition = default_agent_definition_service().get(definition_id)
+    try:
+        result = refine_agent_definition(
+            definition,
+            body.get("instruction") or "",
+            agent_type_preference=body.get("agent_type_preference"),
+        )
+    except LlmNotConfiguredError as exc:
+        raise ValueError(str(exc)) from exc
+    return assist_result_to_dict(result)

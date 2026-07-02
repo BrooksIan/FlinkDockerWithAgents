@@ -1,5 +1,9 @@
 # Ratatoskr — Flink Agents CLI
 
+<p align="center">
+  <img src="../docs/branding/Ratatoskr_title_image.png" alt="Ratatoskr — wood-textured wordmark and squirrel mascot" width="360" />
+</p>
+
 Python package for the **`ratatoskr`** command-line tool and **Control API** — build Flink Agents images, run registered agents, and expose a dashboard-ready HTTP surface.
 
 ## Install

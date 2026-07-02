@@ -1,7 +1,7 @@
 # Ratatoskr
 
 <p align="center">
-  <img src="dashboard/public/ratatoskr-icon.svg" alt="Ratatoskr — squirrel messenger on Yggdrasil" width="96" height="96" />
+  <img src="docs/branding/Ratatoskr_title_image.png" alt="Ratatoskr — wood-textured wordmark and squirrel mascot" width="480" />
 </p>
 
 **Build, run, and verify [Apache Flink Agents](https://github.com/apache/flink-agents) on Docker — with a CLI, registered agents, and a Control API for dashboards.**
@@ -157,6 +157,7 @@ Optional: copy [`.env.example`](.env.example) to `.env` for API/Flink overrides.
 | Doc | Description |
 |-----|-------------|
 | [docs/PLATFORM.md](docs/PLATFORM.md) | Control API, agents, observability, dashboard integration |
+| [docs/branding/RATATOSKR.md](docs/branding/RATATOSKR.md) | Project name, mythology, and brand assets |
 | [dashboard/README.md](dashboard/README.md) | Dashboard pages, dev setup, project structure |
 | [docs/AGENT_DESIGNER_PLAN.md](docs/AGENT_DESIGNER_PLAN.md) | Visual agent authoring and codegen roadmap |
 | [docs/FLINK_AGENTS.md](docs/FLINK_AGENTS.md) | Workflow vs ReAct agents |

@@ -58,6 +58,7 @@ def studio_cluster_copy_pairs(*, root: Path | None = None) -> list[tuple[str, st
         "ratatoskr/designer/store.py",
         "ratatoskr/designer/llm_settings.py",
         "ratatoskr/designer/llm_client.py",
+        "ratatoskr/designer/flink_llm.py",
         "ratatoskr/designer/runtime_env.py",
         "ratatoskr/runtime/__init__.py",
         "ratatoskr/runtime/flink_cluster_submit.py",
@@ -78,6 +79,13 @@ def studio_cluster_copy_pairs(*, root: Path | None = None) -> list[tuple[str, st
         for path in agents_root.rglob("*.yaml"):
             rel = path.relative_to(repo).as_posix()
             pairs.append((str(path), f"/opt/flink/{rel}"))
+
+    skills_root = repo / "examples" / "skills"
+    if skills_root.is_dir():
+        for path in skills_root.rglob("*"):
+            if path.is_file():
+                rel = path.relative_to(repo).as_posix()
+                pairs.append((str(path), f"/opt/flink/{rel}"))
 
     examples_init = repo / "examples" / "__init__.py"
     if examples_init.is_file():
@@ -189,6 +197,29 @@ def restart_taskmanager(*, profile: str = DEFAULT_PROFILE) -> None:
     wait_for_taskmanagers(timeout_sec=120, rest_port=studio_flink_rest_port())
 
 
+def run_cluster_launch_smoke(*, profile: str = DEFAULT_PROFILE) -> None:
+    """Run the launch smoke job from inside JobManager."""
+    from ratatoskr.docker_utils import PYFLINK_PYTHONPATH, container_id, docker_exec_output
+
+    cid = container_id("jobmanager", profile=profile)
+    if not cid:
+        raise RuntimeError(f"jobmanager not running for profile: {profile}")
+
+    command = (
+        "cd /opt/flink && "
+        f"export PYTHONPATH={PYFLINK_PYTHONPATH} && "
+        "export FLINK_REST_ADDRESS=localhost FLINK_REST_PORT=8081 && "
+        "python3 -c 'from ratatoskr.runtime.cluster_launch_test import run_cluster_launch; "
+        "raise SystemExit(run_cluster_launch())'"
+    )
+    rc, stdout, stderr = docker_exec_output(cid, command, interactive=False)
+    output = (stdout or "") + (stderr or "")
+    if output.strip():
+        print(output.strip())
+    if rc != 0:
+        raise RuntimeError(f"Cluster launch smoke failed with exit code {rc}")
+
+
 def restart_studio_cluster(
     *,
     profile: str = DEFAULT_PROFILE,
@@ -227,9 +258,7 @@ def restart_studio_cluster(
 
     if smoke:
         print("Running cluster launch smoke job...")
-        from ratatoskr.runtime.cluster_launch_test import run_cluster_launch
-
-        run_cluster_launch()
+        run_cluster_launch_smoke(profile=profile)
         result["smoke"] = "ok"
 
     return result

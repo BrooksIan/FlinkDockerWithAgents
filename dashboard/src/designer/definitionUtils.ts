@@ -108,6 +108,35 @@ export function inferEdgeKind(source?: Node, target?: Node): AgentEdgeKind {
   return "listens_to";
 }
 
+const ACTION_TARGETS = new Set([
+  "tool",
+  "mcp_tool",
+  "output_event",
+  "prompt",
+  "llm_call",
+]);
+
+export function connectionInvalidReason(source?: Node, target?: Node): string | null {
+  if (!source || !target) return "Select two nodes to connect.";
+  if (source.id === target.id) return "Cannot connect a node to itself.";
+
+  const sk = source.type as AgentNodeKind | undefined;
+  const tk = target.type as AgentNodeKind | undefined;
+
+  if (tk === "input_event") return "Input events cannot receive connections.";
+  if (sk === "output_event") return "Output events cannot be connection sources.";
+  if (sk === "tool" || sk === "mcp_tool") return "Tools can only receive calls from an action.";
+  if (sk === "input_event" && tk === "action") return null;
+  if (sk === "action" && tk && ACTION_TARGETS.has(tk)) return null;
+  if (sk === "action" && tk === "action") return null;
+
+  return `Cannot connect ${kindLabel(sk || "action")} to ${kindLabel(tk || "action")}.`;
+}
+
+export function isValidDesignerConnection(source?: Node, target?: Node): boolean {
+  return connectionInvalidReason(source, target) === null;
+}
+
 export function connectDesignerEdge(
   edges: Edge[],
   params: Connection,
@@ -118,6 +147,7 @@ export function connectDesignerEdge(
   if (exists) return edges;
   const source = nodes.find((n) => n.id === params.source);
   const target = nodes.find((n) => n.id === params.target);
+  if (!isValidDesignerConnection(source, target)) return edges;
   const kind = inferEdgeKind(source, target);
   return addEdge(
     {
