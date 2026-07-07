@@ -508,6 +508,12 @@ export interface KafkaTopicsResponse {
   topics: KafkaTopicSummary[];
 }
 
+export interface KafkaTopicRecordsResponse {
+  topic: string;
+  count: number;
+  records: unknown[];
+}
+
 export interface PipelineNodeDef {
   id: string;
   kind: "source" | "window" | "agent" | "sink";

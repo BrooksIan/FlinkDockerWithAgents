@@ -583,6 +583,26 @@ def kafka_topics_list(bootstrap: str | None = None) -> dict[str, Any]:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
+@router.get(
+    "/kafka/topics/{topic}/records",
+    tags=["kafka"],
+    dependencies=[Depends(require_api_key)],
+)
+def kafka_topic_records(
+    topic: str,
+    limit: int = 10,
+    bootstrap: str | None = None,
+) -> dict[str, Any]:
+    try:
+        return services.kafka_topic_records_api(topic, limit=limit, bootstrap=bootstrap)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
 @router.get("/agents/{name}", tags=["agents"], dependencies=[Depends(require_api_key)])
 def agent_detail(name: str) -> dict[str, Any]:
     try:

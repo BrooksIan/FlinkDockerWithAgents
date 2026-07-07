@@ -25,6 +25,7 @@ _STATIC_TOPICS: dict[str, str] = {
     "workflow.test.output": "Studio test sink — workflow_counter doubled output",
     "session.window.input": "Cowrie-like events for session window detect demo (keyed by src_ip)",
     "session.window.output": "Session detect agent output",
+    "nasa.neo": "NASA NEO — near-earth object close-approach feed",
 }
 
 DEFAULT_KAFKA_OUTPUT_TOPIC = "workflow.test.output"

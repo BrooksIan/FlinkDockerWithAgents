@@ -15,6 +15,7 @@ import type {
   JobSummary,
   ClusterReadiness,
   KafkaTopicsResponse,
+  KafkaTopicRecordsResponse,
   PipelineHealth,
   PipelineAssistGenerateRequest,
   PipelineAssistBuildRequest,
@@ -320,6 +321,16 @@ export const api = {
         ? `/v1/kafka/topics?bootstrap=${encodeURIComponent(bootstrap)}`
         : "/v1/kafka/topics",
     ),
+
+  kafkaTopicRecords: (topic: string, options?: { limit?: number; bootstrap?: string }) => {
+    const params = new URLSearchParams();
+    if (options?.limit != null) params.set("limit", String(options.limit));
+    if (options?.bootstrap) params.set("bootstrap", options.bootstrap);
+    const qs = params.toString();
+    return request<KafkaTopicRecordsResponse>(
+      `/v1/kafka/topics/${encodeURIComponent(topic)}/records${qs ? `?${qs}` : ""}`,
+    );
+  },
 
   eventsUrl: () => `${API_BASE}/v1/events`,
 };

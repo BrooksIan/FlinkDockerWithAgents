@@ -439,6 +439,64 @@ pre.yaml {
   gap: 0.5rem;
 }
 
+.studio-palette-intro {
+  font-size: 0.82rem;
+  margin: 0 0 0.75rem;
+  line-height: 1.4;
+}
+
+.studio-palette-section {
+  margin-bottom: 1rem;
+}
+
+.studio-palette-section .studio-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.studio-palette-hint {
+  font-size: 0.75rem;
+  margin: 0 0 0.4rem;
+  line-height: 1.35;
+}
+
+.studio-palette-row {
+  display: flex;
+  gap: 0.35rem;
+  align-items: stretch;
+}
+
+.studio-palette-row .studio-select {
+  flex: 1;
+  min-width: 0;
+}
+
+.studio-palette-add {
+  flex-shrink: 0;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.8rem;
+}
+
+.studio-palette-full {
+  width: 100%;
+  font-size: 0.85rem;
+}
+
+.studio-palette-footnote {
+  font-size: 0.75rem;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.studio-palette-footnote code {
+  font-size: 0.72rem;
+}
+
 .studio-agent-list {
   list-style: none;
   padding: 0;
@@ -700,6 +758,29 @@ pre.yaml {
 .run-output-sink-note {
   margin: 0 0 0.75rem;
   font-size: 0.9rem;
+}
+
+.run-output-kafka-topics {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+}
+
+.run-output-kafka-error {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+}
+
+.run-output-section-title {
+  margin: 1rem 0 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.run-output-cell {
+  max-width: 280px;
+  overflow-wrap: anywhere;
+  font-size: 0.82rem;
+  vertical-align: top;
 }
 
 .run-output-table-wrap {

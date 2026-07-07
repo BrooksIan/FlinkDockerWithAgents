@@ -276,6 +276,44 @@ def test_kafka_topics_api() -> None:
     assert any(t["name"] == "cowrie.events" for t in body["topics"])
 
 
+def test_kafka_topic_records_api(monkeypatch: pytest.MonkeyPatch) -> None:
+    os.environ.pop("RATATOSKR_API_KEY", None)
+    from fastapi.testclient import TestClient
+
+    from ratatoskr.api.app import create_app
+    from ratatoskr.api.config import ApiSettings
+
+    client = TestClient(create_app(ApiSettings(api_key=None, flink_rest_host="127.0.0.1", flink_rest_port=1)))
+    spec = client.get("/openapi.json").json()
+    assert "/v1/kafka/topics/{topic}/records" in spec["paths"]
+
+    def _fake_sample(topic: str, *, limit: int = 10, bootstrap: str | None = None):
+        assert topic == "workflow.test.output"
+        assert limit == 5
+        return [
+            {
+                "key": "1",
+                "value": {
+                    "agent": "readapi_reactthoughts_writekafka",
+                    "url": "https://api.example.com",
+                    "thoughts": "Looks good",
+                },
+            }
+        ]
+
+    monkeypatch.setattr(
+        "ratatoskr.kafka_sources.sample_topic_records",
+        _fake_sample,
+    )
+
+    response = client.get("/v1/kafka/topics/workflow.test.output/records?limit=5")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["topic"] == "workflow.test.output"
+    assert body["count"] == 1
+    assert body["records"][0]["value"]["agent"] == "readapi_reactthoughts_writekafka"
+
+
 def test_kafka_source_validation() -> None:
     from ratatoskr.pipelines.models import Pipeline, PipelineEdge, PipelineNode
     from ratatoskr.pipelines.validate import validate_pipeline

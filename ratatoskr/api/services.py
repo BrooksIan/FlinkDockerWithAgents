@@ -220,6 +220,23 @@ def list_kafka_topics(*, bootstrap: str | None = None) -> dict[str, Any]:
     return list_kafka_sources(bootstrap=bootstrap)
 
 
+def kafka_topic_records_api(
+    topic: str,
+    *,
+    limit: int = 10,
+    bootstrap: str | None = None,
+) -> dict[str, Any]:
+    from ratatoskr.kafka_sources import sample_topic_records
+
+    safe_limit = max(1, min(int(limit), 100))
+    records = sample_topic_records(topic, limit=safe_limit, bootstrap=bootstrap)
+    return {
+        "topic": topic,
+        "count": len(records),
+        "records": records,
+    }
+
+
 def get_react_llm_settings_api() -> dict[str, Any]:
     from ratatoskr.designer.llm_settings import llm_settings_for_api
 
