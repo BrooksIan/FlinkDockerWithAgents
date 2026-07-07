@@ -16,6 +16,11 @@ def test_load_agent_catalog() -> None:
     assert double.display_name == "Double Value"
     assert "value" in double.input_schema.get("properties", {})
 
+    api_fetch = next(a for a in transform.agents if a.id == "api_fetch")
+    assert api_fetch.manifest == "workflow_api_fetch"
+    assert api_fetch.display_name == "API Fetch"
+    assert "records" in api_fetch.output_schema.get("properties", {})
+
 
 def test_catalog_api_route() -> None:
     from fastapi.testclient import TestClient
@@ -35,6 +40,7 @@ def test_catalog_api_route() -> None:
         for agent in sub["agents"]
     }
     assert "workflow_counter" in manifests
+    assert "workflow_api_fetch" in manifests
     double = next(
         a
         for cat in body["categories"]

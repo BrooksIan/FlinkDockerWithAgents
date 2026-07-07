@@ -62,6 +62,31 @@ def agent_manifest_path(root: Optional[Path] = None) -> Path:
     return agents_dir(root) / "agent-manifest.yaml"
 
 
+def _validate_spec(repo: Path, spec: AgentSpec) -> None:
+    """Validate that a single agent's referenced artifacts resolve on disk."""
+    runner_path = resolve_repo_rel_path(repo, spec.runner) if spec.runner else None
+    cluster_path = (
+        resolve_repo_rel_path(repo, spec.cluster_script) if spec.cluster_script else None
+    )
+    flink_yaml_path = (
+        resolve_repo_rel_path(repo, spec.flink_yaml) if spec.flink_yaml else None
+    )
+    if spec.runner:
+        published = "published_shims" in spec.module
+        agent_dir = published_agent_dir(repo, spec.runner) if published else None
+        runner_ok = runner_path is not None and runner_path.is_file()
+        if not runner_ok and not (published and agent_dir is not None):
+            raise AgentRegistryError(f"Agent {spec.name!r} runner missing: {spec.runner}")
+    if spec.cluster_script and cluster_path is None:
+        raise AgentRegistryError(
+            f"Agent {spec.name!r} cluster script missing: {spec.cluster_script}"
+        )
+    if spec.flink_yaml and flink_yaml_path is None:
+        raise AgentRegistryError(
+            f"Agent {spec.name!r} flink_yaml missing: {spec.flink_yaml}"
+        )
+
+
 def load_agent_registry(
     *,
     root: Optional[Path] = None,
@@ -87,27 +112,7 @@ def load_agent_registry(
             raise AgentRegistryError(f"Agent {name!r} must be a mapping")
         spec = _parse_agent(str(name), raw)
         if validate:
-            runner_path = resolve_repo_rel_path(repo, spec.runner) if spec.runner else None
-            cluster_path = (
-                resolve_repo_rel_path(repo, spec.cluster_script) if spec.cluster_script else None
-            )
-            flink_yaml_path = (
-                resolve_repo_rel_path(repo, spec.flink_yaml) if spec.flink_yaml else None
-            )
-            if spec.runner:
-                published = "published_shims" in spec.module
-                agent_dir = published_agent_dir(repo, spec.runner) if published else None
-                runner_ok = runner_path is not None and runner_path.is_file()
-                if not runner_ok and not (published and agent_dir is not None):
-                    raise AgentRegistryError(f"Agent {name!r} runner missing: {spec.runner}")
-            if spec.cluster_script and cluster_path is None:
-                raise AgentRegistryError(
-                    f"Agent {name!r} cluster script missing: {spec.cluster_script}"
-                )
-            if spec.flink_yaml and flink_yaml_path is None:
-                raise AgentRegistryError(
-                    f"Agent {name!r} flink_yaml missing: {spec.flink_yaml}"
-                )
+            _validate_spec(repo, spec)
         agents[str(name)] = spec
 
     return AgentManifest(agents=agents)
@@ -118,8 +123,11 @@ def list_agent_names(*, root: Optional[Path] = None) -> List[str]:
 
 
 def get_agent_spec(name: str, *, root: Optional[Path] = None) -> AgentSpec:
-    registry = load_agent_registry(root=root)
+    repo = root or project_root()
+    registry = load_agent_registry(root=repo, validate=False)
     if name not in registry.agents:
         known = ", ".join(sorted(registry.agents))
         raise AgentRegistryError(f"Unknown agent {name!r}. Known: {known}")
-    return registry.agents[name]
+    spec = registry.agents[name]
+    _validate_spec(repo, spec)
+    return spec

@@ -90,12 +90,20 @@ def run_cmd(
 
 
 def container_id(service: str = "taskmanager", profile: str = DEFAULT_PROFILE) -> Optional[str]:
-    result = subprocess.run(
-        compose_cmd("ps", "-q", service, profile=profile),
-        cwd=project_root(),
-        capture_output=True,
-        text=True,
-    )
+    try:
+        cmd = compose_cmd("ps", "-q", service, profile=profile)
+    except RuntimeError:
+        # Docker / compose is unavailable (e.g. running inside a Flink container).
+        return None
+    try:
+        result = subprocess.run(
+            cmd,
+            cwd=project_root(),
+            capture_output=True,
+            text=True,
+        )
+    except (FileNotFoundError, OSError):
+        return None
     ids = [line.strip() for line in result.stdout.splitlines() if line.strip()]
     return ids[0] if ids else None
 

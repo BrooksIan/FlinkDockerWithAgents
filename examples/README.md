@@ -24,26 +24,43 @@ Catalog: [`agents/agent-catalog.yaml`](agents/agent-catalog.yaml) — categories
 | Agent | Type | Local runner | Description |
 |-------|------|--------------|-------------|
 | `workflow_counter` | workflow | `run_workflow_local.py` | `@action` + `@tool` — doubles integers |
+| `workflow_api_fetch` | workflow | `run_workflow_api_fetch_local.py` | HTTP GET/POST to configured API (Settings) |
 | `react_echo` | react | `run_react_local.py` | Tool-chaining lab (no LLM) |
 | `react_double_value` | react | `run_react_double_local.py` | LLM doubles numeric input (Designer settings) |
 | `react_skills_demo` | react | `run_react_skills_demo_local.py` | Native `@chat_model_setup` + math-calculator skill |
+| `session_detect` | workflow | `run_session_window_local.py` | Session severity from dynamic window batches |
 
 ```bash
 ratatoskr agent list
 ratatoskr agent describe workflow_counter
 ratatoskr agent run workflow_counter --local
+ratatoskr agent run workflow_api_fetch --local   # configure URL in Settings first
 ratatoskr agent submit workflow_counter   # needs Flink cluster up
 ratatoskr agent status
 ```
+
+### `workflow_api_fetch`
+
+Fetches JSON from an HTTP endpoint on each input event. Configure in dashboard **Settings → API fetch (workflow agent)** or via environment:
+
+```bash
+export RATATOSKR_API_FETCH_ENDPOINT_URL=https://jsonplaceholder.typicode.com/
+ratatoskr agent run workflow_api_fetch --local
+```
+
+Optional input fields: `path` / `path_suffix`, `query` (GET), `body` (POST). Output includes `url`, `status_code`, `ok`, and `data`.
 
 ### Source layout
 
 ```text
 examples/agents/
 ├── agent-manifest.yaml       # Registry (name, entry, runners)
+├── agent-catalog.yaml        # Dashboard catalog (categories, I/O schemas)
 ├── workflow_counter.py       # CounterAgent
+├── workflow_api_fetch.py     # ApiFetchAgent (HTTP JSON fetch)
 ├── react_echo.py             # ReactEchoAgent
 ├── run_workflow_local.py     # AgentsExecutionEnvironment local
+├── run_workflow_api_fetch_local.py
 ├── run_workflow_cluster.py   # PyFlink + Agents operator
 ├── run_react_local.py
 └── run_react_cluster.py

@@ -6,6 +6,12 @@ agents:
     runner: examples/agents/run_workflow_local.py
     cluster_script: examples/agents/run_workflow_cluster.py
     flink_yaml: examples/agents/workflow_counter/agent.yaml
+  workflow_api_fetch:
+    type: workflow
+    description: "Poll REST APIs, normalize JSON responses, and emit structured events\
+      \ (Settings \u2192 API fetch)"
+    entry: examples.agents.workflow_api_fetch:ApiFetchAgent
+    runner: examples/agents/run_workflow_api_fetch_local.py
   react_echo:
     type: react
     description: "Tool-chaining lab agent (no LLM) \u2014 classify and summarize text"
@@ -54,3 +60,10 @@ agents:
     entry: examples.agents.published_shims.square_workflow_agent:SquareWorkflowAgentAgent
     runner: .ratatoskr/agents/def_c9bf03ff73d0/run_local.py
     flink_yaml: .ratatoskr/agents/def_c9bf03ff73d0/agent.yaml
+  readapi_reactthoughts_writekafka:
+    type: workflow
+    description: Read from an API endpoint, use a ReAct agent to give its thoughts,
+      and write the results to Kafka.
+    entry: examples.agents.published_shims.readapi_reactthoughts_writekafka:ReadapiReactthoughtsWritekafkaAgent
+    runner: .ratatoskr/agents/def_722f593495b5/run_local.py
+    flink_yaml: .ratatoskr/agents/def_722f593495b5/agent.yaml

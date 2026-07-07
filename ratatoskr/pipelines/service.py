@@ -224,6 +224,108 @@ def seed_counter_echo_pipeline(service: PipelineService) -> dict[str, Any]:
     )
 
 
+def yggdrasil_event_pipeline_template() -> dict[str, Any]:
+    """Return the Ratatoskr multi-agent Studio template payload."""
+    return {
+        "name": "Yggdrasil Event Pipeline",
+        "nodes": [
+            {
+                "id": "src1",
+                "kind": "source",
+                "config": {
+                    "source_type": "records",
+                    "records": [
+                        {
+                            "eventid": "cowrie.login.failed",
+                            "src_ip": "10.0.0.42",
+                            "timestamp": 1719412800,
+                            "session": "sess-brute",
+                        },
+                        {
+                            "eventid": "cowrie.login.failed",
+                            "src_ip": "10.0.0.42",
+                            "timestamp": 1719412801,
+                            "session": "sess-brute",
+                        },
+                        {
+                            "eventid": "cowrie.login.failed",
+                            "src_ip": "10.0.0.42",
+                            "timestamp": 1719412802,
+                            "session": "sess-brute",
+                        },
+                        {
+                            "eventid": "cowrie.login.failed",
+                            "src_ip": "10.0.0.42",
+                            "timestamp": 1719412803,
+                            "session": "sess-brute",
+                        },
+                        {
+                            "eventid": "cowrie.login.failed",
+                            "src_ip": "10.0.0.42",
+                            "timestamp": 1719412804,
+                            "session": "sess-brute",
+                        },
+                        {
+                            "eventid": "cowrie.command.input",
+                            "src_ip": "10.0.0.99",
+                            "timestamp": 1719412810,
+                            "session": "sess-probe",
+                            "input": "uname -a",
+                        },
+                    ],
+                },
+            },
+            {
+                "id": "win1",
+                "kind": "window",
+                "config": {
+                    "window_type": "dynamic_session",
+                    "key_field": "src_ip",
+                    "gap_policy": "session_detect",
+                    "time_mode": "processing",
+                    "execution_mode": "logic",
+                },
+            },
+            {"id": "agent_sd", "kind": "agent", "agent": "session_detect"},
+            {"id": "agent_re", "kind": "agent", "agent": "react_echo"},
+            {
+                "id": "sink1",
+                "kind": "sink",
+                "config": {"sink_type": "kafka", "topic": "cowrie.react_alerts"},
+            },
+        ],
+        "edges": [
+            {"id": "e1", "source": "src1", "target": "win1"},
+            {"id": "e2", "source": "win1", "target": "agent_sd"},
+            {
+                "id": "e3",
+                "source": "agent_sd",
+                "target": "agent_re",
+                "mapping": {"message": "$.severity"},
+            },
+            {"id": "e4", "source": "agent_re", "target": "sink1"},
+        ],
+        "layout": {
+            "src1": {"x": 80, "y": 200},
+            "win1": {"x": 280, "y": 200},
+            "agent_sd": {"x": 500, "y": 200},
+            "agent_re": {"x": 720, "y": 200},
+            "sink1": {"x": 940, "y": 200},
+        },
+    }
+
+
+def create_yggdrasil_event_pipeline(service: PipelineService) -> dict[str, Any]:
+    """Create the Ratatoskr multi-agent workflow template."""
+    template = yggdrasil_event_pipeline_template()
+    return service.create(
+        name=str(template["name"]),
+        nodes=list(template["nodes"]),
+        edges=list(template["edges"]),
+        layout=dict(template["layout"]),
+    )
+
+
 def reset_pipeline_service_for_tests() -> None:
     global _default_service
     _default_service = None

@@ -11,13 +11,14 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api/client";
-import type { AgentCatalog, AgentSummary, KafkaTopicSummary, PipelineSummary, PipelineValidation } from "../api/types";
+import type { AgentCatalog, AgentSummary, KafkaTopicSummary, PipelineAssistResult, PipelineSummary, PipelineValidation, ReactLlmSettings } from "../api/types";
 import { AgentGraphPanel } from "../studio/AgentGraphPanel";
 import { NodePalette } from "../studio/NodePalette";
+import { PipelineAssistPanel } from "../studio/PipelineAssistPanel";
 import { PipelineInspector } from "../studio/PipelineInspector";
 import { RunPipelineBar } from "../studio/RunPipelineBar";
 import { StudioCanvas, type DroppedNodeSpec } from "../studio/StudioCanvas";
-import { connectEdge, buildLinearChainEdges, ensureLinearChainEdges, DEFAULT_KAFKA_OUTPUT_TOPIC, flowToPipeline, nextId, pipelineToFlow, pruneOrphanEdges } from "../studio/pipelineUtils";
+import { connectEdge, buildLinearChainEdges, ensureKafkaWindowInFlow, ensureLinearChainEdges, DEFAULT_KAFKA_OUTPUT_TOPIC, flowToPipeline, nextId, pipelineToFlow, pruneOrphanEdges } from "../studio/pipelineUtils";
 
 export function StudioEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -38,6 +39,8 @@ export function StudioEditorPage() {
   const [error, setError] = useState<string | null>(null);
   const [drillAgent, setDrillAgent] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [activeTab, setActiveTab] = useState<"canvas" | "assist">("canvas");
+  const [llmSettings, setLlmSettings] = useState<ReactLlmSettings | null>(null);
   const saveTimer = useRef<number | null>(null);
   const nameSaveTimer = useRef<number | null>(null);
   const [pipelineName, setPipelineName] = useState("");
@@ -49,12 +52,19 @@ export function StudioEditorPage() {
 
   useEffect(() => {
     if (!id) return;
-    Promise.all([api.pipeline(id), api.agents(), api.agentCatalog(), api.kafkaTopics()])
-      .then(([p, a, cat, kafka]) => {
+    Promise.all([
+      api.pipeline(id),
+      api.agents(),
+      api.agentCatalog(),
+      api.kafkaTopics(),
+      api.reactLlmSettings(),
+    ])
+      .then(([p, a, cat, kafka, llm]) => {
         setPipeline(p);
         setPipelineName(p.name);
         setAgents(a);
         setCatalog(cat);
+        setLlmSettings(llm);
         setKafkaTopics(kafka.topics.filter((t) => !t.name.startsWith("__")));
         setKafkaReachable(kafka.reachable);
         const flow = pipelineToFlow(p, a);
@@ -308,7 +318,12 @@ export function StudioEditorPage() {
   }
 
   function addKafkaSource() {
-    addNodeAt({ kind: "source", kafkaSource: true }, { x: 80, y: 120 + nodes.length * 40 });
+    const sourceNode = createNode({ kind: "source", kafkaSource: true }, { x: 80, y: 120 + nodes.length * 40 });
+    const withSource = [...nodes, sourceNode];
+    const ensured = ensureKafkaWindowInFlow(withSource, edges);
+    setNodes(ensured.nodes);
+    setEdges(ensured.edges);
+    scheduleSave(ensured.nodes, ensured.edges);
   }
 
   function addWindow() {
@@ -369,8 +384,11 @@ export function StudioEditorPage() {
       }
       return { ...n, data };
     });
-    setNodes(next);
-    scheduleSave(next, edges);
+    const becameKafka = patch.config?.source_type === "kafka";
+    const ensured = becameKafka ? ensureKafkaWindowInFlow(next, edges) : { nodes: next, edges, injected: false };
+    setNodes(ensured.nodes);
+    setEdges(ensured.edges);
+    scheduleSave(ensured.nodes, ensured.edges);
   }
 
   function handleUpdateEdge(edgeId: string, mapping: Record<string, string>) {
@@ -483,6 +501,35 @@ export function StudioEditorPage() {
     }
   }
 
+  async function handleApplyAssistDraft(
+    draft: Partial<PipelineSummary>,
+    _result: PipelineAssistResult,
+  ) {
+    if (!pipeline || !id) return;
+    const nextName = draft.name?.trim() || pipeline.name;
+    const body = {
+      name: nextName,
+      nodes: draft.nodes || [],
+      edges: draft.edges || [],
+      layout: draft.layout || {},
+    };
+    setSaveState("saving");
+    const updated = await api.updatePipeline(id, body);
+    setPipeline(updated);
+    setPipelineName(updated.name);
+    const flow = pipelineToFlow(updated, agents);
+    setNodes(flow.nodes);
+    setEdges(flow.edges);
+    nodesRef.current = flow.nodes;
+    edgesRef.current = flow.edges;
+    setSelectedNode(null);
+    setSelectedEdge(null);
+    setValidation(_result.validation);
+    setSaveState("saved");
+    setError(null);
+    setActiveTab("canvas");
+  }
+
   function clusterBatchBlockedReason(): string | null {
     const source = nodes.find((n) => n.type === "source");
     const hasWindow = nodes.some((n) => n.type === "window");
@@ -541,6 +588,39 @@ export function StudioEditorPage() {
       </div>
       {error && <p className="error">{error}</p>}
 
+      <div className="studio-tabs" role="tablist" aria-label="Pipeline editor views">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "canvas"}
+          className={activeTab === "canvas" ? "studio-tab active" : "studio-tab"}
+          onClick={() => setActiveTab("canvas")}
+        >
+          Canvas
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "assist"}
+          className={activeTab === "assist" ? "studio-tab active" : "studio-tab"}
+          onClick={() => setActiveTab("assist")}
+        >
+          Build with assistant
+        </button>
+      </div>
+
+      {activeTab === "assist" ? (
+        <PipelineAssistPanel
+          pipelineName={pipelineName}
+          agents={agents}
+          kafkaTopics={kafkaTopics}
+          llmSettings={llmSettings}
+          busy={running || submitting}
+          onApply={handleApplyAssistDraft}
+          onError={setError}
+        />
+      ) : (
+        <>
       <RunPipelineBar
         validation={validation}
         running={running}
@@ -600,6 +680,8 @@ export function StudioEditorPage() {
       </div>
 
       {drillAgent && <AgentGraphPanel agentName={drillAgent} onClose={() => setDrillAgent(null)} />}
+        </>
+      )}
     </div>
   );
 }

@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 
 from ratatoskr.agents.registry import get_agent_spec
 from ratatoskr.agents.submit import _import_agent_class
+from ratatoskr.pipelines.agent_settings import apply_agent_node_config
 from ratatoskr.pipelines.models import AgentStepResult, Pipeline
 from ratatoskr.pipelines.validate import validate_pipeline
 
@@ -174,6 +175,10 @@ def execute_pipeline_agents(
     sink_output: list[dict[str, Any]] = []
     steps: list[AgentStepResult] = []
 
+    if not any(n.kind == "source" for n in pipeline.nodes):
+        records = input_override or [{"key": "1", "value": {}}]
+        input_override = None
+
     for node_id in order:
         node = by_id[node_id]
         if node.kind == "source":
@@ -217,6 +222,8 @@ def execute_pipeline_agents(
                     records = [_agent_output_to_input(r) for r in records]
             elif src_node.kind == "window":
                 records = [_agent_output_to_input(r) for r in records]
+
+        records = apply_agent_node_config(records, node.config)
 
         spec = get_agent_spec(node.agent)
         agent_cls = _import_agent_class(spec)

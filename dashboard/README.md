@@ -79,7 +79,7 @@ Vite proxies `/v1`, `/metrics`, and `/openapi.json` to the API on `:8090`.
 | `VITE_API_BASE_URL` | `""` (use proxy) | API base when not using the Vite dev proxy |
 | `VITE_API_KEY` | unset | `X-API-Key` header when API auth is enabled |
 
-LLM settings for ReAct agents are stored server-side (`.ratatoskr/designer.db`), not in dashboard env vars. Configure them under **Settings** in the UI.
+LLM and API fetch settings are stored server-side (`.ratatoskr/designer.db`), not in dashboard env vars. Configure them under **Settings** in the UI.
 
 ## Pages
 
@@ -90,11 +90,11 @@ LLM settings for ReAct agents are stored server-side (`.ratatoskr/designer.db`),
 | `/agents/:name` | Agent detail, Flink YAML, submit to cluster |
 | `/designer` | Agent Designer — list user-defined agents, catalog preview |
 | `/designer/:id` | Visual editor — canvas, validate, compile to Python/YAML |
-| `/settings` | LLM connection + Flink cluster readiness (Studio stack on :8082) |
+| `/settings` | LLM connection, **API fetch**, MCP servers, Flink cluster readiness |
 | `/runs` | Run history (agents + pipelines) |
 | `/runs/:id` | Run detail, execution plan, spans, output |
-| `/studio` | Agentic Studio — pipeline list |
-| `/studio/:id` | Pipeline canvas — validate, run locally, **run on Flink cluster** |
+| `/studio` | Agentic Studio — pipeline list and templates |
+| `/studio/:id` | Pipeline canvas — **Canvas** or **Build with assistant**, validate, run locally, cluster submit |
 | `/jobs` | Flink jobs list |
 | `/jobs/:id` | Job detail, cancel, link to Flink UI |
 
@@ -124,13 +124,17 @@ See [docs/AGENT_DESIGNER_PLAN.md](../docs/AGENT_DESIGNER_PLAN.md) for the full r
 
 ### Agentic Studio
 
-Compose **linear multi-agent pipelines** (Source → Agent → … → Sink):
+Compose **linear multi-agent pipelines** (Source → Window? → Agent → … → Sink):
 
-- **Palette** — Source (records or Kafka), agents from the catalog, Capture sink or **Kafka sink**
-- **Inspector** — source records, Kafka topic, edge field mappings (e.g. `{"message": "$.doubled"}`)
+- **Canvas** — drag Source (records or Kafka), **dynamic session window**, agents from the catalog, Capture or Kafka sink
+- **Build with assistant** — guided form → pipeline draft; optional LLM refine; **suggest missing agents** before create (default)
+- **Inspector** — source records, Kafka topic, window key/gap policy, edge field mappings (e.g. `{"message": "$.doubled"}`)
+- **Kafka rule** — Kafka sources automatically get a dynamic session window (required for cluster submit)
 - **Drill-down** — double-click an agent to view its internal action/tool graph
 - **Run locally** — in-process execution; links to `/runs/:id`
-- **Run on Flink cluster** — batch submit to minimal stack (`:8082`); Kafka sink default topic `workflow.test.output`
+- **Run on Flink cluster** — batch/streaming submit to minimal stack (`:8082`); Kafka sink default topic `workflow.test.output`
+
+Templates include **Counter → Echo**, **Yggdrasil Event Pipeline** (session window → detect → ReAct → Kafka), and blank pipelines.
 
 Pipelines persist in `.ratatoskr/pipelines.db`. Cluster runs need Studio Kafka (`ratatoskr kafka up`) and a healthy minimal Flink stack — use `./scripts/restart-studio-cluster.sh` after code updates.
 
@@ -142,13 +146,14 @@ Unified history for agent submits and Studio pipeline runs. Run detail shows sta
 
 ### Settings
 
-Platform-wide **LLM connection** for ReAct agents and **Flink cluster readiness** for Studio:
+Platform-wide configuration for Studio and Designer:
 
-- Endpoint URL, model ID, API key (masked on read)
-- **Test connection** — validates with a double-value prompt (3 → 6)
-- **Cluster panel** — Docker image, JobManager/TaskManager, TaskManager slots, Studio Kafka (`:9094`)
+- **Flink cluster readiness** — Docker image, JobManager/TaskManager, slots, Studio Kafka (`:9094`)
+- **LLM connection** — endpoint URL, model ID, API key for ReAct agents (masked on read); **Test connection** (3 → 6)
+- **API fetch (workflow agent)** — HTTP endpoint URL, method, auth header/prefix, optional API key for `workflow_api_fetch`; **Test fetch**
+- **MCP servers** — enable catalog MCP instances (e.g. AbuseIPDB) for Designer `mcp_tool` nodes
 
-Backed by `GET/PUT/POST /v1/designer/llm-settings` and `GET /v1/cluster/status` on the Control API.
+Backed by `GET/PUT/POST /v1/designer/llm-settings`, `/v1/designer/api-fetch-settings`, `/v1/designer/mcp-instances`, and `GET /v1/cluster/status` on the Control API.
 
 ### Jobs
 
@@ -160,7 +165,7 @@ Flink job list with cancel and a link to the Flink Web UI (port `8082` minimal s
 dashboard/
 ├── src/
 │   ├── api/              # HTTP client + TypeScript types
-│   ├── components/       # Shared UI (Layout, badges, LLM settings, …)
+│   ├── components/       # Shared UI (Layout, LLM/API fetch settings, MCP, …)
 │   ├── designer/       # Agent Designer canvas, palette, inspector
 │   ├── hooks/            # SSE event stream, Flink URL
 │   ├── pages/            # Route pages
@@ -193,6 +198,9 @@ Key client methods:
 | `runPipeline(id)` | `POST /v1/pipelines/{id}/run` | Studio local run |
 | `submitPipeline(id)` | `POST /v1/pipelines/{id}/submit` | Studio cluster submit |
 | `validatePipeline(id)` | `POST /v1/pipelines/{id}/validate` | Local + cluster validation |
+| `assistGeneratePipeline(body)` | `POST /v1/pipelines/assist/generate` | Pipeline assistant draft |
+| `assistBuildPipeline(body)` | `POST /v1/pipelines/assist/build` | Publish suggested agents + rebuild |
+| `apiFetchSettings()` | `GET /v1/designer/api-fetch-settings` | Workflow API fetch config |
 
 ## Build
 

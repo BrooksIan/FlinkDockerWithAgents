@@ -147,6 +147,7 @@ def _cluster_copy_pairs(root: Path, pipeline: Pipeline, runner_path: Path) -> li
         "ratatoskr/kafka_sources.py",
         "ratatoskr/pipelines/cluster_kafka_sink.py",
         "ratatoskr/pipelines/cluster_codegen.py",
+        "ratatoskr/pipelines/agent_settings.py",
         "ratatoskr/pipelines/window_config.py",
         "ratatoskr/pipelines/window_policies.py",
         "ratatoskr/pipelines/window_ops.py",

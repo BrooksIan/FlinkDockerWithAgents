@@ -50,6 +50,25 @@ def test_pipeline_store_crud() -> None:
             pass
 
 
+def test_create_yggdrasil_event_pipeline() -> None:
+    from ratatoskr.pipelines.service import (
+        PipelineService,
+        create_yggdrasil_event_pipeline,
+        reset_pipeline_service_for_tests,
+    )
+    from ratatoskr.pipelines.store import PipelineStore
+
+    reset_pipeline_service_for_tests()
+    with tempfile.TemporaryDirectory() as tmp:
+        service = PipelineService(PipelineStore(Path(tmp) / "pipelines.db"))
+        created = create_yggdrasil_event_pipeline(service)
+
+        assert created["name"] == "Yggdrasil Event Pipeline"
+        assert len(created["nodes"]) == 5
+        assert created["edges"][2]["mapping"] == {"message": "$.severity"}
+        assert service.validate(created["id"])["valid"] is True
+
+
 def test_pipeline_validation_errors() -> None:
     from ratatoskr.pipelines.models import Pipeline, PipelineEdge, PipelineNode
     from ratatoskr.pipelines.validate import validate_pipeline
@@ -95,6 +114,29 @@ def test_pipeline_validation_strips_orphan_edges() -> None:
     assert result["valid"] is True
     assert len(pipeline.edges) == 2
     assert {e.id for e in pipeline.edges} == {"e1", "e2"}
+
+
+def test_yggdrasil_event_pipeline_template_validates() -> None:
+    from ratatoskr.pipelines.models import pipeline_from_dict
+    from ratatoskr.pipelines.service import yggdrasil_event_pipeline_template
+    from ratatoskr.pipelines.validate import validate_pipeline
+
+    pipeline = pipeline_from_dict(
+        {
+            "id": "pipe_yggdrasil",
+            **yggdrasil_event_pipeline_template(),
+        }
+    )
+
+    result = validate_pipeline(pipeline)
+    assert result["valid"] is True
+    assert [n.kind for n in pipeline.nodes] == ["source", "window", "agent", "agent", "sink"]
+    assert [n.agent for n in pipeline.nodes if n.kind == "agent"] == [
+        "session_detect",
+        "react_echo",
+    ]
+    assert pipeline.edges[2].mapping == {"message": "$.severity"}
+    assert pipeline.nodes[-1].config == {"sink_type": "kafka", "topic": "cowrie.react_alerts"}
 
 
 def test_agent_graph_introspect() -> None:
@@ -247,6 +289,39 @@ def test_kafka_source_validation() -> None:
                 kind="source",
                 config={"source_type": "kafka", "topic": "cowrie.normalized", "max_records": 5},
             ),
+            PipelineNode(
+                id="win1",
+                kind="window",
+                config={
+                    "window_type": "dynamic_session",
+                    "key_field": "key",
+                    "gap_policy": "default",
+                    "gap_ms": 1000,
+                    "time_mode": "processing",
+                    "execution_mode": "logic",
+                },
+            ),
+            PipelineNode(id="a1", kind="agent", agent="workflow_counter"),
+            PipelineNode(id="sink1", kind="sink"),
+        ],
+        edges=[
+            PipelineEdge(id="e1", source="src1", target="win1"),
+            PipelineEdge(id="e2", source="win1", target="a1"),
+            PipelineEdge(id="e3", source="a1", target="sink1"),
+        ],
+    )
+    result = validate_pipeline(ok)
+    assert result["valid"] is True
+
+    missing_window = Pipeline(
+        id="pipe_kafka_no_window",
+        name="kafka no window",
+        nodes=[
+            PipelineNode(
+                id="src1",
+                kind="source",
+                config={"source_type": "kafka", "topic": "cowrie.normalized", "max_records": 5},
+            ),
             PipelineNode(id="a1", kind="agent", agent="workflow_counter"),
             PipelineNode(id="sink1", kind="sink"),
         ],
@@ -255,20 +330,27 @@ def test_kafka_source_validation() -> None:
             PipelineEdge(id="e2", source="a1", target="sink1"),
         ],
     )
-    result = validate_pipeline(ok)
-    assert result["valid"] is True
+    missing_window_result = validate_pipeline(missing_window)
+    assert missing_window_result["valid"] is False
+    assert any("window" in e.lower() for e in missing_window_result["errors"])
 
     bad = Pipeline(
         id="pipe_bad_kafka",
         name="bad",
         nodes=[
             PipelineNode(id="src1", kind="source", config={"source_type": "kafka"}),
+            PipelineNode(
+                id="win1",
+                kind="window",
+                config={"window_type": "dynamic_session", "key_field": "key", "gap_policy": "default"},
+            ),
             PipelineNode(id="a1", kind="agent", agent="workflow_counter"),
             PipelineNode(id="sink1", kind="sink"),
         ],
         edges=[
-            PipelineEdge(id="e1", source="src1", target="a1"),
-            PipelineEdge(id="e2", source="a1", target="sink1"),
+            PipelineEdge(id="e1", source="src1", target="win1"),
+            PipelineEdge(id="e2", source="win1", target="a1"),
+            PipelineEdge(id="e3", source="a1", target="sink1"),
         ],
     )
     bad_result = validate_pipeline(bad)
@@ -323,6 +405,9 @@ def main() -> int:
     print("=" * 60)
     test_pipeline_store_crud()
     print("OK  pipeline store CRUD")
+    test_create_yggdrasil_event_pipeline()
+    test_yggdrasil_event_pipeline_template_validates()
+    print("OK  Yggdrasil event pipeline template")
     test_pipeline_validation_errors()
     print("OK  pipeline validation")
     test_agent_graph_introspect()

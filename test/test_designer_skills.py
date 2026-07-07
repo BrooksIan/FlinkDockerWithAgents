@@ -138,6 +138,53 @@ def test_designer_skills_api() -> None:
     assert any(item["id"] == "math-calculator" for item in body)
 
 
+def test_create_and_delete_user_skill(tmp_path: Path) -> None:
+    from ratatoskr.designer.skills_catalog import (
+        create_user_skill,
+        delete_user_skill,
+        list_skill_catalog,
+    )
+
+    content = (
+        "---\n"
+        "name: greeter\n"
+        "description: Say hello using echo.\n"
+        "compatibility: Requires bash with echo\n"
+        "---\n\n"
+        "# Greeter\n\nRun `echo hello`.\n"
+    )
+
+    created = create_user_skill(content, root=tmp_path)
+    assert created["id"] == "greeter"
+    assert created["source"] == "user"
+    assert (tmp_path / "data" / "skills" / "greeter" / "SKILL.md").is_file()
+
+    ids = {entry.id for entry in list_skill_catalog(root=tmp_path)}
+    assert "greeter" in ids
+
+    # Duplicate name is rejected.
+    try:
+        create_user_skill(content, root=tmp_path)
+    except ValueError:
+        pass
+    else:  # pragma: no cover
+        raise AssertionError("expected ValueError for duplicate skill")
+
+    assert delete_user_skill("greeter", root=tmp_path) is True
+    assert "greeter" not in {e.id for e in list_skill_catalog(root=tmp_path)}
+
+
+def test_create_user_skill_rejects_invalid_frontmatter(tmp_path: Path) -> None:
+    from ratatoskr.designer.skills_catalog import create_user_skill
+
+    for bad in ("no frontmatter here", "---\ndescription: missing name\n---\nbody"):
+        try:
+            create_user_skill(bad, root=tmp_path)
+        except ValueError:
+            continue
+        raise AssertionError("expected ValueError for invalid SKILL.md")
+
+
 if __name__ == "__main__":
     test_skill_catalog_lists_math_calculator()
     print("OK  skill catalog")

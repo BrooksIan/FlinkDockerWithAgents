@@ -494,6 +494,27 @@ class AgentDefinitionService:
                 text=True,
             )
 
+        # User-authored skills (pasted through the designer) are merged into the
+        # same /opt/flink/examples/skills directory the agent loads from.
+        user_skills_dir = repo / "data" / "skills"
+        if user_skills_dir.is_dir():
+            import subprocess
+
+            subprocess.run(
+                ["docker", "exec", "-u", "root", cid, "mkdir", "-p", "/opt/flink/examples/skills"],
+                cwd=repo,
+                capture_output=True,
+                text=True,
+            )
+            for skill_dir in user_skills_dir.iterdir():
+                if skill_dir.is_dir():
+                    subprocess.run(
+                        ["docker", "cp", str(skill_dir), f"{cid}:/opt/flink/examples/skills"],
+                        cwd=repo,
+                        capture_output=True,
+                        text=True,
+                    )
+
         sample = records if records is not None else self._default_sample_records(definition)
         runtime_records = self._normalize_records_for_runtime(sample)
 

@@ -31,6 +31,7 @@ def _pipeline_copy_pairs(root: Path, pipeline: Pipeline) -> list[tuple[str, str]
         "ratatoskr/agents/submit.py",
         "ratatoskr/copy_manifest.py",
         "ratatoskr/docker_utils.py",
+        "ratatoskr/kafka_sources.py",
         "ratatoskr/manifests.py",
         "ratatoskr/runs/__init__.py",
         "ratatoskr/runs/models.py",
@@ -41,6 +42,7 @@ def _pipeline_copy_pairs(root: Path, pipeline: Pipeline) -> list[tuple[str, str]
         "ratatoskr/pipelines/models.py",
         "ratatoskr/pipelines/validate.py",
         "ratatoskr/pipelines/executor.py",
+        "ratatoskr/pipelines/agent_settings.py",
         "ratatoskr/pipelines/window_config.py",
         "ratatoskr/pipelines/window_policies.py",
         "ratatoskr/pipelines/window_ops.py",
@@ -54,7 +56,10 @@ def _pipeline_copy_pairs(root: Path, pipeline: Pipeline) -> list[tuple[str, str]
         "ratatoskr/designer/store.py",
         "ratatoskr/designer/llm_settings.py",
         "ratatoskr/designer/llm_client.py",
+        "ratatoskr/designer/api_fetch_settings.py",
         "ratatoskr/designer/runtime_env.py",
+        "ratatoskr/httpio/__init__.py",
+        "ratatoskr/httpio/fetch.py",
         "examples/agents/__init__.py",
     ):
         local = root / rel

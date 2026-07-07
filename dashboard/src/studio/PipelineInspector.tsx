@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import type { Edge, Node } from "@xyflow/react";
 import type { KafkaTopicSummary } from "../api/types";
+import { AgentNodeSettingsForm } from "./AgentNodeSettingsForm";
+import { agentSettingsDefinition } from "./agentSettings";
 
 interface Props {
   selectedNode: Node | null;
@@ -309,12 +311,36 @@ export function PipelineInspector({
   }
 
   if (kind === "agent") {
-    const d = selectedNode.data as { agent?: string; agentType?: string; description?: string };
+    const d = selectedNode.data as {
+      agent?: string;
+      agentType?: string;
+      description?: string;
+      config?: Record<string, unknown>;
+    };
+    const config = d.config || {};
+    const settingsDef = agentSettingsDefinition(d.agent);
     return (
       <div className="studio-inspector card">
         <h3 style={{ marginTop: 0 }}>Agent: {d.agent}</h3>
         <p className="muted">Type: {d.agentType}</p>
-        <p className="muted">Double-click the node to view its internal action/tool graph.</p>
+        {d.description && (
+          <p className="muted" style={{ fontSize: "0.85rem" }}>
+            {d.description}
+          </p>
+        )}
+        {settingsDef ? (
+          <AgentNodeSettingsForm
+            agent={d.agent || ""}
+            config={config}
+            kafkaTopics={kafkaTopics}
+            onUpdate={(next) => onUpdateNode(selectedNode.id, { config: next })}
+          />
+        ) : (
+          <p className="muted">No per-node settings for this agent.</p>
+        )}
+        <p className="muted" style={{ fontSize: "0.8rem", marginTop: "0.75rem" }}>
+          Double-click the node to view its internal action/tool graph.
+        </p>
         {deleteButton}
       </div>
     );

@@ -75,6 +75,9 @@ ratatoskr/
 │   ├── observability.py   # Prometheus + JSON logging
 │   └── config.py          # Env-based settings
 ├── agents/                # Registry + submit helpers
+├── designer/              # Agent definitions, LLM + API fetch platform settings
+├── pipelines/             # Studio pipelines, assist, validation, cluster codegen
+├── http/                  # Shared HTTP fetch helper (workflow_api_fetch)
 ├── runtime/               # Flink cluster submit + studio sync
 │   ├── flink_cluster_submit.py
 │   └── studio_cluster_sync.py   # Copy runtime into JM/TM after updates
@@ -113,6 +116,7 @@ ratatoskr/
 | `FLINK_REST_ADDRESS` | `localhost` | JobManager for API/CLI |
 | `FLINK_REST_PORT` | `8082` (minimal) / `8081` (full) | Host Flink REST port |
 | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9094` | Studio Kafka (after `ratatoskr kafka up`) |
+| `RATATOSKR_API_FETCH_ENDPOINT_URL` | unset | Default URL for `workflow_api_fetch` |
 | `RATATOSKR_PROFILE` | `minimal` | Compose profile for agent/pipeline cluster submit |
 
 See [../.env.example](../.env.example).

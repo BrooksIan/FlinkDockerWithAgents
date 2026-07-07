@@ -114,6 +114,9 @@ Presets in `ratatoskr/manifests/startup-modes.yaml`:
 | `GET` | `/v1/designer/llm-settings` | Yes | ReAct LLM settings (key masked) |
 | `PUT` | `/v1/designer/llm-settings` | Yes | Update LLM endpoint, model, API key |
 | `POST` | `/v1/designer/llm-settings/test` | Yes | Test LLM with double-value prompt |
+| `GET` | `/v1/designer/api-fetch-settings` | Yes | Workflow API fetch settings (key masked) |
+| `PUT` | `/v1/designer/api-fetch-settings` | Yes | Update HTTP endpoint URL, method, auth |
+| `POST` | `/v1/designer/api-fetch-settings/test` | Yes | Test fetch against configured URL |
 | `GET` | `/v1/agent-definitions` | Yes | List designer agent definitions |
 | `POST` | `/v1/agent-definitions` | Yes | Create definition |
 | `GET` | `/v1/agent-definitions/{id}` | Yes | Get designer definition |
@@ -131,6 +134,8 @@ Presets in `ratatoskr/manifests/startup-modes.yaml`:
 | `POST` | `/v1/pipelines/{id}/validate` | Yes | Validate linear pipeline (local + cluster) |
 | `POST` | `/v1/pipelines/{id}/run` | Yes | Run pipeline locally |
 | `POST` | `/v1/pipelines/{id}/submit` | Yes | Submit batch pipeline to minimal Flink cluster |
+| `POST` | `/v1/pipelines/assist/generate` | Yes | Generate pipeline draft from structured intent (+ optional LLM) |
+| `POST` | `/v1/pipelines/assist/build` | Yes | Publish approved agent suggestions and rebuild pipeline |
 | `GET` | `/v1/kafka/topics` | Yes | List known / discoverable Kafka topics |
 | `GET` | `/v1/cluster/status` | Yes | Studio Flink + Kafka readiness checks |
 | `POST` | `/v1/cluster/validate` | Yes | Re-run cluster readiness checks |
@@ -158,6 +163,9 @@ ratatoskr api check              # probe /v1/health
 | `FLINK_REST_ADDRESS` | `localhost` | Flink JobManager host for API/CLI |
 | `FLINK_REST_PORT` | `8082` (minimal) / `8081` (full) | Host Flink REST / Web UI port |
 | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9094` | Studio Kafka (`ratatoskr kafka up`) |
+| `RATATOSKR_API_FETCH_ENDPOINT_URL` | *(unset)* | Default HTTP URL for `workflow_api_fetch` |
+| `RATATOSKR_API_FETCH_HTTP_METHOD` | `GET` | HTTP method for API fetch agent |
+| `RATATOSKR_API_FETCH_API_KEY` | *(unset)* | Optional bearer/API key for API fetch agent |
 | `RATATOSKR_PROFILE` | `minimal` | Compose profile for agent/pipeline cluster submit |
 | `RATATOSKR_LOG_JSON` | `0` | `1` = structured JSON logs from API |
 
@@ -181,9 +189,11 @@ Agents are declared in [`examples/agents/agent-manifest.yaml`](../examples/agent
 | Agent | Type | Description |
 |-------|------|-------------|
 | `workflow_counter` | workflow | Deterministic `@action` + `@tool` — doubles integers |
+| `workflow_api_fetch` | workflow | Fetches JSON from HTTP endpoint (Settings → API fetch) |
 | `react_echo` | react | Tool-chaining lab agent (no LLM) |
 | `react_double_value` | react | ReAct agent that doubles values via LLM (requires Settings LLM) |
 | `react_skills_demo` | react | Native Flink chat model + math-calculator skill (requires Settings LLM) |
+| `session_detect` | workflow | Classify closed sessions from dynamic Flink windows (Cowrie demo) |
 
 ```bash
 ratatoskr agent list
@@ -280,7 +290,7 @@ Or manually: `ratatoskr api start` then `cd dashboard && npm run dev`.
 | `/agents/:name` | Detail, Flink YAML, submit |
 | `/designer` | Agent Designer — user definitions + catalog preview |
 | `/designer/:id` | Visual editor — validate, compile to Python/YAML |
-| `/settings` | LLM connection for ReAct agents |
+| `/settings` | LLM connection, **API fetch**, MCP servers, cluster readiness |
 | `/runs` | Agent and pipeline run history |
 | `/runs/:id` | Run detail, execution plan, spans |
 | `/studio` | **Agentic Studio** — pipeline list |
@@ -296,25 +306,55 @@ Visual editor for **workflow** and **ReAct** agents. Definitions persist in `.ra
 - **Runtime vs designer:** `GET /v1/agents/{name}/definition` returns manifest Flink YAML for registered agents. `GET /v1/agent-definitions/{id}` returns the designer graph — different stores, different IDs.
 - **Compile:** `POST /v1/agent-definitions/{id}/compile` generates Python modules, Flink YAML, manifest snippet, and a local runner.
 - **LLM:** ReAct agents use platform settings from `/v1/designer/llm-settings` (configured in dashboard **Settings**).
+- **API fetch:** `workflow_api_fetch` uses `/v1/designer/api-fetch-settings` (endpoint URL, method, optional API key).
 
 Roadmap: [AGENT_DESIGNER_PLAN.md](AGENT_DESIGNER_PLAN.md).
 
 ### Agentic Studio
 
-Compose **linear multi-agent pipelines** visually (Source → Agent → … → Sink):
+Compose **linear multi-agent pipelines** visually (Source → Window? → Agent → … → Sink):
 
 1. Open **Studio** in the dashboard sidebar.
-2. Create a pipeline (demo template: `workflow_counter` → `react_echo` with edge mapping).
-3. Connect nodes left-to-right; configure source records, Kafka topics, and edge field mapping in the inspector.
-4. **Validate**, then **Run locally** or **Run on Flink cluster** — creates a run with per-agent spans on `/runs/:id`.
-5. Double-click an agent node to view its internal action/tool graph (read-only).
+2. Create a pipeline from a template (Counter → Echo, **Yggdrasil Event Pipeline**, or blank).
+3. Use the **Canvas** tab to connect nodes left-to-right, or **Build with assistant** to generate a draft from a guided form.
+4. Configure source records, Kafka topics, dynamic session windows, and edge field mapping in the inspector.
+5. **Validate**, then **Run locally** or **Run on Flink cluster** — creates a run with per-agent spans on `/runs/:id`.
+6. Double-click an agent node to view its internal action/tool graph (read-only).
+
+#### Build with assistant
+
+The **Build with assistant** tab collects structured intent (goal, domain, source/sink, windowing, agents) and returns a validated pipeline draft. Optional LLM refinement uses the same Designer LLM settings as the Agent Designer.
+
+When the catalog lacks a strong match, the assistant can **suggest new agents** before creating them (default mode):
+
+| Mode | Behavior |
+|------|----------|
+| **Suggest** (default) | Show proposed workflow/ReAct agents; user checks which to create |
+| **Existing only** | Use catalog agents only |
+| **Auto create** | Create all suggested agents on apply |
+
+Approved suggestions are published via `POST /v1/pipelines/assist/build`, which compiles Designer definitions and wires manifest names into the pipeline graph.
+
+#### Kafka sources and windows
+
+**Kafka streaming sources require a dynamic session window** in the pipeline. Studio and the pipeline assistant enforce this automatically:
+
+- Adding a Kafka source on the canvas inserts a `dynamic_session` window node when missing.
+- The assistant forces windowing when `source_type` is `kafka`.
+- Validation rejects Kafka pipelines without a window node.
+
+The **Yggdrasil Event Pipeline** template demonstrates the Ratatoskr multi-agent pattern:
+`source records → dynamic session window → session_detect → react_echo → cowrie.react_alerts`.
+It keeps deterministic workflow detection on the main path and sends the resulting severity
+through a ReAct-style enrichment agent before writing to Kafka.
 
 Pipelines persist in `.ratatoskr/pipelines.db`. Cluster submit targets the **minimal** Flink stack on host port **8082** (not honeypot `:8081`).
 
 | Capability | Local run | Cluster submit |
 |------------|-----------|----------------|
 | Static source records | Yes | Yes (batch) |
-| Kafka source | Yes (sample) | Not yet |
+| Kafka source | Yes (sample) | Requires dynamic window in graph |
+| Dynamic session window | Yes | Yes (streaming window codegen) |
 | Capture sink | Yes | Yes (`print`) |
 | Kafka sink | Yes | Yes (Flink Agents sink agent; default topic `workflow.test.output`) |
 | Published ReAct agents | Yes | Warn-only (Pemja unreliable on cluster) |

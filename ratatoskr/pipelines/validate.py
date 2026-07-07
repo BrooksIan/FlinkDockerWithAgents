@@ -19,10 +19,23 @@ _AGENT_INPUT_FIELDS: dict[str, set[str]] = {
 _AGENT_OUTPUT_FIELDS: dict[str, set[str]] = {
     "workflow_counter": {"input", "doubled", "agent"},
     "react_echo": {"message", "severity", "summary", "agent", "pattern"},
+    "session_detect": {
+        "src_ip",
+        "severity",
+        "event_count",
+        "first_ts",
+        "last_ts",
+        "response_actions",
+        "agent",
+    },
 }
 
 
-def validate_pipeline(pipeline: Pipeline) -> dict[str, Any]:
+def validate_pipeline(
+    pipeline: Pipeline,
+    *,
+    extra_known_agents: set[str] | None = None,
+) -> dict[str, Any]:
     """Return {valid, errors, warnings}."""
     errors: list[str] = []
     warnings: list[str] = []
@@ -35,7 +48,12 @@ def validate_pipeline(pipeline: Pipeline) -> dict[str, Any]:
     agents = [n for n in pipeline.nodes if n.kind == "agent"]
     windows = [n for n in pipeline.nodes if n.kind == "window"]
 
-    if len(sources) != 1:
+    from ratatoskr.pipelines.agent_settings import is_self_sourcing
+
+    has_self_sourcing_agent = any(is_self_sourcing(n.agent) for n in agents)
+    if len(sources) > 1:
+        errors.append("Pipeline must have at most one source node")
+    elif len(sources) == 0 and not has_self_sourcing_agent:
         errors.append("Pipeline must have exactly one source node")
     if len(sinks) != 1:
         errors.append("Pipeline must have exactly one sink node")
@@ -45,6 +63,8 @@ def validate_pipeline(pipeline: Pipeline) -> dict[str, Any]:
         errors.append("Pipeline may include at most one window node")
 
     known_agents = set(list_agent_names())
+    if extra_known_agents:
+        known_agents |= extra_known_agents
     node_ids = {n.id for n in pipeline.nodes}
     if len(node_ids) != len(pipeline.nodes):
         errors.append("Duplicate node ids in graph")
@@ -79,6 +99,15 @@ def validate_pipeline(pipeline: Pipeline) -> dict[str, Any]:
                 errors.append(f"Agent node {node.id!r} missing agent name")
             elif node.agent not in known_agents:
                 errors.append(f"Unknown agent {node.agent!r} on node {node.id!r}")
+            else:
+                from ratatoskr.pipelines.agent_settings import missing_required_settings
+
+                missing = missing_required_settings(node.agent, node.config)
+                if missing:
+                    labels = ", ".join(missing)
+                    errors.append(
+                        f"Agent {node.agent!r} on node {node.id!r} missing required settings: {labels}"
+                    )
         if node.kind == "window":
             _validate_window_node(node, errors, warnings)
 
@@ -105,7 +134,7 @@ def validate_pipeline(pipeline: Pipeline) -> dict[str, Any]:
         _check_window_topology(pipeline, ordered, errors, warnings)
 
     _check_edge_mappings(pipeline, warnings)
-    _check_kafka_nodes(pipeline, warnings)
+    _check_kafka_nodes(pipeline, warnings, errors)
 
     return {"valid": len(errors) == 0, "errors": errors, "warnings": warnings}
 
@@ -129,16 +158,21 @@ def _check_kafka_node(
         )
 
 
-def _check_kafka_nodes(pipeline: Pipeline, warnings: list[str]) -> None:
+def _check_kafka_nodes(pipeline: Pipeline, warnings: list[str], errors: list[str]) -> None:
     from ratatoskr.kafka_sources import kafka_reachable, known_pipeline_topics
 
     known = set(known_pipeline_topics())
     kafka_configured = False
     for node in pipeline.nodes:
         if node.kind == "source":
-            _check_kafka_node("source", node.config, warnings=warnings, known=known)
-            if str(node.config.get("source_type") or "").strip().lower() == "kafka":
+            source_type = str(node.config.get("source_type") or "records").strip().lower()
+            if source_type == "kafka":
                 kafka_configured = True
+                if not any(n.kind == "window" for n in pipeline.nodes):
+                    errors.append(
+                        "Kafka source requires a dynamic session window node directly after the source"
+                    )
+            _check_kafka_node("source", node.config, warnings=warnings, known=known)
         if node.kind == "sink":
             _check_kafka_node("sink", node.config, warnings=warnings, known=known)
             if str(node.config.get("sink_type") or "").strip().lower() == "kafka":
@@ -235,14 +269,18 @@ def _validate_linear_topology(
     if _is_linear_chain(ordered, pipeline):
         return ordered
 
+    from ratatoskr.pipelines.agent_settings import is_self_sourcing
+
     kinds = [by_id[nid].kind for nid in ordered]
+    head = by_id[ordered[0]]
+    head_ok = kinds[0] == "source" or (kinds[0] == "agent" and is_self_sourcing(head.agent))
     has_window = any(n.kind == "window" for n in pipeline.nodes)
     if has_window and "window" not in kinds[1:-1]:
         errors.append(
             "Window node is not in the execution path — click Connect chain to wire "
             "source → window → agent → sink"
         )
-    elif kinds[0] != "source":
+    elif not head_ok:
         errors.append("Pipeline must start with a source node")
     elif kinds[-1] != "sink":
         errors.append("Pipeline must end with a sink node")
@@ -313,9 +351,15 @@ def _check_window_topology(
 def _is_linear_chain(order: list[str], pipeline: Pipeline) -> bool:
     if len(order) != len(pipeline.nodes):
         return False
+    from ratatoskr.pipelines.agent_settings import is_self_sourcing
+
     by_id = {n.id: n for n in pipeline.nodes}
     kinds = [by_id[nid].kind for nid in order]
-    if kinds[0] != "source" or kinds[-1] != "sink":
+    head = by_id[order[0]]
+    head_ok = kinds[0] == "source" or (
+        kinds[0] == "agent" and is_self_sourcing(head.agent)
+    )
+    if not head_ok or kinds[-1] != "sink":
         return False
     middle = kinds[1:-1]
     window_count = sum(1 for kind in middle if kind == "window")

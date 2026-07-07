@@ -59,6 +59,7 @@ curl http://127.0.0.1:8090/v1/agents
 ```bash
 ratatoskr agent list
 ratatoskr agent run workflow_counter --local
+ratatoskr agent run workflow_api_fetch --local   # needs API URL in Settings or .env
 ratatoskr agent submit workflow_counter
 ratatoskr doctor
 ratatoskr verify --tier quick
@@ -72,7 +73,7 @@ ratatoskr verify --tier quick
 
 Stop: `./scripts/dev-stop.sh`
 
-Dashboard: http://localhost:3000 — Overview, agent catalog, **Agent Designer**, **Agentic Studio**, runs, jobs, and LLM settings.
+Dashboard: http://localhost:3000 — Overview, agent catalog, **Agent Designer**, **Agentic Studio** (canvas + **Build with assistant**), runs, jobs, and platform **Settings** (LLM, API fetch, MCP).
 
 ![Ratatoskr Overview — live health, Flink status, and recent jobs](docs/images/UIScreenshots/Overview.png)
 
@@ -85,7 +86,7 @@ Dashboard: http://localhost:3000 — Overview, agent catalog, **Agent Designer**
 | Agentic Studio | ![Agentic Studio — pipeline list and templates](docs/images/UIScreenshots/PipelineStudio.png) |
 | Studio canvas | ![Studio canvas — compose source → agent → sink pipelines](docs/images/UIScreenshots/JobsCanvas.png) |
 | Runs | ![Runs — local and cluster execution history](docs/images/UIScreenshots/JobsView.png) |
-| Settings | ![Settings — LLM connection and MCP servers](docs/images/UIScreenshots/Settings_LLMs.png) |
+| Settings | ![Settings — LLM, API fetch, MCP, cluster readiness](docs/images/UIScreenshots/Settings_LLMs.png) |
 
 See [dashboard/README.md](dashboard/README.md) and [docs/PLATFORM.md](docs/PLATFORM.md).
 
@@ -113,7 +114,7 @@ See [honeypot/README.md](honeypot/README.md).
 .
 ├── ratatoskr/                 # CLI package + api/ + agents/ + runtime/
 ├── examples/
-│   └── agents/                # workflow_counter, react_echo + manifest
+│   └── agents/                # workflow_counter, workflow_api_fetch, react_echo + manifest
 ├── docs/                      # FLINK_AGENTS.md, PLATFORM.md
 ├── honeypot/                  # Optional Cowrie subproject
 ├── test/                      # Platform + CLI tests

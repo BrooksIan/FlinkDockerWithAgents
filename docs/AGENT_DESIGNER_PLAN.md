@@ -26,7 +26,19 @@ The designer targets **workflow agents first**; ReAct agents (multi-step tool lo
 
 ---
 
-## Phase 0 — ReAct LLM defaults (implemented)
+## Phase 0 — Platform settings (implemented)
+
+| Setting | API | UI |
+|---------|-----|-----|
+| ReAct LLM | `GET/PUT/POST /v1/designer/llm-settings` | **Settings → LLM connection** |
+| Workflow API fetch | `GET/PUT/POST /v1/designer/api-fetch-settings` | **Settings → API fetch** |
+| MCP instances | `GET/PUT /v1/designer/mcp-instances/{catalog_id}` | **Settings → MCP servers** |
+
+Store: `.ratatoskr/designer.db` with environment variable fallbacks (see `.env.example`).
+
+---
+
+## Phase 0b — ReAct LLM defaults (implemented)
 
 Platform-wide OpenAI-compatible settings for all ReAct agents:
 

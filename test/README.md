@@ -15,6 +15,8 @@ Tests for the **Ratatoskr Flink Agents platform** and workspace-wide CLI behavio
 | `test_api_platform.py` | Control API OpenAPI, health, metrics, auth |
 | `test_launch_flink_agents.py` | Flink Agents import + cluster launch smoke |
 | `test_pipelines_platform.py` | Studio pipelines API + Kafka validation |
+| `test_pipeline_assist.py` | Pipeline assistant generate/build + agent suggestions |
+| `test_api_fetch_settings.py` | API fetch settings + `workflow_api_fetch` |
 | `test_pipeline_cluster_submit.py` | Cluster codegen, validate, submit |
 | `honeypot/test/` | Cowrie pipeline, policy, traps, ReAct (optional) |
 

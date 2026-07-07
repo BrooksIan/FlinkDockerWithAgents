@@ -254,6 +254,40 @@ def test_react_llm_settings_api(body: dict[str, Any] | None = None) -> dict[str,
         raise ValueError(str(exc)) from exc
 
 
+def get_api_fetch_settings_api() -> dict[str, Any]:
+    from ratatoskr.designer.api_fetch_settings import api_fetch_settings_for_api
+
+    return api_fetch_settings_for_api()
+
+
+def update_api_fetch_settings_api(body: dict[str, Any]) -> dict[str, Any]:
+    from ratatoskr.designer.api_fetch_settings import update_api_fetch_settings
+
+    endpoint_url = str(body.get("endpoint_url") or "").strip()
+    if not endpoint_url:
+        raise ValueError("endpoint_url is required")
+    http_method = str(body.get("http_method") or "GET").strip()
+    api_key_raw = body.get("api_key")
+    api_key = None if api_key_raw is None else str(api_key_raw)
+    auth_header = str(body.get("auth_header") or "Authorization").strip()
+    auth_prefix = str(body.get("auth_prefix") if body.get("auth_prefix") is not None else "Bearer")
+    timeout_seconds = int(body.get("timeout_seconds") or 15)
+    return update_api_fetch_settings(
+        endpoint_url=endpoint_url,
+        http_method=http_method,
+        api_key=api_key,
+        auth_header=auth_header,
+        auth_prefix=auth_prefix,
+        timeout_seconds=timeout_seconds,
+    )
+
+
+def test_api_fetch_settings_api(body: dict[str, Any] | None = None) -> dict[str, Any]:
+    from ratatoskr.designer.api_fetch_settings import test_api_fetch_settings
+
+    return test_api_fetch_settings(body=body)
+
+
 def mcp_catalog_api() -> dict[str, Any]:
     from ratatoskr.mcp.catalog import McpCatalogError, mcp_catalog_response
 
@@ -401,4 +435,28 @@ def refine_agent_definition_assist(
         )
     except LlmNotConfiguredError as exc:
         raise ValueError(str(exc)) from exc
+    return assist_result_to_dict(result)
+
+
+def generate_pipeline_assist(body: dict[str, Any]) -> dict[str, Any]:
+    from ratatoskr.pipelines.assist import assist_result_to_dict, generate_pipeline_assist as _generate
+
+    try:
+        result = _generate(body)
+    except ValueError as exc:
+        raise ValueError(str(exc)) from exc
+    except RuntimeError as exc:
+        raise RuntimeError(str(exc)) from exc
+    return assist_result_to_dict(result)
+
+
+def build_pipeline_assist(body: dict[str, Any]) -> dict[str, Any]:
+    from ratatoskr.pipelines.assist import assist_result_to_dict, build_pipeline_assist as _build
+
+    try:
+        result = _build(body)
+    except ValueError as exc:
+        raise ValueError(str(exc)) from exc
+    except RuntimeError as exc:
+        raise RuntimeError(str(exc)) from exc
     return assist_result_to_dict(result)

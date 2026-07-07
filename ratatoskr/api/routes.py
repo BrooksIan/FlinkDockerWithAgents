@@ -55,6 +55,30 @@ class PipelineRunRequest(BaseModel):
     records: list[dict[str, Any]] | None = None
 
 
+class PipelineAssistGenerateRequest(BaseModel):
+    goal: str
+    pipeline_name: str | None = None
+    domain: str | None = "auto"
+    source_type: str | None = "records"
+    source_topic: str | None = None
+    use_windowing: bool = False
+    window_key_field: str | None = "key"
+    window_gap_policy: str | None = "default"
+    workflow_agent: str | None = "auto"
+    use_react_enrichment: bool = False
+    react_agent: str | None = "auto"
+    react_policy: str | None = "none"
+    sink_type: str | None = "capture"
+    sink_topic: str | None = None
+    preference: str | None = "balanced"
+    use_llm: bool = True
+    agent_creation_mode: str | None = "suggest"
+
+
+class PipelineAssistBuildRequest(PipelineAssistGenerateRequest):
+    approved_suggestions: list[dict[str, Any]] = Field(default_factory=list)
+
+
 class ReactLlmSettingsUpdate(BaseModel):
     endpoint_url: str
     model_id: str
@@ -67,6 +91,24 @@ class ReactLlmSettingsTest(BaseModel):
     api_key: str | None = None
 
 
+class ApiFetchSettingsUpdate(BaseModel):
+    endpoint_url: str
+    http_method: str | None = "GET"
+    api_key: str | None = None
+    auth_header: str | None = "Authorization"
+    auth_prefix: str | None = "Bearer"
+    timeout_seconds: int | None = 15
+
+
+class ApiFetchSettingsTest(BaseModel):
+    endpoint_url: str | None = None
+    http_method: str | None = None
+    api_key: str | None = None
+    auth_header: str | None = None
+    auth_prefix: str | None = None
+    timeout_seconds: int | None = None
+
+
 class McpInstanceUpdate(BaseModel):
     enabled: bool = False
     secrets: dict[str, str] | None = None
@@ -75,6 +117,10 @@ class McpInstanceUpdate(BaseModel):
 
 class McpInstanceTest(BaseModel):
     secrets: dict[str, str] | None = None
+
+
+class DesignerSkillCreate(BaseModel):
+    content: str
 
 
 class McpCatalogServerCreate(BaseModel):
@@ -246,6 +292,34 @@ def designer_llm_settings_test(body: ReactLlmSettingsTest | None = None) -> dict
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
+@router.get("/designer/api-fetch-settings", tags=["designer"], dependencies=[Depends(require_api_key)])
+def designer_api_fetch_settings_get() -> dict[str, Any]:
+    return services.get_api_fetch_settings_api()
+
+
+@router.put("/designer/api-fetch-settings", tags=["designer"], dependencies=[Depends(require_api_key)])
+def designer_api_fetch_settings_put(body: ApiFetchSettingsUpdate) -> dict[str, Any]:
+    try:
+        return services.update_api_fetch_settings_api(body.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post(
+    "/designer/api-fetch-settings/test",
+    tags=["designer"],
+    dependencies=[Depends(require_api_key)],
+)
+def designer_api_fetch_settings_test(body: ApiFetchSettingsTest | None = None) -> dict[str, Any]:
+    try:
+        payload = body.model_dump() if body else None
+        return services.test_api_fetch_settings_api(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
 @router.get("/mcp/catalog", tags=["mcp"], dependencies=[Depends(require_api_key)])
 def mcp_catalog() -> dict[str, Any]:
     try:
@@ -299,6 +373,36 @@ def designer_skills_catalog() -> list[dict[str, Any]]:
     from ratatoskr.designer.skills_catalog import skill_catalog_for_api
 
     return skill_catalog_for_api()
+
+
+@router.post("/designer/skills", tags=["designer"], dependencies=[Depends(require_api_key)])
+def designer_skills_create(body: DesignerSkillCreate) -> dict[str, Any]:
+    from ratatoskr.designer.skills_catalog import create_user_skill
+
+    try:
+        return create_user_skill(body.content)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.delete(
+    "/designer/skills/{skill_id}",
+    tags=["designer"],
+    dependencies=[Depends(require_api_key)],
+)
+def designer_skills_delete(skill_id: str) -> dict[str, Any]:
+    from ratatoskr.designer.skills_catalog import delete_user_skill
+
+    try:
+        deleted = delete_user_skill(skill_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not deleted:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No user-authored skill named '{skill_id}' to delete.",
+        )
+    return {"deleted": skill_id}
 
 
 @router.get(
@@ -577,6 +681,34 @@ def pipelines_list(limit: int = 100) -> list[dict[str, Any]]:
 @router.post("/pipelines", tags=["pipelines"], dependencies=[Depends(require_api_key)])
 def pipelines_create(payload: PipelineCreate) -> dict[str, Any]:
     return services.create_pipeline(payload.model_dump())
+
+
+@router.post(
+    "/pipelines/assist/generate",
+    tags=["pipelines"],
+    dependencies=[Depends(require_api_key)],
+)
+def pipelines_assist_generate(payload: PipelineAssistGenerateRequest) -> dict[str, Any]:
+    try:
+        return services.generate_pipeline_assist(payload.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@router.post(
+    "/pipelines/assist/build",
+    tags=["pipelines"],
+    dependencies=[Depends(require_api_key)],
+)
+def pipelines_assist_build(payload: PipelineAssistBuildRequest) -> dict[str, Any]:
+    try:
+        return services.build_pipeline_assist(payload.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @router.get("/pipelines/{pipeline_id}", tags=["pipelines"], dependencies=[Depends(require_api_key)])

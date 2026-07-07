@@ -9,6 +9,80 @@ export function nextId(prefix: string) {
   return `${prefix}_${Date.now()}_${_id}`;
 }
 
+const DEFAULT_DYNAMIC_WINDOW_CONFIG = {
+  window_type: "dynamic_session",
+  key_field: "key",
+  gap_policy: "default",
+  gap_ms: 1000,
+  time_mode: "processing",
+  execution_mode: "logic",
+} as const;
+
+function isKafkaSourceFlowNode(node: Node): boolean {
+  if (node.type !== "source") return false;
+  const data = node.data as { sourceType?: string; config?: { source_type?: string } };
+  return data.sourceType === "kafka" || data.config?.source_type === "kafka";
+}
+
+/** Ensure a dynamic session window sits directly after a Kafka source in the canvas graph. */
+export function ensureKafkaWindowInFlow(
+  nodes: Node[],
+  edges: Edge[],
+): { nodes: Node[]; edges: Edge[]; injected: boolean } {
+  const source = nodes.find(isKafkaSourceFlowNode);
+  if (!source) return { nodes, edges, injected: false };
+
+  const outgoing = Object.fromEntries(edges.map((e) => [e.source, e.target]));
+  const directTargetId = outgoing[source.id];
+  const directTarget = directTargetId ? nodes.find((n) => n.id === directTargetId) : undefined;
+  if (directTarget?.type === "window") {
+    return { nodes, edges, injected: false };
+  }
+
+  let nextNodes = [...nodes];
+  let nextEdges = [...edges];
+  const existingWindow = nodes.find((n) => n.type === "window");
+  let winId = existingWindow?.id;
+  if (!winId) {
+    winId = nextId("win");
+    const sourcePos = source.position;
+    const targetPos = directTarget?.position ?? { x: sourcePos.x + 220, y: sourcePos.y };
+    nextNodes.push({
+      id: winId,
+      type: "window",
+      position: { x: (sourcePos.x + targetPos.x) / 2, y: sourcePos.y },
+      data: {
+        label: "Session window",
+        keyField: "key",
+        gapPolicy: "default",
+        gapMs: 1000,
+        executionMode: "logic",
+        config: { ...DEFAULT_DYNAMIC_WINDOW_CONFIG },
+      },
+    });
+  }
+
+  const downstreamId =
+    directTargetId ??
+    nodes.find((n) => n.type === "agent")?.id ??
+    nodes.find((n) => n.type === "sink")?.id;
+  if (!downstreamId || downstreamId === winId) {
+    return { nodes: nextNodes, edges: nextEdges, injected: Boolean(!existingWindow) };
+  }
+
+  nextEdges = nextEdges.filter((e) => e.source !== source.id && e.source !== winId);
+  nextEdges = addEdge(
+    { id: nextId("e"), source: source.id, target: winId, data: { mapping: {} } },
+    nextEdges,
+  );
+  nextEdges = addEdge(
+    { id: nextId("e"), source: winId, target: downstreamId, data: { mapping: {} } },
+    nextEdges,
+  );
+
+  return { nodes: nextNodes, edges: nextEdges, injected: true };
+}
+
 export function pipelineToFlow(
   pipeline: PipelineSummary,
   agents: AgentSummary[],
@@ -67,6 +141,7 @@ export function pipelineToFlow(
       };
     }
     const meta = n.agent ? agentMap[n.agent] : undefined;
+    const config = n.config || {};
     return {
       id: n.id,
       type: "agent",
@@ -76,6 +151,7 @@ export function pipelineToFlow(
         agent: n.agent,
         agentType: meta?.type || "workflow",
         description: meta?.description,
+        config,
       },
     };
   });
@@ -182,10 +258,13 @@ export function flowToPipeline(
       }
       return { id: n.id, kind: "sink", config };
     }
+    const agentData = n.data as { agent?: string; config?: Record<string, unknown> };
+    const config = agentData.config || {};
     return {
       id: n.id,
       kind: "agent",
-      agent: (n.data as { agent?: string }).agent,
+      agent: agentData.agent,
+      ...(Object.keys(config).length > 0 ? { config } : {}),
     };
   });
 
@@ -230,6 +309,7 @@ export function connectEdge(edges: Edge[], params: Connection): Edge[] {
 /** Default field mappings for known agent pairs. */
 const DEFAULT_EDGE_MAPPINGS: Record<string, Record<string, string>> = {
   "workflow_counter->react_echo": { message: "$.doubled" },
+  "session_detect->react_echo": { message: "$.severity" },
 };
 
 function mappingForEdge(source: Node, target: Node): Record<string, string> {
@@ -398,6 +478,87 @@ export function defaultSessionDetectPipeline(): Partial<PipelineSummary> {
       win1: { x: 280, y: 200 },
       agent_sd: { x: 480, y: 200 },
       sink1: { x: 680, y: 200 },
+    },
+  };
+}
+
+export function defaultYggdrasilEventPipeline(): Partial<PipelineSummary> {
+  return {
+    name: "Yggdrasil Event Pipeline",
+    nodes: [
+      {
+        id: "src1",
+        kind: "source",
+        config: {
+          source_type: "records",
+          records: [
+            {
+              eventid: "cowrie.login.failed",
+              src_ip: "10.0.0.42",
+              timestamp: 1719412800,
+              session: "sess-brute",
+            },
+            {
+              eventid: "cowrie.login.failed",
+              src_ip: "10.0.0.42",
+              timestamp: 1719412801,
+              session: "sess-brute",
+            },
+            {
+              eventid: "cowrie.login.failed",
+              src_ip: "10.0.0.42",
+              timestamp: 1719412802,
+              session: "sess-brute",
+            },
+            {
+              eventid: "cowrie.login.failed",
+              src_ip: "10.0.0.42",
+              timestamp: 1719412803,
+              session: "sess-brute",
+            },
+            {
+              eventid: "cowrie.login.failed",
+              src_ip: "10.0.0.42",
+              timestamp: 1719412804,
+              session: "sess-brute",
+            },
+            {
+              eventid: "cowrie.command.input",
+              src_ip: "10.0.0.99",
+              timestamp: 1719412810,
+              session: "sess-probe",
+              input: "uname -a",
+            },
+          ],
+        },
+      },
+      {
+        id: "win1",
+        kind: "window",
+        config: {
+          window_type: "dynamic_session",
+          key_field: "src_ip",
+          gap_policy: "session_detect",
+          time_mode: "processing",
+          execution_mode: "logic",
+        },
+      },
+      { id: "agent_sd", kind: "agent", agent: "session_detect" },
+      { id: "agent_re", kind: "agent", agent: "react_echo" },
+      { id: "sink1", kind: "sink", config: { sink_type: "kafka", topic: "cowrie.react_alerts" } },
+    ],
+    edges: [
+      { id: "e1", source: "src1", target: "win1" },
+      { id: "e2", source: "win1", target: "agent_sd" },
+      { id: "e3", source: "agent_sd", target: "agent_re", mapping: { message: "$.severity" } },
+      { id: "e4", source: "agent_re", target: "sink1" },
+    ],
+    layout: {
+      src1: { x: 80, y: 200 },
+      win1: { x: 280, y: 200 },
+      agent_sd: { x: 500, y: 200 },
+      agent_re: { x: 720, y: 200 },
+      sink1: { x: 940, y: 200 },
     },
   };
 }

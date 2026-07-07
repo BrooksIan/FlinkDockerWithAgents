@@ -33,6 +33,64 @@ categories:
             type: integer
           agent:
             type: string
+    - id: api_fetch
+      manifest: workflow_api_fetch
+      display_name: API Fetch
+      description: Polls REST APIs (one fetch per upstream event), normalizes JSON
+        responses into uniform records, and emits structured events. Configure the
+        base URL in Settings.
+      tags:
+      - demo
+      - http
+      - integration
+      - source
+      input_schema:
+        type: object
+        properties:
+          path:
+            type: string
+            description: Optional path suffix appended to the configured base URL
+          path_suffix:
+            type: string
+            description: Alias for path
+          query:
+            type: object
+            description: Query parameters merged into the request URL
+          body:
+            type: object
+            description: JSON body for POST requests
+          expand_records:
+            type: boolean
+            description: When true, emit one output event per normalized record
+      output_schema:
+        type: object
+        properties:
+          agent:
+            type: string
+          event_type:
+            type: string
+          url:
+            type: string
+          http_method:
+            type: string
+          status_code:
+            type: integer
+          ok:
+            type: boolean
+          fetched_at:
+            type: string
+          record_count:
+            type: integer
+          records:
+            type: array
+            description: Normalized API records with payload, index, and source_url
+          record:
+            type: object
+            description: Present when expand_records is true
+          error:
+            type: string
+          input:
+            type: object
     - id: session_detect
       manifest: session_detect
       display_name: Session Detect
@@ -92,6 +150,62 @@ categories:
           squared:
             type: integer
           agent:
+            type: string
+    - id: readapi_reactthoughts_writekafka
+      manifest: readapi_reactthoughts_writekafka
+      display_name: ReadAPI-ReactThoughts-WriteKafka
+      description: Read from an API endpoint, use a ReAct agent to give its thoughts,
+        and write the results to Kafka. Configure URL and Kafka topic in the Studio
+        inspector when this agent is on the canvas.
+      tags:
+      - custom
+      - llm-assisted
+      - designer
+      - http
+      - integration
+      input_schema:
+        type: object
+        properties:
+          endpoint_url:
+            type: string
+            description: REST API URL to poll (set in Studio agent settings)
+          http_method:
+            type: string
+            enum:
+            - GET
+            - POST
+          api_key:
+            type: string
+            description: Optional API key / bearer token
+          path_suffix:
+            type: string
+            description: Optional path appended to the base URL
+          kafka_topic:
+            type: string
+            description: Kafka topic for agent output
+          kafka_bootstrap:
+            type: string
+            description: Optional Kafka bootstrap servers
+      output_schema:
+        type: object
+        properties:
+          agent:
+            type: string
+          url:
+            type: string
+          ok:
+            type: boolean
+          data:
+            type: object
+          thoughts:
+            type: string
+          summary:
+            type: string
+          kafka_topic:
+            type: string
+          kafka_written:
+            type: boolean
+          error:
             type: string
 - id: react
   label: ReAct Agents

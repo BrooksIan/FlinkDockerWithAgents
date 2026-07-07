@@ -11,16 +11,29 @@ from ratatoskr.docker_utils import container_id, docker_cp, project_root
 REMOTE_DESIGNER_DB = "/tmp/ratatoskr_designer.db"
 
 
+USER_SKILLS_DIR = "data/skills"
+
+
 def skills_copy_pairs(root: Path | None = None, *, rel_dir: str = "examples/skills") -> list[tuple[str, str]]:
     repo = root or project_root()
     pairs: list[tuple[str, str]] = []
+
     skills_root = repo / rel_dir
-    if not skills_root.is_dir():
-        return pairs
-    for path in skills_root.rglob("*"):
-        if path.is_file():
-            rel = path.relative_to(repo).as_posix()
-            pairs.append((str(path), f"/opt/flink/{rel}"))
+    if skills_root.is_dir():
+        for path in skills_root.rglob("*"):
+            if path.is_file():
+                rel = path.relative_to(repo).as_posix()
+                pairs.append((str(path), f"/opt/flink/{rel}"))
+
+    # User-authored skills (pasted through the designer) are merged into the
+    # same skills directory the agent loads from at runtime.
+    user_root = repo / USER_SKILLS_DIR
+    if user_root.is_dir():
+        for path in user_root.rglob("*"):
+            if path.is_file():
+                rel = path.relative_to(user_root).as_posix()
+                pairs.append((str(path), f"/opt/flink/{rel_dir}/{rel}"))
+
     return pairs
 
 
@@ -35,7 +48,10 @@ def designer_copy_pairs(root: Path | None = None) -> list[tuple[str, str]]:
         "ratatoskr/designer/llm_client.py",
         "ratatoskr/designer/flink_llm.py",
         "ratatoskr/designer/skills_catalog.py",
+        "ratatoskr/designer/api_fetch_settings.py",
         "ratatoskr/designer/runtime_env.py",
+        "ratatoskr/httpio/__init__.py",
+        "ratatoskr/httpio/fetch.py",
         "examples/agents/react_skills_paths.py",
         "examples/agents/react_double_value_logic.py",
         "examples/agents/react_double_value_prompt.py",

@@ -16,6 +16,9 @@ import type {
   ClusterReadiness,
   KafkaTopicsResponse,
   PipelineHealth,
+  PipelineAssistGenerateRequest,
+  PipelineAssistBuildRequest,
+  PipelineAssistResult,
   PipelineRunResult,
   PipelineSubmitResult,
   PipelineSummary,
@@ -24,6 +27,10 @@ import type {
   ReactLlmSettingsTestRequest,
   ReactLlmSettingsTestResult,
   ReactLlmSettingsUpdate,
+  ApiFetchSettings,
+  ApiFetchSettingsTestRequest,
+  ApiFetchSettingsTestResult,
+  ApiFetchSettingsUpdate,
   DesignerSkill,
   McpCatalog,
   McpCatalogServer,
@@ -88,7 +95,36 @@ export const api = {
       body: JSON.stringify(body ?? {}),
     }),
 
+  apiFetchSettings: () => request<ApiFetchSettings>("/v1/designer/api-fetch-settings"),
+
+  updateApiFetchSettings: (body: ApiFetchSettingsUpdate) =>
+    request<ApiFetchSettings>("/v1/designer/api-fetch-settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+
+  testApiFetchSettings: (body?: ApiFetchSettingsTestRequest) =>
+    request<ApiFetchSettingsTestResult>("/v1/designer/api-fetch-settings/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body ?? {}),
+    }),
+
   designerSkills: () => request<DesignerSkill[]>("/v1/designer/skills"),
+
+  createDesignerSkill: (content: string) =>
+    request<DesignerSkill>("/v1/designer/skills", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
+    }),
+
+  deleteDesignerSkill: (skillId: string) =>
+    request<{ deleted: string }>(
+      `/v1/designer/skills/${encodeURIComponent(skillId)}`,
+      { method: "DELETE" },
+    ),
 
   mcpCatalog: () => request<McpCatalog>("/v1/mcp/catalog"),
 
@@ -259,6 +295,20 @@ export const api = {
   submitPipeline: (id: string) =>
     request<PipelineSubmitResult>(`/v1/pipelines/${encodeURIComponent(id)}/submit`, {
       method: "POST",
+    }),
+
+  assistGeneratePipeline: (body: PipelineAssistGenerateRequest) =>
+    request<PipelineAssistResult>("/v1/pipelines/assist/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+
+  assistBuildPipeline: (body: PipelineAssistBuildRequest) =>
+    request<PipelineAssistResult>("/v1/pipelines/assist/build", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     }),
 
   agentGraph: (name: string) =>

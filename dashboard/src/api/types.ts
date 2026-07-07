@@ -136,6 +136,53 @@ export interface ReactLlmSettingsTestResult {
   };
 }
 
+export interface ApiFetchSettings {
+  scope: string;
+  endpoint_url: string;
+  http_method: string;
+  auth_header: string;
+  auth_prefix: string;
+  timeout_seconds: number;
+  api_key_set: boolean;
+  api_key_hint?: string | null;
+  configured: boolean;
+  source: string;
+  env_fallback?: {
+    endpoint_url?: string | null;
+    http_method?: string;
+    api_key_set?: boolean;
+  };
+}
+
+export interface ApiFetchSettingsUpdate {
+  endpoint_url: string;
+  http_method?: string;
+  api_key?: string | null;
+  auth_header?: string;
+  auth_prefix?: string;
+  timeout_seconds?: number;
+}
+
+export interface ApiFetchSettingsTestRequest {
+  endpoint_url?: string | null;
+  http_method?: string | null;
+  api_key?: string | null;
+  auth_header?: string | null;
+  auth_prefix?: string | null;
+  timeout_seconds?: number | null;
+}
+
+export interface ApiFetchSettingsTestResult {
+  ok: boolean;
+  duration_ms: number;
+  endpoint_url: string;
+  http_method: string;
+  status_code?: number;
+  url?: string;
+  preview_keys?: string[];
+  message: string;
+}
+
 export interface McpToolSpec {
   name: string;
   description: string;
@@ -236,6 +283,7 @@ export interface DesignerSkill {
   compatibility: string;
   default_allowed_commands: string[];
   path: string;
+  source?: "builtin" | "user";
 }
 
 export interface LlmCallConfig {
@@ -518,6 +566,61 @@ export interface PipelineSubmitResult {
   flink_job_id?: string | null;
   validation?: PipelineValidation & { mode?: string };
   plan?: Array<{ kind: string; name: string; description?: string }>;
+}
+
+export interface PipelineAssistGenerateRequest {
+  goal: string;
+  pipeline_name?: string;
+  domain?: "auto" | "cowrie_security" | "numeric_transform" | "generic";
+  source_type?: "records" | "kafka";
+  source_topic?: string;
+  use_windowing?: boolean;
+  window_key_field?: string;
+  window_gap_policy?: string;
+  workflow_agent?: string;
+  use_react_enrichment?: boolean;
+  react_agent?: string;
+  react_policy?: "none" | "all" | "high_severity_only";
+  sink_type?: "capture" | "kafka";
+  sink_topic?: string;
+  preference?: "fast" | "balanced" | "deep";
+  use_llm?: boolean;
+  agent_creation_mode?: "existing_only" | "suggest" | "auto_create";
+}
+
+export interface SuggestedAgent {
+  suggestion_id: string;
+  role: string;
+  pipeline_node_id: string;
+  replaces_manifest: string;
+  proposed_manifest: string;
+  display_name: string;
+  reason: string;
+  definition: Record<string, unknown>;
+  validation: PipelineValidation;
+  warnings: string[];
+  selected_by_default?: boolean;
+}
+
+export interface CreatedAgentSummary {
+  suggestion_id: string;
+  manifest: string;
+  display_name: string;
+}
+
+export interface PipelineAssistBuildRequest extends PipelineAssistGenerateRequest {
+  approved_suggestions?: SuggestedAgent[];
+}
+
+export interface PipelineAssistResult {
+  pipeline: Partial<PipelineSummary>;
+  rationale: string;
+  warnings: string[];
+  validation: PipelineValidation;
+  suggested_agents?: SuggestedAgent[];
+  reused_agents?: string[];
+  created_agents?: CreatedAgentSummary[];
+  agent_creation_mode?: "existing_only" | "suggest" | "auto_create";
 }
 
 export interface AgentGraphNode {

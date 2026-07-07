@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS platform_settings (
 """
 
 REACT_LLM_KEY = "react_llm_defaults"
+API_FETCH_KEY = "api_fetch_defaults"
 
 
 def designer_db_path(root: Path | None = None) -> Path:
