@@ -1,7 +1,7 @@
 # Flink Agents Examples
 
 <p align="center">
-  <img src="../docs/branding/Ratatoskr_title_image.png" alt="Ratatoskr — wood-textured wordmark and squirrel mascot" width="360" />
+  <img src="../assets/branding/Ratatoskr_title_image.png" alt="Ratatoskr — wood-textured wordmark and squirrel mascot" width="360" />
 </p>
 
 Generic demos and **registered agents** for the minimal Flink stack — no honeypot dependencies.

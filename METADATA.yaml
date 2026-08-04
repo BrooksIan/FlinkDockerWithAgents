@@ -1,0 +1,55 @@
+# Cloudera Blueprint catalog metadata
+# Populate fields used by the master blueprint website and internal catalog.
+
+# --- Identity ---
+name: "Ratatoskr — Apache Flink Agents on Docker"
+slug: "ratatoskr-flink-agents" # URL-safe repo / catalog identifier
+description: "Build, run, and verify Apache Flink Agents with a CLI, Control API, visual designer, and optional Cowrie honeypot demo."
+reprise_link: "https://[catalog-url]/ratatoskr-flink-agents" # Public reprise link
+
+# --- Classification (website filters) ---
+catalog_classification:
+  - Developer Example # Options: Enterprise Blueprint | Research | Launchable (AMP) | Developer Example
+launchable: false # true | false
+lifecycle_status: Active # e.g., Active | Deprecated
+
+# --- Industry & alignment ---
+industry: General # e.g., General | Telecom | Financial Services | Healthcare & Life Sciences | Retail | Media | Physical AI & Robotics
+industry_alignment: "Horizontal" # Horizontal | Vertical
+target_vertical: "" # Optional finer-grained vertical
+
+# --- Tags (website search & browse) ---
+tags:
+  - agentic
+  - real-time
+  - event-driven
+  - flink
+  - flink-agents
+  - streaming
+  - kafka
+  - agents
+  - cybersecurity
+  - honeypot
+
+# --- Relationships ---
+product_mapping: # Cloudera products used
+  - Cloudera Data in Motion
+  - Cloudera AI Inference Service
+# model_dependencies: # Models, embeddings, or external AI services, if any. Comment out if none.
+# - openai-compatible-llm
+
+# --- Provenance ---
+publisher: Ian Brooks # cloudera | partner-name
+source: Partner # Internal | Partner | NVIDIA Adaptation | Customer
+
+# --- Repository & assets ---
+public_github_link: "https://github.com/BrooksIan/FlinkDockerWithAgents"
+#private_github_link: "" # If applicable, original repo during development
+
+# --- Ownership ---
+maintainer_name: "Ian Brooks"
+
+# --- Dates ---
+date_created: "2025-06-09"
+date_updated: "2026-08-04"
+published_date: "2026-08-04" # Published date / last modified

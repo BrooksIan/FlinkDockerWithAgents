@@ -23,7 +23,7 @@ def test_studio_kafka_port_default() -> None:
 
 
 def test_kafka_compose_declares_broker_port() -> None:
-    text = (Path(__file__).resolve().parents[1] / "docker-compose.kafka.yml").read_text()
+    text = (Path(__file__).resolve().parents[1] / "deploy/docker-compose.kafka.yml").read_text()
     assert "9094" in text
     assert "workflow.test.input" in text
     assert "workflow.test.output" in text

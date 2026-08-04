@@ -28,6 +28,8 @@ def build_image(version: str = "stable") -> None:
     cmd = [
         "docker",
         "build",
+        "-f",
+        "deploy/Dockerfile",
         "--build-arg",
         f"FLINK_AGENTS_VERSION={version}",
         "--tag",

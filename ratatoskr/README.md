@@ -1,7 +1,7 @@
 # Ratatoskr — Flink Agents CLI
 
 <p align="center">
-  <img src="../docs/branding/Ratatoskr_title_image.png" alt="Ratatoskr — wood-textured wordmark and squirrel mascot" width="360" />
+  <img src="../assets/branding/Ratatoskr_title_image.png" alt="Ratatoskr — wood-textured wordmark and squirrel mascot" width="360" />
 </p>
 
 Python package for the **`ratatoskr`** command-line tool and **Control API** — build Flink Agents images, run registered agents, and expose a dashboard-ready HTTP surface.
@@ -26,7 +26,7 @@ Entry point: `ratatoskr.main:main` → `ratatoskr.cli:app` (Typer).
 | `ratatoskr up --mode platform` | Flink stack + API docs URL in startup output |
 | `ratatoskr up --profile full` | Optional honeypot stack |
 | `ratatoskr down` / `status` / `logs` | Compose lifecycle |
-| `ratatoskr kafka up` / `down` / `status` | Studio Kafka (`docker-compose.kafka.yml`, host `:9094`) |
+| `ratatoskr kafka up` / `down` / `status` | Studio Kafka (`deploy/docker-compose.kafka.yml`, host `:9094`) |
 | `ratatoskr doctor` | Platform preflight (manifest, Flink REST, API) |
 
 ### Agents
@@ -100,8 +100,8 @@ ratatoskr/
 
 | Profile | Compose file | Stack |
 |---------|--------------|-------|
-| `minimal` (default) | `docker-compose.yml` | JobManager + TaskManager |
-| `kafka` | `docker-compose.kafka.yml` | Studio Zookeeper + Kafka (`ratatoskr kafka up`) |
+| `minimal` (default) | `deploy/docker-compose.yml` | JobManager + TaskManager |
+| `kafka` | `deploy/docker-compose.kafka.yml` | Studio Zookeeper + Kafka (`ratatoskr kafka up`) |
 | `full` | `honeypot/docker-compose.yml` | Cowrie honeypot + Kafka + pipeline |
 
 `configure_runtime_sys_path()` loads honeypot modules only for the `full` profile.

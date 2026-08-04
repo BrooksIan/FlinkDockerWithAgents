@@ -54,7 +54,7 @@ flowchart TB
     LR & FE --> AL & K2 & DB
 ```
 
-*Source: [`docs/images/flink-agents-overview.mmd`](images/flink-agents-overview.mmd)*
+*Source: [`assets/images/flink-agents-overview.mmd`](../assets/images/flink-agents-overview.mmd)*
 
 Typical building blocks:
 
@@ -110,7 +110,7 @@ sequenceDiagram
     end
 ```
 
-*Source: [`docs/images/workflow-agent-flow.mmd`](images/workflow-agent-flow.mmd)*
+*Source: [`assets/images/workflow-agent-flow.mmd`](../assets/images/workflow-agent-flow.mmd)*
 
 ### Illustrative code (Flink Agents 0.3 style)
 
@@ -211,7 +211,7 @@ flowchart TB
     RS --> CF --> AA
 ```
 
-*Source: [`docs/images/react-agent-loop.mmd`](images/react-agent-loop.mmd)*
+*Source: [`assets/images/react-agent-loop.mmd`](../assets/images/react-agent-loop.mmd)*
 
 ### In this repository
 
@@ -282,7 +282,7 @@ flowchart TB
     TR --> D
 ```
 
-*Source: [`docs/images/workflow-vs-react-hybrid.mmd`](images/workflow-vs-react-hybrid.mmd)*
+*Source: [`assets/images/workflow-vs-react-hybrid.mmd`](../assets/images/workflow-vs-react-hybrid.mmd)*
 
 ### Routing rules (this repo)
 
@@ -349,7 +349,7 @@ Demos (when present under `honeypot/demo/` or `examples/`):
 
 ## Diagram sources
 
-Mermaid sources live in [`docs/images/`](images/). Regenerate PNGs:
+Mermaid sources live in [`assets/images/`](../assets/images/). Regenerate PNGs:
 
 ```bash
 ./scripts/render_architecture_diagrams.sh

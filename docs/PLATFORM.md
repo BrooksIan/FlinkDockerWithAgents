@@ -30,7 +30,7 @@ Developer / Dashboard
 |-------|------|
 | **CLI** | Build image, start stack, run/submit agents, verify, doctor |
 | **Control API** | HTTP surface for dashboards (`/v1/agents`, `/v1/jobs`, …) |
-| **Flink cluster** | JobManager + TaskManager (`docker-compose.yml`) |
+| **Flink cluster** | JobManager + TaskManager (`deploy/docker-compose.yml`) |
 | **Agent registry** | `examples/agents/agent-manifest.yaml` |
 
 ## Quick start (local dev)
@@ -227,8 +227,8 @@ To add an agent:
 
 | Profile | File | Services |
 |---------|------|----------|
-| `minimal` (default) | `docker-compose.yml` | JobManager + TaskManager |
-| `kafka` | `docker-compose.kafka.yml` | Studio Zookeeper + Kafka (`ratatoskr kafka up`) |
+| `minimal` (default) | `deploy/docker-compose.yml` | JobManager + TaskManager |
+| `kafka` | `deploy/docker-compose.kafka.yml` | Studio Zookeeper + Kafka (`ratatoskr kafka up`) |
 | `full` | `honeypot/docker-compose.yml` | Cowrie + Kafka + pipeline + dashboard |
 
 ```bash

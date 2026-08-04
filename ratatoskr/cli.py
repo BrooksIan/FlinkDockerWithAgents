@@ -44,7 +44,7 @@ def main(
 def cli_build(
     git_ref: str = typer.Argument("stable", help="Flink Agents git ref"),
 ) -> None:
-    """Build agent_flink_image from the workspace Dockerfile."""
+    """Build agent_flink_image from ``deploy/Dockerfile``."""
     build_image(git_ref)
 
 

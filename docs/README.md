@@ -1,16 +1,16 @@
 # Documentation
 
 <p align="center">
-  <img src="branding/Ratatoskr_title_image.png" alt="Ratatoskr — wood-textured wordmark and squirrel mascot" width="400" />
+  <img src="../assets/branding/Ratatoskr_title_image.png" alt="Ratatoskr — wood-textured wordmark and squirrel mascot" width="400" />
 </p>
 
-Guides for the **Ratatoskr** Flink Agents workspace. Honeypot-specific docs live under [`honeypot/docs/`](../honeypot/docs/).
+Guides for the **Ratatoskr** Flink Agents workspace. Honeypot-specific docs live under [`honeypot/docs/`](../honeypot/docs/). Catalog metadata: [`METADATA.yaml`](../METADATA.yaml).
 
 ## Getting started
 
 | Doc | Description |
 |-----|-------------|
-| [../README.md](../README.md) | Workspace overview and quick start |
+| [../README.md](../README.md) | Blueprint overview and quick start |
 | [PLATFORM.md](PLATFORM.md) | **Control API, agents, observability, Studio cluster, dashboard integration** |
 | [../ratatoskr/README.md](../ratatoskr/README.md) | CLI package and commands |
 | [../examples/README.md](../examples/README.md) | Example agents and demos |
@@ -20,9 +20,10 @@ Guides for the **Ratatoskr** Flink Agents workspace. Honeypot-specific docs live
 | Doc | Description |
 |-----|-------------|
 | [PLATFORM.md](PLATFORM.md) | Platform control plane — API, agent registry, Studio cluster, verify |
-| [branding/RATATOSKR.md](branding/RATATOSKR.md) | Name, mythology, icon and title banner assets |
+| [Blog.md](Blog.md) | Narrative overview and design rationale |
 | [FLINK_AGENTS.md](FLINK_AGENTS.md) | Workflow vs ReAct agents — concepts, comparison, diagrams |
 | [AGENT_DESIGNER_PLAN.md](AGENT_DESIGNER_PLAN.md) | Agent Designer — visual agent authoring, codegen, roadmap |
+| [../assets/branding/RATATOSKR.md](../assets/branding/RATATOSKR.md) | Name, mythology, icon and title banner assets |
 | [../dashboard/README.md](../dashboard/README.md) | Dashboard — pages, dev setup, project structure |
 
 ## Optional honeypot (`honeypot/docs/`)
@@ -39,21 +40,22 @@ Guides for the **Ratatoskr** Flink Agents workspace. Honeypot-specific docs live
 
 | Diagram | Source |
 |---------|--------|
-| [Overview stack](FLINK_AGENTS.md#what-flink-agents-adds-to-flink) | `docs/images/flink-agents-overview.mmd` |
-| [Workflow sequence](FLINK_AGENTS.md#execution-model) | `docs/images/workflow-agent-flow.mmd` |
-| [ReAct loop](FLINK_AGENTS.md#execution-model-1) | `docs/images/react-agent-loop.mmd` |
-| [Hybrid hot path + enrichment](FLINK_AGENTS.md#recommended-hybrid-pattern) | `docs/images/workflow-vs-react-hybrid.mmd` |
+| [Overview stack](FLINK_AGENTS.md#what-flink-agents-adds-to-flink) | `assets/images/flink-agents-overview.mmd` |
+| [Workflow sequence](FLINK_AGENTS.md#execution-model) | `assets/images/workflow-agent-flow.mmd` |
+| [ReAct loop](FLINK_AGENTS.md#execution-model-1) | `assets/images/react-agent-loop.mmd` |
+| [Hybrid hot path + enrichment](FLINK_AGENTS.md#recommended-hybrid-pattern) | `assets/images/workflow-vs-react-hybrid.mmd` |
 
 ### Honeypot (optional)
 
 | Diagram | Preview |
-|---------|---------|
+|---------|--------|
 | [Reference architecture](../honeypot/README.md) | ![VeryNiceRA](../honeypot/docs/images/VeryNiceRA.png) |
 | Production topology | ![topology](../honeypot/docs/images/production-topology.png) |
 
-PNG sources: `docs/images/` and `honeypot/docs/images/` (`scripts/render_architecture_diagrams.sh`).
+PNG sources: `assets/images/` and `honeypot/docs/images/` (`scripts/render_architecture_diagrams.sh`).
 
 ## External links
 
 - [Flink Agents 0.3 documentation](https://nightlies.apache.org/flink/flink-agents-docs-release-0.3/)
 - [Apache Flink Agents GitHub](https://github.com/apache/flink-agents)
+- [Cloudera Blueprints Standard](https://github.com/kevinbtalbert/Cloudera-Blueprints-Standard)

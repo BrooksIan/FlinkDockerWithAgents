@@ -9,7 +9,7 @@ from pathlib import Path
 
 def _check_paths(root: Path) -> list[str]:
     required = [
-        (root / "docker-compose.yml", "minimal Flink compose"),
+        (root / "deploy/docker-compose.yml", "minimal Flink compose"),
         (root / "ratatoskr/manifests/startup-modes.yaml", "startup modes"),
         (root / "ratatoskr/manifests/verify-tiers.yaml", "verify tiers"),
         (root / "ratatoskr/manifests/demo-files.yaml", "demo catalog"),

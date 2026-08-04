@@ -1,7 +1,7 @@
 # Ratatoskr Dashboard
 
 <p align="center">
-  <img src="../docs/branding/Ratatoskr_title_image.png" alt="Ratatoskr — wood-textured wordmark and squirrel mascot" width="360" />
+  <img src="../assets/branding/Ratatoskr_title_image.png" alt="Ratatoskr — wood-textured wordmark and squirrel mascot" width="360" />
 </p>
 
 Web UI for the **Ratatoskr Control API** — monitor Flink Agents, compose pipelines, design agents visually, and inspect runs. No honeypot dependencies.

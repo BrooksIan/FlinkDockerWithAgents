@@ -58,9 +58,9 @@ The Snorri gloss (malicious gossip) is *not* the product metaphor — the Poetic
 
 | Asset | Location | Use |
 |-------|----------|-----|
-| **`Ratatoskr_title_image.png`** | `docs/branding/` | README and docs headers — wood-textured wordmark + squirrel mascot |
-| **`ratatoskr-icon.svg`** | [`dashboard/public/`](../dashboard/public/) | Full mark (tree + squirrel + event dots) |
-| **`favicon.svg`** | [`dashboard/public/`](../dashboard/public/) | Simplified mark for small sizes |
+| **`Ratatoskr_title_image.png`** | `assets/branding/` | README and docs headers — wood-textured wordmark + squirrel mascot |
+| **`ratatoskr-icon.svg`** | [`dashboard/public/`](../../dashboard/public/) | Full mark (tree + squirrel + event dots) |
+| **`favicon.svg`** | [`dashboard/public/`](../../dashboard/public/) | Simplified mark for small sizes |
 
 ### Icon design language
 

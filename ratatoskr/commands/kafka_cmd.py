@@ -17,7 +17,7 @@ app = typer.Typer(help="Studio Kafka — Zookeeper + broker for pipeline sources
 def kafka_up(
     wait: int = typer.Option(15, "--wait", help="Seconds to wait for broker health"),
 ) -> None:
-    """Start the Studio Kafka stack (``docker-compose.kafka.yml``)."""
+    """Start the Studio Kafka stack (``deploy/docker-compose.kafka.yml``)."""
     typer.echo(f"Starting Studio Kafka ({compose_file(KAFKA_PROFILE).name})...")
     run_compose("up", "-d", "--remove-orphans", profile=KAFKA_PROFILE)
 

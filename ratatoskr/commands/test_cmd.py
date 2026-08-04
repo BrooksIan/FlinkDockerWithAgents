@@ -39,7 +39,7 @@ def _docker_available() -> bool:
 
 def _generic_validate_paths(root: Path) -> list[str]:
     return [
-        "Dockerfile",
+        "deploy/Dockerfile",
         LAUNCH_TEST,
         "examples/demo_datastream_local.py",
         "ratatoskr/runtime/cluster_launch_test.py",

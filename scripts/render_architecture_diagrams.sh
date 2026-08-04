@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Render docs/images/*.mmd and honeypot/docs/images/*.mmd → PNG via @mermaid-js/mermaid-cli (npx).
+# Render assets/images/*.mmd and honeypot/docs/images/*.mmd → PNG via @mermaid-js/mermaid-cli (npx).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
@@ -21,7 +21,7 @@ render_dir() {
   done
 }
 
-render_dir "$ROOT/docs/images"
+render_dir "$ROOT/assets/images"
 render_dir "$ROOT/honeypot/docs/images"
 
 echo "Done."

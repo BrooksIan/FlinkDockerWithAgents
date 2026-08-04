@@ -133,7 +133,7 @@ if ! $SYNC_ONLY; then
 
   echo "[2/5] Restarting minimal Flink stack (force recreate)..."
   run_ratatoskr down --profile minimal 2>/dev/null || true
-  docker compose -f "$ROOT/docker-compose.yml" up -d --force-recreate --remove-orphans
+  docker compose -f "$ROOT/deploy/docker-compose.yml" up -d --force-recreate --remove-orphans
   echo "  waiting 15s for JobManager health..."
   sleep 15
 

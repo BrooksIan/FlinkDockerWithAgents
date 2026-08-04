@@ -13,9 +13,9 @@ from ratatoskr.paths import project_root
 
 IMAGE_NAME = "agent_flink_image"
 IMAGE_TAG = "latest"
-COMPOSE_MINIMAL = "docker-compose.yml"
+COMPOSE_MINIMAL = "deploy/docker-compose.yml"
 COMPOSE_FULL = "honeypot/docker-compose.yml"
-COMPOSE_KAFKA = "docker-compose.kafka.yml"
+COMPOSE_KAFKA = "deploy/docker-compose.kafka.yml"
 PYFLINK_PYTHONPATH = (
     "/opt/flink:/opt/flink/pythonpath/agent-site-packages:"
     "/opt/flink/opt/python/pyflink:/opt/flink/opt/python/py4j"
