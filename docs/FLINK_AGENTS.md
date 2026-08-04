@@ -1,7 +1,7 @@
 # Apache Flink Agents — Workflow vs ReAct
 
 <p align="center">
-  <img src="branding/Ratatoskr_title_image.png" alt="Ratatoskr — wood-textured wordmark and squirrel mascot" width="400" />
+  <img src="../assets/branding/Ratatoskr_title_image.png" alt="Ratatoskr — wood-textured wordmark and squirrel mascot" width="400" />
 </p>
 
 A practical review of the two agent paradigms in [Apache Flink Agents](https://github.com/apache/flink-agents) (release 0.3), with diagrams and guidance from the **Ratatoskr** workspace (including the [honeypot](../honeypot/README.md) reference pipeline).
@@ -73,6 +73,10 @@ Typical building blocks:
 ### What they are
 
 **Workflow agents** use an **explicit, code-defined control flow**. Every step is written in Python: which tools run, in what order, and which branches fire. There is **no LLM in the loop** unless you deliberately add one as a single step.
+
+![Workflow agent — deterministic control flow from event sources through tools and rule branches to sinks](../assets/images/WorkflowAgentsDiagram.png)
+
+*Source: [`assets/images/WorkflowAgentsDiagram.png`](../assets/images/WorkflowAgentsDiagram.png)*
 
 ### Strengths
 
@@ -157,6 +161,10 @@ In this repo, shared policy lives in `cowrie_workflow_detect` / `cowrie_policy.p
 ### What they are
 
 **ReAct** (Reasoning + Acting) agents let an **LLM** drive decisions: observe the event, **reason** about it, **choose tools**, observe results, and repeat until a stop condition. Tools are still ordinary `@tool` methods; the difference is **who picks them** — the model, not fixed code order.
+
+![ReAct agent — LLM-driven observe → think → act tool loop from event sources to sinks](../assets/images/ReactAgentsDiagram.png)
+
+*Source: [`assets/images/ReactAgentsDiagram.png`](../assets/images/ReactAgentsDiagram.png)*
 
 ### Strengths
 

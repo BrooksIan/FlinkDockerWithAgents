@@ -41,7 +41,9 @@ Guides for the **Ratatoskr** Flink Agents workspace. Honeypot-specific docs live
 | Diagram | Source |
 |---------|--------|
 | [Overview stack](FLINK_AGENTS.md#what-flink-agents-adds-to-flink) | `assets/images/flink-agents-overview.mmd` |
+| [Workflow agents](FLINK_AGENTS.md#workflow-agents) | `assets/images/WorkflowAgentsDiagram.png` |
 | [Workflow sequence](FLINK_AGENTS.md#execution-model) | `assets/images/workflow-agent-flow.mmd` |
+| [ReAct agents](FLINK_AGENTS.md#react-agents) | `assets/images/ReactAgentsDiagram.png` |
 | [ReAct loop](FLINK_AGENTS.md#execution-model-1) | `assets/images/react-agent-loop.mmd` |
 | [Hybrid hot path + enrichment](FLINK_AGENTS.md#recommended-hybrid-pattern) | `assets/images/workflow-vs-react-hybrid.mmd` |
 
