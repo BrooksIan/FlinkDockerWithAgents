@@ -52,21 +52,85 @@ def agent_run(
     name: str = typer.Argument(..., help="Agent name"),
     local: bool = typer.Option(True, "--local/--cluster", help="Local runner or cluster submit"),
     profile: str | None = typer.Option(None, "--profile", "-p", help=PROFILE_HELP),
+    continuous: bool = typer.Option(
+        False,
+        "--continuous",
+        "-c",
+        help="Continuous queries: forever host polls, or unbounded cluster Kafka ticks",
+    ),
+    interval: float | None = typer.Option(
+        None,
+        "--interval",
+        "-i",
+        help="Poll interval seconds (local continuous; default MONITOR_INTERVAL_SEC or 10)",
+    ),
+    phase: str | None = typer.Option(
+        None,
+        "--phase",
+        help="Heal phase override (monitor|safe|lab) for NiFi/Kafka monitors",
+    ),
 ) -> None:
     """Run an agent locally or submit its cluster job."""
+    from ratatoskr.monitor_mode import DEFAULT_MONITOR_INTERVAL_SEC, monitor_interval_sec
+
     active_profile = _resolve_profile(profile)
+    if phase:
+        if name.startswith("workflow_nifi") or name == "workflow_nifi_monitor":
+            os.environ["NIFI_HEAL_PHASE"] = phase
+        if name.startswith("workflow_kafka") or name == "workflow_kafka_monitor":
+            os.environ["KAFKA_HEAL_PHASE"] = phase
+        if "cross" in name or "correlate" in name:
+            os.environ["CROSS_HEAL_PHASE"] = phase
+
     try:
         if local:
-            result = run_agent_local(name)
+            extra: list[str] = []
+            monitor_like = name in (
+                "workflow_nifi_monitor",
+                "workflow_kafka_monitor",
+                "workflow_cross_stack_heal",
+                "workflow_signal_correlate",
+            )
+            if continuous and monitor_like:
+                os.environ["MONITOR_MODE"] = "continuous"
+                extra.append("--continuous")
+                sec = interval if interval is not None else monitor_interval_sec()
+                extra.extend(["--interval", str(sec)])
+            elif continuous and not monitor_like:
+                typer.echo(
+                    f"--continuous is for monitor agents "
+                    f"(workflow_nifi_monitor / workflow_kafka_monitor); "
+                    f"ignoring for {name!r}",
+                    err=True,
+                )
+            elif interval is not None and monitor_like:
+                extra.extend(["--interval", str(interval)])
+            result = run_agent_local(name, extra_args=extra or None)
             rc = result.return_code
             typer.echo(f"Run {result.run_id} finished (exit {rc}).")
         else:
-            submit = submit_agent_cluster(name, profile=active_profile)
+            env_extra: dict[str, str] = {}
+            if continuous:
+                env_extra["MONITOR_MODE"] = "continuous"
+                env_extra["NIFI_MONITOR_POLLS"] = "0"
+                env_extra["KAFKA_MONITOR_POLLS"] = "0"
+                if interval is not None:
+                    env_extra["MONITOR_INTERVAL_SEC"] = str(interval)
+                else:
+                    env_extra.setdefault(
+                        "MONITOR_INTERVAL_SEC",
+                        str(monitor_interval_sec(DEFAULT_MONITOR_INTERVAL_SEC)),
+                    )
+            submit = submit_agent_cluster(
+                name, profile=active_profile, env_extra=env_extra or None
+            )
             rc = submit.return_code
             if rc == 0:
                 msg = f"Run {submit.run_id} submitted."
                 if submit.flink_job_id:
                     msg += f" Flink job {submit.flink_job_id}"
+                if continuous:
+                    msg += " (continuous — in-job interval ticks; no publisher needed)"
                 typer.echo(msg)
     except (AgentRegistryError, RuntimeError, ValueError) as exc:
         typer.echo(str(exc), err=True)

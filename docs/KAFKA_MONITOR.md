@@ -158,7 +158,26 @@ python3 examples/agents/run_workflow_kafka_monitor_local.py --count 1
 # Expect increase_partitions on nifi.kafka.demo
 ```
 
-Continuous: `python examples/agents/run_workflow_kafka_monitor_local.py --interval 10 --count 6`
+## Continuous queries
+
+**Host (managed):**
+
+```bash
+ratatoskr monitor start --interval 10 --phase monitor   # NiFi + Kafka background
+ratatoskr monitor status
+ratatoskr monitor stop
+
+ratatoskr agent run workflow_kafka_monitor --local --continuous --interval 10
+```
+
+**Cluster (unbounded + ticks):**
+
+```bash
+ratatoskr agent run workflow_kafka_monitor --cluster --continuous
+python scripts/publish_monitor_poll_ticks.py --continuous --target kafka --interval 10
+```
+
+`MONITOR_MODE=continuous` or `KAFKA_MONITOR_POLLS=0` selects the Kafka tick source. Default burst remains `KAFKA_MONITOR_POLLS=5`.
 
 ## Orchestrated heal examples (shared base)
 

@@ -60,6 +60,7 @@ ratatoskr agent run workflow_nifi_monitor --local
 
 - NiFi UI: https://localhost:8443/nifi — login `admin` / `RatatoskrNiFi1!`
 - Heal demos: [docs/NIFI_MONITOR.md](docs/NIFI_MONITOR.md#orchestrated-heal-examples) · `python3 scripts/demo_nifi_kafka_heal.py --list`
+- Continuous: `ratatoskr monitor start` · [docs/NIFI_MONITOR.md](docs/NIFI_MONITOR.md#continuous-and-cluster)
 - Details: [nifi/README.md](nifi/README.md) · [docs/NIFI_MONITOR.md](docs/NIFI_MONITOR.md)
 
 ### 3. Kafka cluster monitoring

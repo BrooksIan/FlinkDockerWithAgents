@@ -176,9 +176,37 @@ Local Docker NiFi has no Knox. For CDP Flow Management:
 
 ## Continuous and cluster
 
-- Host interval: `python examples/agents/run_workflow_nifi_monitor_local.py --interval 10 --count 6`
-- Kafka ticks: `scripts/nifi_publish_poll_ticks.py` + runner `--kafka-topic nifi.monitor.poll`
-- Cluster: see heal demo script above (`--cluster --profile nifi`)
+**Host continuous mode** (managed):
+
+```bash
+# Background NiFi + Kafka polls every 10s (MONITOR_MODE=continuous)
+ratatoskr monitor start --interval 10 --phase monitor
+ratatoskr monitor status
+ratatoskr monitor stop
+
+# Foreground until Ctrl-C
+ratatoskr monitor start --foreground --no-kafka --interval 5
+```
+
+Or per agent:
+
+```bash
+ratatoskr agent run workflow_nifi_monitor --local --continuous --interval 10
+ratatoskr agent run workflow_kafka_monitor --local --continuous --interval 10
+# same as: python examples/agents/run_workflow_*_monitor_local.py --continuous
+```
+
+**Cluster continuous** (unbounded Flink job; in-job interval ticks by default):
+
+```bash
+ratatoskr kafka up
+ratatoskr agent run workflow_nifi_monitor --cluster --continuous --profile nifi --interval 10
+# Optional Kafka-tick source (needs Flink on kafka network + INTERNAL bootstrap):
+# MONITOR_CONTINUOUS_SOURCE=kafka python scripts/publish_monitor_poll_ticks.py --continuous --target nifi
+```
+
+Burst (demo-friendly): `NIFI_MONITOR_POLLS=5` / `KAFKA_MONITOR_POLLS=5` (default).  
+Continuous: `MONITOR_MODE=continuous` or `*_MONITOR_POLLS=0`.
 
 Also: `--lab-demo` combines INVALID + backlog in one inject.
 

@@ -112,10 +112,22 @@ def _agent_copy_pairs(spec: AgentSpec, *, root: Path) -> List[Tuple[str, str]]:
         "ratatoskr/kafka/client.py",
         "ratatoskr/kafka/policy.py",
         "ratatoskr/kafka/env.py",
+        "ratatoskr/monitor_mode.py",
     ):
         local = root / rel
         if local.is_file():
             pairs.append((str(local), f"/opt/flink/{rel}"))
+
+    if spec.name in ("workflow_nifi_monitor", "workflow_kafka_monitor"):
+        for path in (
+            root / "examples/agents/monitor_cluster_source.py",
+            root / "ratatoskr/monitor_mode.py",
+        ):
+            if path.is_file():
+                rel = path.relative_to(root).as_posix()
+                remote = f"/opt/flink/{rel}"
+                if (str(path), remote) not in pairs:
+                    pairs.append((str(path), remote))
 
     if spec.name == "workflow_nifi_monitor":
         # Ensure package marker dirs exist for import on cluster.
@@ -197,6 +209,7 @@ def run_agent_local(
     *,
     root: Optional[Path] = None,
     runs: Optional["RunService"] = None,
+    extra_args: Optional[List[str]] = None,
 ) -> LocalRunResult:
     """Execute an agent via its local runner script and record a run."""
     spec = get_agent_spec(name, root=root)
@@ -206,7 +219,8 @@ def run_agent_local(
     runner = repo / spec.runner
     service = _run_service(repo, runs)
     run_id = service.create_run(name, kind="local", status="running")
-    rc = subprocess.run([sys.executable, str(runner)], cwd=repo).returncode
+    cmd = [sys.executable, str(runner), *(extra_args or [])]
+    rc = subprocess.run(cmd, cwd=repo).returncode
     if rc == 0:
         service.finish_run(run_id, status="finished")
     else:
@@ -221,6 +235,7 @@ def submit_agent_cluster(
     profile: str = DEFAULT_PROFILE,
     runs: Optional["RunService"] = None,
     flink_job_id: str | None = None,
+    env_extra: Optional[dict[str, str]] = None,
 ) -> ClusterSubmitResult:
     """Submit an agent cluster job to JobManager via ``flink run``."""
     spec = get_agent_spec(name, root=root)
@@ -237,6 +252,14 @@ def submit_agent_cluster(
     run_id = service.create_run(name, kind="cluster", status="starting")
 
     pairs = _agent_copy_pairs(spec, root=repo)
+    # Continuous mode helpers for monitor cluster scripts
+    for rel in (
+        "ratatoskr/monitor_mode.py",
+        "ratatoskr/monitor_runtime.py",
+    ):
+        local = repo / rel
+        if local.is_file():
+            pairs.append((str(local), f"/opt/flink/{rel}"))
     stats = copy_pairs_to_cluster(pairs, profile=profile)
     if stats.failed:
         service.finish_run(run_id, status="failed", error=f"copy failed: {stats.failed} file(s)")
@@ -249,10 +272,19 @@ def submit_agent_cluster(
     remote_designer_db = sync_designer_db_to_cluster(root=repo, profile=profile)
     llm_env = react_llm_shell_prefix(root=repo, remote_designer_db=remote_designer_db)
 
+    export_extra = ""
+    if env_extra:
+        parts = []
+        for key, val in env_extra.items():
+            safe = str(val).replace("'", "'\"'\"'")
+            parts.append(f"export {key}='{safe}'")
+        export_extra = " && ".join(parts) + " && "
+
     remote = f"/opt/flink/{spec.cluster_script}"
     command = (
         f"{llm_env}"
         "cd /opt/flink && "
+        f"{export_extra}"
         "export PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:"
         "/opt/flink/opt/python/pyflink:/opt/flink/opt/python/py4j && "
         "export FLINK_REST_ADDRESS=localhost FLINK_REST_PORT=8081 && "

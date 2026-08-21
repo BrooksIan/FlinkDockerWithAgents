@@ -36,7 +36,11 @@ Entry point: `ratatoskr.main:main` → `ratatoskr.cli:app` (Typer).
 | `ratatoskr agent list` | Agents from `examples/agents/agent-manifest.yaml` |
 | `ratatoskr agent describe <name>` | Metadata and entry class |
 | `ratatoskr agent run <name> --local` | Local `AgentsExecutionEnvironment` runner |
+| `ratatoskr agent run <name> --local --continuous` | Forever host polls (NiFi/Kafka monitors) |
 | `ratatoskr agent run <name> --cluster` | Submit cluster job via JobManager |
+| `ratatoskr agent run <name> --cluster --continuous` | Unbounded monitor job (Kafka poll ticks) |
+| `ratatoskr monitor start` / `status` / `stop` | Turn continuous NiFi+Kafka host monitors on/off |
+
 | `ratatoskr agent submit <name>` | Same as `--cluster` |
 | `ratatoskr agent status` | Flink jobs via REST |
 | `ratatoskr agent cancel <job-id>` | Cancel a Flink job |

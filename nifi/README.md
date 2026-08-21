@@ -84,7 +84,24 @@ The monitoring agent and sample-flow scripts authenticate the same way the UI do
 
 ## Continuous monitoring
 
-**Host interval loop** (no Flink Agents required):
+```bash
+# Managed host loops (background)
+ratatoskr monitor start --interval 10 --phase monitor
+ratatoskr monitor status
+ratatoskr monitor stop
+
+# Or one agent in the foreground
+ratatoskr agent run workflow_nifi_monitor --local --continuous --interval 10
+```
+
+Cluster continuous jobs consume Kafka poll ticks:
+
+```bash
+ratatoskr agent run workflow_nifi_monitor --cluster --continuous --profile nifi
+python scripts/publish_monitor_poll_ticks.py --continuous --target nifi
+```
+
+Host interval / Kafka ticks (direct runner):
 
 ```bash
 export NIFI_HEAL_PHASE=monitor
@@ -99,7 +116,7 @@ ratatoskr kafka up
 # Terminal A — consumer / agent
 python examples/agents/run_workflow_nifi_monitor_local.py --kafka-topic nifi.monitor.poll
 # Terminal B — publish ticks
-python scripts/nifi_publish_poll_ticks.py --count 5 --interval 2 --phase monitor
+python scripts/publish_monitor_poll_ticks.py --count 5 --interval 2 --target nifi --phase monitor
 ```
 
 ## Cluster path (Flink Agents in Docker)

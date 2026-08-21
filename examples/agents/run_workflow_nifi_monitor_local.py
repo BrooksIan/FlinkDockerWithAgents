@@ -3,7 +3,7 @@
 
 Modes:
   - one-shot (default)
-  - ``--interval SEC`` continuous host polling (``--count 0`` = forever)
+  - ``--continuous`` / ``--interval SEC`` host polling (``--count 0`` = forever)
   - ``--kafka-topic TOPIC`` consume poll triggers from Studio Kafka
 
 Prefers Flink Agents when installed; otherwise direct ``ratatoskr.nifi`` polls.
@@ -72,7 +72,6 @@ def _run_kafka_consumer(*, topic: str, group: str) -> int:
     n = 0
     for msg in consumer:
         n += 1
-        # Optional JSON payload may override phase / pg
         phase = os.environ.get("NIFI_HEAL_PHASE", "monitor")
         pg = os.environ.get("NIFI_PROCESS_GROUP_ID", "root")
         try:
@@ -117,18 +116,29 @@ def main() -> int:
     _bootstrap()
     os.environ.setdefault("NIFI_HEAL_PHASE", "monitor")
 
+    from ratatoskr.monitor_mode import (
+        DEFAULT_MONITOR_INTERVAL_SEC,
+        is_continuous,
+        monitor_interval_sec,
+    )
+
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--continuous",
+        action="store_true",
+        help="Forever host polls (sets MONITOR_MODE=continuous; uses --interval).",
+    )
     parser.add_argument(
         "--interval",
         type=float,
-        default=0.0,
-        help="Seconds between polls (host continuous mode). 0 = one-shot.",
+        default=None,
+        help=f"Seconds between polls (default {DEFAULT_MONITOR_INTERVAL_SEC} when continuous).",
     )
     parser.add_argument(
         "--count",
         type=int,
         default=0,
-        help="Number of polls when --interval > 0 (0 = forever until Ctrl-C).",
+        help="Number of polls when interval > 0 (0 = forever until Ctrl-C).",
     )
     parser.add_argument(
         "--kafka-topic",
@@ -142,17 +152,29 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    if args.continuous or is_continuous():
+        os.environ["MONITOR_MODE"] = "continuous"
+        interval = (
+            float(args.interval)
+            if args.interval is not None and args.interval > 0
+            else monitor_interval_sec(DEFAULT_MONITOR_INTERVAL_SEC)
+        )
+        return _run_direct_loop(interval=interval, count=args.count)
+
     if args.kafka_topic:
         return _run_kafka_consumer(topic=args.kafka_topic, group=args.kafka_group)
 
-    if args.interval > 0:
+    if args.interval is not None and args.interval > 0:
         return _run_direct_loop(interval=args.interval, count=args.count)
 
     try:
         import flink_agents  # noqa: F401
     except ImportError:
         result = _one_cycle()
-        _print_result(result, label="NiFi monitor results (direct host runner — flink_agents not on PATH):")
+        _print_result(
+            result,
+            label="NiFi monitor results (direct host runner — flink_agents not on PATH):",
+        )
         return 0
     return _run_flink_agents_oneshot()
 

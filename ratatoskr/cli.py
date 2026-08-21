@@ -87,6 +87,11 @@ app.add_typer(agent_cmd.app, name="agent")
 app.add_typer(api_cmd.app, name="api")
 app.add_typer(doctor_platform.app, name="doctor-platform")
 
+# Continuous NiFi/Kafka monitors (source available in tree)
+from ratatoskr.commands import monitor_cmd  # noqa: E402
+
+app.add_typer(monitor_cmd.app, name="monitor")
+
 # Optional bytecode-backed commands (demo, doctor, dashboard, …)
 try:
     from ratatoskr._bootstrap import install_aliases
