@@ -16,6 +16,10 @@
 #       → UpdateAttribute (ratatoskr.demo=nifi-kafka)
 #       → LogAttribute
 #
+#   Smoke:
+#     python3 test/test_nifi_kafka_demo.py          # offline (CI-safe)
+#     python3 scripts/smoke_nifi_kafka_demo.py      # live publish → ConsumeKafka
+#
 #   Publish a test message from the host:
 #     python3 -c "
 #     from kafka import KafkaProducer
