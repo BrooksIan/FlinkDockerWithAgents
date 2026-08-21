@@ -109,10 +109,29 @@ def repair_kafka_flow(client, pg_id: str, *, bootstrap: str) -> dict:
     if not cs:
         raise RuntimeError("Studio Kafka controller service not found")
 
-    # Disable → update bootstrap → enable
+    procs = _processors_by_name(client, pg_id)
+    # Stop consumers before disabling the connection service (avoids 409).
+    for name in ("ConsumeKafka", "UpdateAttribute", "LogAttribute"):
+        proc = procs.get(name)
+        if proc and proc.get("state") != "STOPPED":
+            try:
+                client.stop_processor(
+                    proc["id"], (proc.get("revision") or {}).get("version")
+                )
+            except Exception:  # noqa: BLE001
+                pass
+    time.sleep(0.5)
+
+    services = _services_by_name(client, pg_id)
+    cs = services.get("Studio Kafka") or cs
     if cs.get("state") != "DISABLED":
-        client.disable_controller_service(cs["id"], (cs.get("revision") or {}).get("version"))
-        time.sleep(0.5)
+        try:
+            client.disable_controller_service(
+                cs["id"], (cs.get("revision") or {}).get("version")
+            )
+            time.sleep(0.5)
+        except Exception:  # noqa: BLE001
+            pass
 
     client.update_controller_service_properties(
         cs["id"],

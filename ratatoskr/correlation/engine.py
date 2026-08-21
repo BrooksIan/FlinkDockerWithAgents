@@ -76,6 +76,27 @@ def _evidence(nifi: dict[str, Any] | None, kafka: dict[str, Any] | None) -> dict
     }
 
 
+def _solo_summary(
+    nifi_event: dict[str, Any] | None,
+    kafka_event: dict[str, Any] | None,
+) -> str:
+    """Human summary when no cross-signal rule matched."""
+    n_c = _classification(nifi_event)
+    k_c = _classification(kafka_event)
+    n_ok = bool(n_c.get("healthy"))
+    k_ok = bool(k_c.get("healthy"))
+    if n_ok and k_ok:
+        return "healthy"
+    parts: list[str] = []
+    if not n_ok:
+        sevs = ",".join(n_c.get("severities") or []) or "unhealthy"
+        parts.append(f"nifi_only:{sevs}")
+    if not k_ok:
+        sevs = ",".join(k_c.get("severities") or []) or "unhealthy"
+        parts.append(f"kafka_only:{sevs}")
+    return "+".join(parts) if parts else "uncorrelated_degradation"
+
+
 def correlate_signals(
     nifi_event: dict[str, Any] | None,
     kafka_event: dict[str, Any] | None,
@@ -126,10 +147,14 @@ def correlate_signals(
         str(_classification(kafka_event).get("level") or "OK"),
         *[str(i["level"]) for i in incidents],
     )
-    # Combined score: min of sides, minus 10 per correlated incident (floor 0)
     combined_score = max(
         0,
         min(_score(nifi_event), _score(kafka_event)) - 10 * len(incidents),
+    )
+    summary = (
+        ", ".join(matched_ids)
+        if matched_ids
+        else _solo_summary(nifi_event, kafka_event)
     )
 
     return {
@@ -147,14 +172,9 @@ def correlate_signals(
             "score": combined_score
             if incidents
             else min(_score(nifi_event), _score(kafka_event)),
-            "summary": (
-                "healthy"
-                if not incidents
-                and _classification(nifi_event).get("healthy")
-                and _classification(kafka_event).get("healthy")
-                else ", ".join(matched_ids) or "uncorrelated_degradation"
-            ),
+            "summary": summary,
             "incident_count": len(incidents),
+            "cross_signal": bool(incidents),
         },
         "incidents": incidents,
         "matched_rules": matched_ids,

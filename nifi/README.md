@@ -7,10 +7,12 @@ Optional lab stack for monitoring and healing Apache NiFi flows with a Ratatoskr
 ```bash
 # From repo root (requires agent_flink_image — ratatoskr build)
 source .venv/bin/activate
+ratatoskr kafka up          # Studio Kafka (NiFi joins its network for kafka:9092)
 ratatoskr up --profile nifi
 
-# Wait for NiFi health, then load the sample flow
-./scripts/nifi_load_sample_flow.sh
+# Wait for NiFi health, then load flows
+./scripts/nifi_load_sample_flow.sh      # synthetic Generate→Log
+./scripts/nifi_load_kafka_flow.sh       # ConsumeKafka ← nifi.kafka.demo
 
 # Monitor only (Phase 1A — default)
 export NIFI_HEAL_PHASE=monitor

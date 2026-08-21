@@ -125,6 +125,35 @@ def test_fallback_rule_only_when_no_specific() -> None:
     assert result["matched_rules"] == ["stack_degraded"]
 
 
+def test_solo_nifi_unreachable_summary() -> None:
+    from ratatoskr.correlation import correlate_signals
+
+    nifi = _nifi(
+        classification={
+            "healthy": False,
+            "level": "HIGH",
+            "score": 0,
+            "severities": ["NIFI_UNREACHABLE"],
+            "summary": "NIFI_UNREACHABLE",
+        },
+        health={"severities": ["NIFI_UNREACHABLE"]},
+    )
+    kafka = _kafka(
+        classification={
+            "healthy": True,
+            "level": "OK",
+            "score": 100,
+            "severities": [],
+            "summary": "healthy",
+        },
+        health={"severities": [], "lag_crit_groups": [], "missing_topics": []},
+    )
+    result = correlate_signals(nifi, kafka)
+    assert result["incidents"] == []
+    assert result["classification"]["cross_signal"] is False
+    assert result["classification"]["summary"] == "nifi_only:NIFI_UNREACHABLE"
+
+
 def test_scribe_fallback_no_llm() -> None:
     from examples.agents.react_incident_scribe_logic import scribe_incident
     from ratatoskr.correlation import correlate_signals
@@ -167,6 +196,7 @@ def main() -> int:
         test_correlate_backpressure_lag,
         test_correlate_healthy_no_incidents,
         test_fallback_rule_only_when_no_specific,
+        test_solo_nifi_unreachable_summary,
         test_scribe_fallback_no_llm,
         test_scribe_healthy,
         test_agents_registered,

@@ -15,6 +15,8 @@ services:
       SINGLE_USER_CREDENTIALS_USERNAME: ${NIFI_USERNAME:-admin}
       SINGLE_USER_CREDENTIALS_PASSWORD: ${NIFI_PASSWORD:-RatatoskrNiFi1!}
       NIFI_WEB_HTTPS_PORT: 8443
+      # Listen on all interfaces (default can bind to container hostname only).
+      NIFI_WEB_HTTPS_HOST: 0.0.0.0
       # Allow browser (localhost) and Flink containers (nifi service DNS)
       NIFI_WEB_PROXY_HOST: "localhost:${NIFI_HTTPS_PORT:-8443},nifi:8443,nifi:${NIFI_HTTPS_PORT:-8443}"
       # ConsumeKafka / PublishKafka bootstrap inside compose (Studio Kafka INTERNAL)
@@ -36,6 +38,11 @@ services:
         props=/opt/nifi/nifi-current/conf/nifi.properties
         patch() {
           [[ -f "$$props" ]] || return 0
+          if grep -q '^nifi.web.https.host=' "$$props"; then
+            sed -i 's/^nifi.web.https.host=.*/nifi.web.https.host=0.0.0.0/' "$$props"
+          else
+            echo 'nifi.web.https.host=0.0.0.0' >>"$$props"
+          fi
           if grep -q '^nifi.web.https.sni.required=' "$$props"; then
             sed -i 's/^nifi.web.https.sni.required=.*/nifi.web.https.sni.required=false/' "$$props"
           else

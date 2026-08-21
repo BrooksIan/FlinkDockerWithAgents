@@ -56,6 +56,24 @@ export NIFI_HEAL_PHASE=safe
 python3 examples/agents/run_workflow_nifi_monitor_local.py
 ```
 
+## Kafka→NiFi demo flow (shared base)
+
+For combined NiFi + Kafka monitoring demos, load a ConsumeKafka pipeline (topic `nifi.kafka.demo`, group `ratatoskr-nifi-kafka-demo`):
+
+```bash
+ratatoskr kafka up
+ratatoskr up --profile nifi
+./scripts/nifi_load_kafka_flow.sh
+```
+
+Publish a test message from the host (`localhost:9094`):
+
+```bash
+python3 -c "from kafka import KafkaProducer; p=KafkaProducer(bootstrap_servers='localhost:9094'); p.send('nifi.kafka.demo', b'{\"hello\":\"nifi\"}'); p.flush()"
+```
+
+Future hooks: stop `ConsumeKafka` (NiFi STOPPED), delete `nifi.kafka.demo` (Kafka TOPIC_MISSING), stop `LogAttribute` (queue backlog), inspect group lag on `ratatoskr-nifi-kafka-demo`.
+
 ## Heal demo script (1B / 1C)
 
 Prereqs: `ratatoskr up --profile nifi`, `./scripts/nifi_load_sample_flow.sh`, and `source .venv/bin/activate`.
