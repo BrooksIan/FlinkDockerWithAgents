@@ -29,6 +29,11 @@ agents:
     description: "Correlate NiFi and Kafka monitor signals into cross-stack incidents (observe-only)"
     entry: examples.agents.workflow_signal_correlate:SignalCorrelateAgent
     runner: examples/agents/run_workflow_signal_correlate_local.py
+  workflow_cross_stack_heal:
+    type: workflow
+    description: "Correlate NiFi+Kafka then run coordinated heal playbooks (CROSS_HEAL_PHASE=monitor|lab)"
+    entry: examples.agents.workflow_cross_stack_heal:CrossStackHealAgent
+    runner: examples/agents/run_workflow_cross_stack_heal_local.py
   react_echo:
     type: react
     description: "Tool-chaining lab agent (no LLM) \u2014 classify and summarize text"

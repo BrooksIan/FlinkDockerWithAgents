@@ -29,7 +29,8 @@ class KafkaMonitorAgent(Agent):
     Heal behavior is gated by ``KAFKA_HEAL_PHASE``:
       - monitor: alerts only
       - safe: create missing catalog topics
-      - lab: safe + allowlisted offset reset / delete empty groups
+      - lab: increase partitions; allowlisted reset_offsets / delete_group;
+        optional recreate oversized topics
     """
 
     @tool

@@ -33,6 +33,7 @@ _STATIC_TOPICS: dict[str, str] = {
     "kafka.monitor.output": "Kafka monitor agent OutputEvents (optional sink)",
     "nifi.kafka.demo": "Shared NiFi←Kafka demo topic (ConsumeKafka lab flow)",
     "signals.correlate.output": "NiFi↔Kafka correlation incidents (workflow_signal_correlate)",
+    "signals.cross_heal.output": "Cross-stack heal results (workflow_cross_stack_heal)",
     "signals.incident.brief": "Incident scribe briefs (react_incident_scribe)",
 }
 

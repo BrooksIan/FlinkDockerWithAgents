@@ -739,6 +739,75 @@ class NiFiClient:
             mutation_name="terminate_processor",
         ) or {"ok": True, "id": processor_id, "terminated": True}
 
+    def restart_processor(
+        self, processor_id: str, version: Optional[int] = None
+    ) -> dict[str, Any]:
+        """Stop then start a processor (revision-aware, retries 409 races)."""
+        details = self.get_processor_details(processor_id)
+        state = (details.get("component") or {}).get("state") or ""
+        if state != "STOPPED":
+            try:
+                self.stop_processor(processor_id, version)
+            except Exception:  # noqa: BLE001
+                pass
+            time.sleep(0.5)
+        last_err: Exception | None = None
+        for _ in range(6):
+            try:
+                self.start_processor(processor_id)
+                return {"ok": True, "id": processor_id, "state": "RUNNING", "restarted": True}
+            except Exception as exc:  # noqa: BLE001
+                last_err = exc
+                time.sleep(0.5)
+        raise RuntimeError(f"restart_processor failed for {processor_id}: {last_err}")
+
+    def fix_processor_config(
+        self,
+        processor_id: str,
+        *,
+        auto_terminated_relationships: Optional[list[str]] = None,
+        properties: Optional[dict[str, str]] = None,
+        then_start: bool = True,
+    ) -> dict[str, Any]:
+        """Apply a narrow config patch (lab templates) then optionally start."""
+        details = self.get_processor_details(processor_id)
+        state = (details.get("component") or {}).get("state") or ""
+        if state not in ("STOPPED", "DISABLED"):
+            try:
+                self.stop_processor(processor_id)
+            except Exception:  # noqa: BLE001
+                pass
+            time.sleep(0.4)
+        self.update_processor_config(
+            processor_id,
+            properties=properties,
+            auto_terminated_relationships=auto_terminated_relationships,
+        )
+        time.sleep(0.4)
+        started = False
+        if then_start:
+            last_err: Exception | None = None
+            for _ in range(6):
+                try:
+                    self.start_processor(processor_id)
+                    started = True
+                    last_err = None
+                    break
+                except Exception as exc:  # noqa: BLE001
+                    last_err = exc
+                    time.sleep(0.5)
+            if not started and last_err is not None:
+                raise RuntimeError(
+                    f"fix_processor_config start failed for {processor_id}: {last_err}"
+                ) from last_err
+        return {
+            "ok": True,
+            "id": processor_id,
+            "started": started,
+            "auto_terminated_relationships": auto_terminated_relationships,
+            "properties": properties or {},
+        }
+
     def empty_connection_queue(self, connection_id: str) -> dict[str, Any]:
         """Drop all flowfiles on a connection. Destructive — lab only."""
         return self._request(

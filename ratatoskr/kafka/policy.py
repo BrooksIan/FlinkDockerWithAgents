@@ -9,6 +9,9 @@ from typing import Any, Callable
 
 from ratatoskr.kafka.client import KafkaClient
 from ratatoskr.kafka.env import (
+    allow_increase_partitions,
+    allow_recreate_topic,
+    heal_allow_group_prefixes,
     heal_allow_groups,
     heal_allow_name_regex,
     heal_allow_topics,
@@ -17,6 +20,7 @@ from ratatoskr.kafka.env import (
     heal_max_mutations,
     heal_phase,
     heal_verify,
+    offset_reset_strategy,
     phase_at_least,
 )
 
@@ -27,6 +31,8 @@ _SEVERITY_PENALTIES: dict[str, int] = {
     "LAG_CRIT": 30,
     "CONSUMER_STALLED": 25,
     "TOPIC_MISSING": 20,
+    "TOPIC_PARTITIONS_HIGH": 15,
+    "TOPIC_PARTITIONS_LOW": 12,
     "LAG_WARN": 10,
     "GROUP_EMPTY": 10,
     "BROKER_SLOW": 5,
@@ -42,7 +48,16 @@ _HIGH = frozenset(
         "CONSUMER_STALLED",
     }
 )
-_MEDIUM = frozenset({"TOPIC_MISSING", "LAG_WARN", "GROUP_EMPTY", "BROKER_SLOW"})
+_MEDIUM = frozenset(
+    {
+        "TOPIC_MISSING",
+        "TOPIC_PARTITIONS_LOW",
+        "TOPIC_PARTITIONS_HIGH",
+        "LAG_WARN",
+        "GROUP_EMPTY",
+        "BROKER_SLOW",
+    }
+)
 
 # Ordered heal rules (min_phase: monitor < safe < lab).
 HEAL_RULES: list[dict[str, Any]] = [
@@ -50,6 +65,13 @@ HEAL_RULES: list[dict[str, Any]] = [
         "op": "create_topic",
         "min_phase": "safe",
         "source": "missing_topics",
+    },
+    {
+        "op": "increase_partitions",
+        "min_phase": "lab",
+        "source": "undersized_topics",
+        "requires_increase_partitions": True,
+        "reason": "catalog_partition_drift",
     },
     {
         "op": "reset_offsets",
@@ -64,6 +86,13 @@ HEAL_RULES: list[dict[str, Any]] = [
         "source": "empty_lagging_groups",
         "requires_group_allowlist": True,
         "reason": "stalled_empty_group",
+    },
+    {
+        "op": "recreate_topic",
+        "min_phase": "lab",
+        "source": "oversized_topics",
+        "requires_recreate": True,
+        "reason": "shrink_via_recreate",
     },
 ]
 
@@ -120,6 +149,8 @@ def diff_health(
 ) -> dict[str, Any]:
     keys = (
         ("missing_topics", "name"),
+        ("undersized_topics", "name"),
+        ("oversized_topics", "name"),
         ("lag_warn_groups", "group_id"),
         ("lag_crit_groups", "group_id"),
         ("stalled_groups", "group_id"),
@@ -172,6 +203,10 @@ def build_heal_plan(
         min_phase = str(rule.get("min_phase") or "lab")
         if not phase_at_least(active, min_phase):
             continue
+        if rule.get("requires_increase_partitions") and not allow_increase_partitions():
+            continue
+        if rule.get("requires_recreate") and not allow_recreate_topic():
+            continue
         op = str(rule["op"])
         for ent in _source_entities(health, str(rule["source"])):
             if op == "create_topic":
@@ -186,11 +221,43 @@ def build_heal_plan(
                     "replication_factor": ent.get("replication_factor"),
                     "proposed": True,
                 }
+            elif op == "increase_partitions":
+                target = ent.get("name")
+                want = ent.get("desired_partitions") or ent.get("partitions")
+                if not target or not want:
+                    continue
+                have = int(ent.get("partition_count") or 0)
+                if have >= int(want):
+                    continue
+                item = {
+                    "op": op,
+                    "id": target,
+                    "name": target,
+                    "partitions": int(want),
+                    "from_partitions": have,
+                    "proposed": True,
+                    "requires_topic_allowlist": True,
+                }
+            elif op == "recreate_topic":
+                target = ent.get("name")
+                want = ent.get("desired_partitions") or ent.get("partitions")
+                if not target or not want:
+                    continue
+                item = {
+                    "op": op,
+                    "id": target,
+                    "name": target,
+                    "partitions": int(want),
+                    "replication_factor": ent.get("replication_factor"),
+                    "from_partitions": ent.get("partition_count"),
+                    "proposed": True,
+                    "requires_topic_allowlist": True,
+                    "warning": "topic data permanently deleted",
+                }
             elif op == "reset_offsets":
                 gid = ent.get("group_id")
                 if not gid:
                     continue
-                # Prefer first lagged topic partition's topic
                 topic = None
                 for p in ent.get("partitions") or []:
                     if int(p.get("lag") or 0) > 0:
@@ -206,6 +273,7 @@ def build_heal_plan(
                     "name": gid,
                     "group_id": gid,
                     "topic": topic,
+                    "strategy": offset_reset_strategy(),
                     "proposed": True,
                     "requires_group_allowlist": True,
                 }
@@ -229,30 +297,52 @@ def build_heal_plan(
     return plan
 
 
+def _group_allowlisted(gid: str) -> bool:
+    group_allow = heal_allow_groups()
+    prefixes = heal_allow_group_prefixes()
+    if group_allow is not None and gid in group_allow:
+        return True
+    if prefixes and any(gid.startswith(p) for p in prefixes):
+        return True
+    return False
+
+
+def _topic_allowlisted(name: str) -> bool:
+    topic_allow = heal_allow_topics()
+    name_re = heal_allow_name_regex()
+    if topic_allow is None and name_re is None:
+        return True
+    ok_topic = topic_allow is not None and name in topic_allow
+    ok_re = name_re is not None and bool(name_re.search(name))
+    if topic_allow is not None and name_re is not None:
+        return ok_topic or ok_re
+    if topic_allow is not None:
+        return ok_topic
+    return ok_re
+
+
 def _allowlisted(action: dict[str, Any]) -> bool:
     op = action.get("op")
     name = str(action.get("name") or action.get("id") or "")
-    topic_allow = heal_allow_topics()
-    group_allow = heal_allow_groups()
-    name_re = heal_allow_name_regex()
 
     if op == "create_topic":
-        if topic_allow is None and name_re is None:
-            return True
-        ok_topic = topic_allow is not None and name in topic_allow
-        ok_re = name_re is not None and bool(name_re.search(name))
-        if topic_allow is not None and name_re is not None:
-            return ok_topic or ok_re
-        if topic_allow is not None:
-            return ok_topic
-        return ok_re
+        return _topic_allowlisted(name)
 
-    # Group mutations: require explicit allowlist (deny by default).
+    if op in ("increase_partitions", "recreate_topic") or action.get(
+        "requires_topic_allowlist"
+    ):
+        # Destructive / structural topic ops: if allowlist set, must match;
+        # if unset, allow (catalog-scoped detection already limits blast radius).
+        return _topic_allowlisted(name)
+
+    # Group mutations: require explicit allowlist or prefix (deny by default).
     if action.get("requires_group_allowlist") or op in ("reset_offsets", "delete_group"):
-        if group_allow is None:
+        gid = str(action.get("group_id") or name)
+        if heal_allow_groups() is None and not heal_allow_group_prefixes():
             return False
-        return name in group_allow or str(action.get("group_id") or "") in group_allow
+        return _group_allowlisted(gid)
 
+    name_re = heal_allow_name_regex()
     if name_re is not None:
         return bool(name_re.search(name))
     return True
@@ -284,10 +374,22 @@ def _execute_action(client: KafkaClient, action: dict[str, Any]) -> dict[str, An
                 partitions=action.get("partitions"),
                 replication_factor=action.get("replication_factor"),
             )
+        elif op == "increase_partitions":
+            client.increase_partitions(
+                str(action["id"]), int(action.get("partitions") or 1)
+            )
+        elif op == "recreate_topic":
+            client.recreate_topic(
+                str(action["id"]),
+                partitions=action.get("partitions"),
+                replication_factor=action.get("replication_factor"),
+            )
+            out["warning"] = "topic data permanently deleted"
         elif op == "reset_offsets":
-            client.reset_offsets_to_end(
+            client.reset_offsets(
                 str(action.get("group_id") or action["id"]),
                 str(action["topic"]),
+                strategy=str(action.get("strategy") or offset_reset_strategy()),
             )
         elif op == "delete_group":
             client.delete_consumer_group(str(action.get("group_id") or action["id"]))
@@ -310,6 +412,17 @@ def _verify_action(action: dict[str, Any], health_after: dict[str, Any]) -> bool
     if op == "create_topic":
         missing = {m.get("name") for m in (health_after.get("missing_topics") or [])}
         return eid not in missing
+    if op == "increase_partitions":
+        undersized = {
+            m.get("name") for m in (health_after.get("undersized_topics") or [])
+        }
+        return eid not in undersized
+    if op == "recreate_topic":
+        oversized = {
+            m.get("name") for m in (health_after.get("oversized_topics") or [])
+        }
+        missing = {m.get("name") for m in (health_after.get("missing_topics") or [])}
+        return eid not in oversized and eid not in missing
     if op == "reset_offsets":
         crit = {g.get("group_id") for g in (health_after.get("lag_crit_groups") or [])}
         return eid not in crit
@@ -335,7 +448,8 @@ def apply_heal_policy(
 
     - monitor: none
     - safe: create missing catalog topics
-    - lab: safe + allowlisted offset reset / delete empty lagging groups
+    - lab: safe + increase partitions, allowlisted offset reset / delete group,
+      optional recreate oversized topics
     """
     active = (phase or heal_phase()).lower()
     is_dry = heal_dry_run() if dry_run is None else dry_run
@@ -425,6 +539,8 @@ def _unreachable_health(exc: BaseException, bootstrap: str = "") -> dict[str, An
         "topic_details": [],
         "under_replicated_topics": [],
         "offline_partitions": [],
+        "undersized_topics": [],
+        "oversized_topics": [],
         "consumer_groups": [],
         "lag_warn_groups": [],
         "lag_crit_groups": [],
@@ -492,6 +608,8 @@ def run_monitor_cycle(
         "unexpected_topics": health.get("unexpected_topics"),
         "under_replicated_topics": health.get("under_replicated_topics"),
         "offline_partitions": health.get("offline_partitions"),
+        "undersized_topics": health.get("undersized_topics"),
+        "oversized_topics": health.get("oversized_topics"),
         "lag_warn_groups": health.get("lag_warn_groups"),
         "lag_crit_groups": health.get("lag_crit_groups"),
         "stalled_groups": health.get("stalled_groups"),

@@ -272,6 +272,8 @@ class KafkaClient:
                 "topic_details": [],
                 "under_replicated_topics": [],
                 "offline_partitions": [],
+                "undersized_topics": [],
+                "oversized_topics": [],
                 "consumer_groups": [],
                 "lag_warn_groups": [],
                 "lag_crit_groups": [],
@@ -342,6 +344,42 @@ class KafkaClient:
             "poll_ms": round(poll_ms, 2),
         }
 
+        # Catalog partition drift (live topics only).
+        detail_by_name = {
+            str(d.get("name")): d for d in details if d.get("name")
+        }
+        undersized: list[dict[str, Any]] = []
+        oversized: list[dict[str, Any]] = []
+        for name, meta in catalog.items():
+            if name not in live or not matches_watch(name):
+                continue
+            want = int(meta.get("partitions") or default_partitions())
+            have = int((detail_by_name.get(name) or {}).get("partition_count") or 0)
+            if have <= 0:
+                continue
+            if have < want:
+                undersized.append(
+                    {
+                        "name": name,
+                        "partition_count": have,
+                        "desired_partitions": want,
+                        "partitions": want,  # create/increase target
+                        "replication_factor": meta.get("replication_factor"),
+                        "description": meta.get("description"),
+                    }
+                )
+            elif have > want:
+                oversized.append(
+                    {
+                        "name": name,
+                        "partition_count": have,
+                        "desired_partitions": want,
+                        "partitions": want,
+                        "replication_factor": meta.get("replication_factor"),
+                        "description": meta.get("description"),
+                    }
+                )
+
         severities: list[str] = []
         if missing:
             severities.append("TOPIC_MISSING")
@@ -351,6 +389,10 @@ class KafkaClient:
             severities.append("UNDER_REPLICATED")
         if offline:
             severities.append("OFFLINE_PARTITION")
+        if undersized:
+            severities.append("TOPIC_PARTITIONS_LOW")
+        if oversized:
+            severities.append("TOPIC_PARTITIONS_HIGH")
         if lag_warn:
             severities.append("LAG_WARN")
         if lag_crit:
@@ -374,6 +416,8 @@ class KafkaClient:
             "topic_details": details,
             "under_replicated_topics": under,
             "offline_partitions": offline,
+            "undersized_topics": undersized,
+            "oversized_topics": oversized,
             "consumer_groups": group_summaries,
             "lag_warn_groups": lag_warn,
             "lag_crit_groups": lag_crit,
@@ -384,6 +428,8 @@ class KafkaClient:
                 "live_topics": len(live),
                 "catalog_topics": len(catalog),
                 "missing": len(missing),
+                "undersized": len(undersized),
+                "oversized": len(oversized),
                 "consumer_groups": len(groups),
             },
         }
@@ -442,8 +488,22 @@ class KafkaClient:
             raise
 
     def reset_offsets_to_end(self, group_id: str, topic: str) -> dict[str, Any]:
-        """Lab-only: commit group offsets to log end for all partitions of topic."""
+        """Lab-only: commit group offsets to log end (skip backlog)."""
+        return self.reset_offsets(group_id, topic, strategy="latest")
+
+    def reset_offsets_to_beginning(self, group_id: str, topic: str) -> dict[str, Any]:
+        """Lab-only: commit group offsets to log start (replay)."""
+        return self.reset_offsets(group_id, topic, strategy="earliest")
+
+    def reset_offsets(
+        self, group_id: str, topic: str, *, strategy: str = "latest"
+    ) -> dict[str, Any]:
+        """Commit group offsets to latest or earliest for all partitions of topic."""
         from kafka import KafkaConsumer, OffsetAndMetadata, TopicPartition
+
+        strat = (strategy or "latest").strip().lower()
+        if strat not in ("latest", "earliest"):
+            raise ValueError(f"unknown offset strategy {strategy!r}")
 
         consumer = KafkaConsumer(
             bootstrap_servers=self.bootstrap,
@@ -458,9 +518,13 @@ class KafkaClient:
                 raise RuntimeError(f"topic {topic!r} not found or has no partitions")
             tps = [TopicPartition(topic, p) for p in sorted(parts)]
             consumer.assign(tps)
-            ends = consumer.end_offsets(tps)
+            targets = (
+                consumer.end_offsets(tps)
+                if strat == "latest"
+                else consumer.beginning_offsets(tps)
+            )
             to_commit = {
-                tp: OffsetAndMetadata(ends[tp], "", -1) for tp in tps
+                tp: OffsetAndMetadata(targets[tp], "", -1) for tp in tps
             }
             consumer.commit(to_commit)
             self.mutations.append(
@@ -468,7 +532,7 @@ class KafkaClient:
                     "op": "reset_offsets",
                     "target": group_id,
                     "topic": topic,
-                    "strategy": "latest",
+                    "strategy": strat,
                     "ok": True,
                 }
             )
@@ -476,7 +540,10 @@ class KafkaClient:
                 "ok": True,
                 "group_id": group_id,
                 "topic": topic,
-                "offsets": {f"{tp.topic}:{tp.partition}": ends[tp] for tp in tps},
+                "strategy": strat,
+                "offsets": {
+                    f"{tp.topic}:{tp.partition}": targets[tp] for tp in tps
+                },
             }
         except Exception as exc:  # noqa: BLE001
             self.mutations.append(
@@ -484,6 +551,7 @@ class KafkaClient:
                     "op": "reset_offsets",
                     "target": group_id,
                     "topic": topic,
+                    "strategy": strat,
                     "ok": False,
                     "error": str(exc),
                 }
@@ -491,6 +559,80 @@ class KafkaClient:
             raise
         finally:
             consumer.close()
+
+    def increase_partitions(self, name: str, total_count: int) -> dict[str, Any]:
+        """Raise partition count to ``total_count`` (can only increase)."""
+        from kafka.admin import NewPartitions
+
+        want = max(1, int(total_count))
+        admin = self._get_admin()
+        try:
+            admin.create_partitions({name: NewPartitions(want)})
+            self.mutations.append(
+                {
+                    "op": "increase_partitions",
+                    "target": name,
+                    "partitions": want,
+                    "ok": True,
+                }
+            )
+            return {"ok": True, "name": name, "partitions": want}
+        except Exception as exc:  # noqa: BLE001
+            self.mutations.append(
+                {
+                    "op": "increase_partitions",
+                    "target": name,
+                    "partitions": want,
+                    "ok": False,
+                    "error": str(exc),
+                }
+            )
+            raise
+
+    def recreate_topic(
+        self,
+        name: str,
+        *,
+        partitions: Optional[int] = None,
+        replication_factor: Optional[int] = None,
+    ) -> dict[str, Any]:
+        """Delete then create a topic (lab — destructive; data loss)."""
+        parts = partitions if partitions is not None else default_partitions()
+        rf = (
+            replication_factor
+            if replication_factor is not None
+            else default_replication_factor()
+        )
+        if name in self.list_topics():
+            self.delete_topic(name)
+            for _ in range(60):
+                if name not in self.list_topics():
+                    break
+                time.sleep(0.5)
+        last_err: Exception | None = None
+        created: dict[str, Any] = {}
+        for _ in range(10):
+            try:
+                created = self.create_topic(
+                    name, partitions=parts, replication_factor=rf
+                )
+                last_err = None
+                break
+            except Exception as exc:  # noqa: BLE001
+                last_err = exc
+                time.sleep(0.75)
+        if last_err is not None:
+            raise RuntimeError(f"recreate_topic create failed: {last_err}") from last_err
+        self.mutations.append(
+            {
+                "op": "recreate_topic",
+                "target": name,
+                "partitions": parts,
+                "replication_factor": rf,
+                "ok": True,
+            }
+        )
+        return {"ok": True, "name": name, "recreated": True, **created}
 
     def delete_consumer_group(self, group_id: str) -> dict[str, Any]:
         admin = self._get_admin()

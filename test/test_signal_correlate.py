@@ -96,7 +96,38 @@ def test_correlate_healthy_no_incidents() -> None:
 def test_fallback_rule_only_when_no_specific() -> None:
     from ratatoskr.correlation import correlate_signals
 
-    # STOPPED + TOPIC_MISSING → stack_degraded (no more specific rule)
+    # NIFI_SLOW + UNDER_REPLICATED → stack_degraded (no more specific rule)
+    nifi = _nifi(
+        classification={
+            "healthy": False,
+            "level": "LOW",
+            "score": 90,
+            "severities": ["NIFI_SLOW"],
+            "summary": "NIFI_SLOW",
+        },
+        health={"severities": ["NIFI_SLOW"], "stopped_processors": [], "queued_connections": []},
+    )
+    kafka = _kafka(
+        classification={
+            "healthy": False,
+            "level": "MEDIUM",
+            "score": 80,
+            "severities": ["UNDER_REPLICATED"],
+            "summary": "UNDER_REPLICATED",
+        },
+        health={
+            "severities": ["UNDER_REPLICATED"],
+            "missing_topics": [],
+            "lag_crit_groups": [],
+        },
+    )
+    result = correlate_signals(nifi, kafka)
+    assert result["matched_rules"] == ["stack_degraded"]
+
+
+def test_kafka_topic_nifi_consumer_rule() -> None:
+    from ratatoskr.correlation import correlate_signals, plan_cross_heals
+
     nifi = _nifi(
         classification={
             "healthy": False,
@@ -105,24 +136,56 @@ def test_fallback_rule_only_when_no_specific() -> None:
             "severities": ["STOPPED"],
             "summary": "STOPPED",
         },
-        health={"severities": ["STOPPED"], "stopped_processors": [{"id": "p"}], "queued_connections": []},
+        health={
+            "severities": ["STOPPED"],
+            "stopped_processors": [{"id": "p", "name": "ConsumeKafka"}],
+            "queued_connections": [],
+        },
     )
     kafka = _kafka(
         classification={
             "healthy": False,
-            "level": "MEDIUM",
-            "score": 80,
+            "level": "HIGH",
+            "score": 50,
             "severities": ["TOPIC_MISSING"],
             "summary": "TOPIC_MISSING",
         },
         health={
             "severities": ["TOPIC_MISSING"],
-            "missing_topics": [{"name": "x"}],
+            "missing_topics": [{"name": "nifi.kafka.demo"}],
             "lag_crit_groups": [],
         },
     )
     result = correlate_signals(nifi, kafka)
-    assert result["matched_rules"] == ["stack_degraded"]
+    assert "kafka_topic_nifi_consumer" in result["matched_rules"]
+    plan = plan_cross_heals(result)
+    assert [s["id"] for s in plan] == [
+        "kafka_create_missing",
+        "nifi_start_consumer_path",
+    ]
+
+
+def test_cross_stack_monitor_plans_only() -> None:
+    from ratatoskr.correlation import run_cross_stack_cycle
+
+    nifi = _nifi()
+    kafka = _kafka()
+    out = run_cross_stack_cycle(
+        nifi_event=nifi, kafka_event=kafka, phase="monitor"
+    )
+    assert out["agent"] == "workflow_cross_stack_heal"
+    assert out["cross_heal_phase"] == "monitor"
+    assert out["heal_actions"] == []
+    assert any(s["id"] == "nifi_queue_relief" for s in out["cross_heal_plan"])
+
+
+def test_agents_registered() -> None:
+    from ratatoskr.agents.registry import load_agent_registry
+
+    manifest = load_agent_registry(validate=False)
+    assert "workflow_signal_correlate" in manifest.agents
+    assert "workflow_cross_stack_heal" in manifest.agents
+    assert "react_incident_scribe" in manifest.agents
 
 
 def test_solo_nifi_unreachable_summary() -> None:
@@ -183,19 +246,13 @@ def test_scribe_healthy() -> None:
     assert "healthy" in brief["headline"].lower()
 
 
-def test_agents_registered() -> None:
-    from ratatoskr.agents.registry import load_agent_registry
-
-    manifest = load_agent_registry(validate=False)
-    assert "workflow_signal_correlate" in manifest.agents
-    assert "react_incident_scribe" in manifest.agents
-
-
 def main() -> int:
     tests = [
         test_correlate_backpressure_lag,
         test_correlate_healthy_no_incidents,
         test_fallback_rule_only_when_no_specific,
+        test_kafka_topic_nifi_consumer_rule,
+        test_cross_stack_monitor_plans_only,
         test_solo_nifi_unreachable_summary,
         test_scribe_fallback_no_llm,
         test_scribe_healthy,

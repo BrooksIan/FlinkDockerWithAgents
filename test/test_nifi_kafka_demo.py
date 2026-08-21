@@ -74,7 +74,36 @@ def test_fault_inject_kafka_helpers_importable() -> None:
     assert mod.KAFKA_PG == "Ratatoskr Kafka Demo"
     assert callable(mod.inject_stop_consume)
     assert callable(mod.inject_disable_kafka_cs)
+    assert callable(mod.inject_kafka_invalid_log)
+    assert callable(mod.inject_kafka_stop_log)
+    assert callable(mod.restore_log_attribute_config)
     assert (ROOT / "scripts" / "demo_nifi_kafka_heal.py").is_file()
+
+
+def test_heal_demo_scenario_catalog() -> None:
+    import importlib.util
+
+    path = ROOT / "scripts" / "demo_nifi_kafka_heal.py"
+    spec = importlib.util.spec_from_file_location("demo_nifi_kafka_heal", path)
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    expected = {
+        "stop-consume",
+        "disable-cs",
+        "invalid-log",
+        "queue-backlog",
+        "delete-topic",
+        "increase-partitions",
+        "lag-group",
+        "lag-earliest",
+    }
+    assert expected <= set(mod.SCENARIOS)
+    assert mod.SCENARIOS["invalid-log"]["heal_phase"] == "lab"
+    assert mod.SCENARIOS["delete-topic"]["stack"] == "kafka"
+    assert "create_topic" in mod.SCENARIOS["delete-topic"]["expect_ops"]
+    assert "increase_partitions" in mod.SCENARIOS["increase-partitions"]["expect_ops"]
+
 
 
 def main() -> int:
@@ -85,6 +114,7 @@ def main() -> int:
         test_nifi_compose_joins_kafka_network,
         test_kafka_compose_declares_demo_topic_optional,
         test_fault_inject_kafka_helpers_importable,
+        test_heal_demo_scenario_catalog,
     ]
     failed = 0
     for fn in tests:

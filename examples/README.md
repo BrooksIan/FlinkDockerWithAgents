@@ -26,7 +26,11 @@ Catalog: [`agents/agent-catalog.yaml`](agents/agent-catalog.yaml) — categories
 | `workflow_counter` | workflow | `run_workflow_local.py` | `@action` + `@tool` — doubles integers |
 | `workflow_api_fetch` | workflow | `run_workflow_api_fetch_local.py` | HTTP GET/POST to configured API (Settings) |
 | `workflow_nifi_monitor` | workflow | `run_workflow_nifi_monitor_local.py` | NiFi health monitor / heal (`NIFI_HEAL_PHASE`) |
+| `workflow_kafka_monitor` | workflow | `run_workflow_kafka_monitor_local.py` | Kafka health monitor / heal (`KAFKA_HEAL_PHASE`) |
+| `workflow_signal_correlate` | workflow | `run_workflow_signal_correlate_local.py` | NiFi↔Kafka correlation (observe-only) |
+| `workflow_cross_stack_heal` | workflow | `run_workflow_cross_stack_heal_local.py` | Correlate + coordinated heals (`CROSS_HEAL_PHASE`) |
 | `react_echo` | react | `run_react_local.py` | Tool-chaining lab (no LLM) |
+| `react_incident_scribe` | react | `run_react_incident_scribe_local.py` | Explain correlated incidents (never mutates) |
 | `react_double_value` | react | `run_react_double_local.py` | LLM doubles numeric input (Designer settings) |
 | `react_skills_demo` | react | `run_react_skills_demo_local.py` | Native `@chat_model_setup` + math-calculator skill |
 | `session_detect` | workflow | `run_session_window_local.py` | Session severity from dynamic window batches |
@@ -39,6 +43,8 @@ ratatoskr agent run workflow_api_fetch --local   # configure URL in Settings fir
 ratatoskr agent submit workflow_counter   # needs Flink cluster up
 ratatoskr agent status
 ```
+
+Heal demos (NiFi / Kafka / cross-stack): [docs/NIFI_MONITOR.md](../docs/NIFI_MONITOR.md#orchestrated-heal-examples) · [docs/KAFKA_MONITOR.md](../docs/KAFKA_MONITOR.md#orchestrated-heal-examples-shared-base) · [docs/SIGNAL_CORRELATE.md](../docs/SIGNAL_CORRELATE.md) · `python3 scripts/demo_nifi_kafka_heal.py --list`
 
 ### `workflow_api_fetch`
 

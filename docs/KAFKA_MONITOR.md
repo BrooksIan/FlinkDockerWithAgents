@@ -62,7 +62,7 @@ flowchart LR
 ```mermaid
 flowchart TB
   M["monitor — observe only"] --> S["safe — create missing catalog topics"]
-  S --> L["lab — + reset_offsets / delete_group\nonly if KAFKA_HEAL_ALLOW_GROUPS"]
+  S --> L["lab — + increase_partitions / reset_offsets /\ndelete_group / recreate_topic (gated)"]
 ```
 
 ## Components
@@ -80,6 +80,7 @@ flowchart TB
 |----------|---------|
 | `BROKER_UNREACHABLE` / `BROKER_SLOW` | Bootstrap / metadata probe |
 | `TOPIC_MISSING` | Canonical catalog topic absent on broker |
+| `TOPIC_PARTITIONS_LOW` / `TOPIC_PARTITIONS_HIGH` | Live partition count vs catalog |
 | `TOPIC_UNEXPECTED` | Extra live topic (opt-in via `KAFKA_FLAG_UNEXPECTED=1`) |
 | `UNDER_REPLICATED` / `OFFLINE_PARTITION` | ISR / leader issues |
 | `LAG_WARN` / `LAG_CRIT` | Consumer group lag vs `KAFKA_LAG_*` |
@@ -91,11 +92,11 @@ flowchart TB
 |-------|-----|-----------|
 | monitor | `KAFKA_HEAL_PHASE=monitor` | none |
 | safe | `KAFKA_HEAL_PHASE=safe` | `create_topic` for missing catalog topics |
-| lab | `KAFKA_HEAL_PHASE=lab` | safe + `reset_offsets` / `delete_group` **only** if listed in `KAFKA_HEAL_ALLOW_GROUPS` |
+| lab | `KAFKA_HEAL_PHASE=lab` | safe + `increase_partitions` (catalog undersized) + `reset_offsets` / `delete_group` if `KAFKA_HEAL_ALLOW_GROUPS` or `KAFKA_HEAL_ALLOW_GROUP_PREFIXES`; `recreate_topic` for oversized if `KAFKA_HEAL_ALLOW_RECREATE=1` |
 
-Gates: `KAFKA_HEAL_DRY_RUN`, `KAFKA_HEAL_MAX_MUTATIONS`, `KAFKA_HEAL_COOLDOWN_SEC`, `KAFKA_HEAL_ALLOW_TOPICS`, `KAFKA_HEAL_VERIFY`.
+Gates: `KAFKA_HEAL_DRY_RUN`, `KAFKA_HEAL_MAX_MUTATIONS`, `KAFKA_HEAL_COOLDOWN_SEC`, `KAFKA_HEAL_ALLOW_TOPICS`, `KAFKA_HEAL_VERIFY`, `KAFKA_HEAL_ALLOW_INCREASE_PARTITIONS` (default on), `KAFKA_HEAL_OFFSET_STRATEGY=latest|earliest` (default latest).
 
-Lab `reset_offsets` always commits to **latest** (skips backlog — destructive).
+Lab `reset_offsets` defaults to **latest** (skips backlog). Set `KAFKA_HEAL_OFFSET_STRATEGY=earliest` to replay.
 
 ## Run locally
 
@@ -144,9 +145,44 @@ python3 examples/agents/run_workflow_kafka_monitor_local.py --count 1
 # Expect reset_offsets and/or delete_group only for the allowlisted group
 ```
 
-Without `KAFKA_HEAL_ALLOW_GROUPS`, lab group ops are skipped (`skipped: allowlist`).
+Without `KAFKA_HEAL_ALLOW_GROUPS` (or `KAFKA_HEAL_ALLOW_GROUP_PREFIXES`), lab group ops are skipped (`skipped: allowlist`).
+
+**Lab — undersized partitions**
+
+```bash
+python3 scripts/kafka_fault_inject.py --undersize-topic nifi.kafka.demo
+export KAFKA_HEAL_PHASE=lab
+export KAFKA_TOPIC_PARTITIONS=3
+export KAFKA_HEAL_ALLOW_TOPICS=nifi.kafka.demo
+python3 examples/agents/run_workflow_kafka_monitor_local.py --count 1
+# Expect increase_partitions on nifi.kafka.demo
+```
 
 Continuous: `python examples/agents/run_workflow_kafka_monitor_local.py --interval 10 --count 6`
+
+## Orchestrated heal examples (shared base)
+
+Shared catalog with NiFi (requires `./scripts/nifi_load_kafka_flow.sh`):
+
+```bash
+python3 scripts/demo_nifi_kafka_heal.py --list
+python3 scripts/demo_nifi_kafka_heal.py --scenario delete-topic
+python3 scripts/demo_nifi_kafka_heal.py --scenario increase-partitions
+python3 scripts/demo_nifi_kafka_heal.py --scenario lag-group
+python3 scripts/demo_nifi_kafka_heal.py --scenario lag-earliest
+python3 scripts/demo_nifi_kafka_heal.py --scenario cross-topic   # Kafka create + NiFi start
+python3 scripts/demo_nifi_kafka_heal.py --scenario cross-lag     # NiFi queue relief under lag
+```
+
+| Scenario | Phase | Expected ops |
+|----------|-------|--------------|
+| `delete-topic` | safe | `create_topic` (stop ConsumeKafka first to avoid auto-create) |
+| `increase-partitions` | lab | `increase_partitions` |
+| `lag-group` | lab | `delete_group` and/or `reset_offsets` |
+| `lag-earliest` | lab | `reset_offsets` with `KAFKA_HEAL_OFFSET_STRATEGY=earliest` |
+| `cross-topic` / `cross-lag` | lab | Coordinated playbooks — [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md) |
+
+Full NiFi-side scenarios: [NIFI_MONITOR.md](NIFI_MONITOR.md#orchestrated-heal-examples).
 
 ## Cluster
 

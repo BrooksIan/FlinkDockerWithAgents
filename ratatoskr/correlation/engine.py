@@ -245,3 +245,58 @@ def run_correlate_cycle(
                 client.close()
 
     return correlate_signals(nifi_event, kafka_event)
+
+
+def run_cross_stack_cycle(
+    *,
+    nifi_event: dict[str, Any] | None = None,
+    kafka_event: dict[str, Any] | None = None,
+    poll_live: bool = False,
+    phase: str | None = None,
+    dry_run: bool | None = None,
+    nifi_pg_id: str = "root",
+    nifi_client: Any | None = None,
+    kafka_client: Any | None = None,
+) -> dict[str, Any]:
+    """
+    Correlate NiFi + Kafka, then optionally run cross-stack heal playbooks.
+
+    ``phase``: ``monitor`` (default) = observe + plan; ``lab`` = execute playbooks.
+    """
+    from ratatoskr.correlation.env import cross_heal_phase
+    from ratatoskr.correlation.heal import apply_cross_heal_policy, plan_cross_heals
+
+    correlated = run_correlate_cycle(
+        nifi_event=nifi_event,
+        kafka_event=kafka_event,
+        poll_live=poll_live,
+    )
+    effective = (phase or cross_heal_phase()).strip().lower()
+    heal = apply_cross_heal_policy(
+        correlated,
+        nifi_client=nifi_client,
+        kafka_client=kafka_client,
+        nifi_pg_id=nifi_pg_id,
+        dry_run=dry_run,
+        phase=effective,
+    )
+    # Always surface the planned steps even in monitor
+    if not heal.get("cross_heal_plan"):
+        heal["cross_heal_plan"] = [
+            {
+                "id": s["id"],
+                "side": s["side"],
+                "phase": s["phase"],
+                "rule": s["rule"],
+            }
+            for s in plan_cross_heals(correlated)
+        ]
+
+    out = dict(correlated)
+    out["agent"] = "workflow_cross_stack_heal"
+    out["cross_heal_phase"] = heal.get("cross_heal_phase", effective)
+    out["cross_heal_dry_run"] = heal.get("cross_heal_dry_run")
+    out["cross_heal_plan"] = heal.get("cross_heal_plan") or []
+    out["heal_actions"] = heal.get("heal_actions") or []
+    out["step_results"] = heal.get("step_results") or []
+    return out

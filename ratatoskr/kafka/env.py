@@ -139,6 +139,31 @@ def heal_allow_name_regex() -> Pattern[str] | None:
         return None
 
 
+def heal_allow_group_prefixes() -> tuple[str, ...]:
+    """Comma-separated group id prefixes allowed for lab group mutates (in addition to exact allowlist)."""
+    raw = (os.environ.get("KAFKA_HEAL_ALLOW_GROUP_PREFIXES") or "").strip()
+    if not raw:
+        return ()
+    return tuple(p.strip() for p in raw.split(",") if p.strip())
+
+
+def offset_reset_strategy() -> str:
+    """Lab reset_offsets target: latest (skip backlog, default) or earliest (replay)."""
+    raw = (os.environ.get("KAFKA_HEAL_OFFSET_STRATEGY") or "latest").strip().lower()
+    return raw if raw in ("latest", "earliest") else "latest"
+
+
+def allow_increase_partitions() -> bool:
+    """Lab increase_partitions toward catalog (default on). Set KAFKA_HEAL_ALLOW_INCREASE_PARTITIONS=0."""
+    raw = (os.environ.get("KAFKA_HEAL_ALLOW_INCREASE_PARTITIONS") or "1").strip().lower()
+    return raw not in ("0", "false", "no", "off")
+
+
+def allow_recreate_topic() -> bool:
+    """Lab recreate_topic for oversized catalog topics (default off — destructive)."""
+    return _truthy("KAFKA_HEAL_ALLOW_RECREATE")
+
+
 def matches_watch(name: str) -> bool:
     prefixes = watch_prefixes()
     if not prefixes:

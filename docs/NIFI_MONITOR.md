@@ -35,9 +35,9 @@ NiFi heal actions should be **deterministic and auditable**: same health snapsho
 |-------|-----|-----------|
 | monitor (1A) | `NIFI_HEAL_PHASE=monitor` | none |
 | safe (1B) | `NIFI_HEAL_PHASE=safe` | `enable_controller_service`, `start_processor` (ordered) |
-| lab (1C) | `NIFI_HEAL_PHASE=lab` | safe + `stop_processor` (upstream of backpressure) + `terminate_processor`; `empty_connection_queue` if `NIFI_HEAL_ALLOW_EMPTY_QUEUE=1` |
+| lab (1C) | `NIFI_HEAL_PHASE=lab` | safe + `fix_processor_config` (allowlisted templates, e.g. LogAttribute auto-terminate) + `stop_processor` (upstream of backpressure) + `restart_processor` (repeated bulletins) + `terminate_processor` (INVALID without template); `empty_connection_queue` if `NIFI_HEAL_ALLOW_EMPTY_QUEUE=1` |
 
-Gates: `NIFI_HEAL_DRY_RUN`, `NIFI_HEAL_MAX_MUTATIONS`, `NIFI_HEAL_COOLDOWN_SEC`, `NIFI_HEAL_ALLOW_IDS` / `NIFI_HEAL_ALLOW_NAME_REGEX`, `NIFI_HEAL_VERIFY`.
+Gates: `NIFI_HEAL_DRY_RUN`, `NIFI_HEAL_MAX_MUTATIONS`, `NIFI_HEAL_COOLDOWN_SEC`, `NIFI_HEAL_ALLOW_IDS` / `NIFI_HEAL_ALLOW_NAME_REGEX`, `NIFI_HEAL_VERIFY`, `NIFI_HEAL_ALLOW_CONFIG_FIX` (default on), `NIFI_HEAL_ALLOW_RESTART` (default on), `NIFI_HEAL_RESTART_MIN_BULLETINS` (default 2).
 
 ## Run locally
 
@@ -72,18 +72,33 @@ Publish a test message from the host (`localhost:9094`):
 python3 -c "from kafka import KafkaProducer; p=KafkaProducer(bootstrap_servers='localhost:9094'); p.send('nifi.kafka.demo', b'{\"hello\":\"nifi\"}'); p.flush()"
 ```
 
-Future hooks: stop `ConsumeKafka` (NiFi STOPPED), delete `nifi.kafka.demo` (Kafka TOPIC_MISSING), stop `LogAttribute` (queue backlog), inspect group lag on `ratatoskr-nifi-kafka-demo`.
+### Orchestrated heal examples
 
-### Orchestrated heal demo (Kafka→NiFi)
-
-Break `ConsumeKafka`, show monitor-only detection, then safe-phase heal:
+Catalog script: `scripts/demo_nifi_kafka_heal.py` — break → monitor → heal on the shared flow/topic.
 
 ```bash
-python3 scripts/demo_nifi_kafka_heal.py
-# or: python3 scripts/demo_nifi_kafka_heal.py --scenario disable-cs
+python3 scripts/demo_nifi_kafka_heal.py --list
+python3 scripts/demo_nifi_kafka_heal.py --scenario <name>
+python3 scripts/demo_nifi_kafka_heal.py --all            # every scenario
+python3 scripts/demo_nifi_kafka_heal.py --dry-run --scenario stop-consume
 ```
 
-Manual steps:
+| Scenario | Stack | Phase | Fault → expected heal |
+|----------|-------|-------|------------------------|
+| `stop-consume` | NiFi | safe | STOPPED ConsumeKafka → `start_processor` |
+| `disable-cs` | NiFi | safe | DISABLED Studio Kafka CS → `enable_controller_service` |
+| `invalid-log` | NiFi | lab | INVALID LogAttribute → `fix_processor_config` |
+| `queue-backlog` | NiFi | lab | Queued update-to-log → `empty_connection_queue` + starts |
+| `delete-topic` | Kafka | safe | TOPIC_MISSING → `create_topic` (+ NiFi restart after) |
+| `increase-partitions` | Kafka | lab | TOPIC_PARTITIONS_LOW → `increase_partitions` |
+| `lag-group` | Kafka | lab | Empty lagging group → `delete_group` / `reset_offsets` |
+| `lag-earliest` | Kafka | lab | LAG_CRIT → `reset_offsets` (`earliest`) |
+| `cross-topic` | Cross | lab | TOPIC_MISSING + STOPPED → create topic then start ConsumeKafka |
+| `cross-lag` | Cross | lab | BACKPRESSURE + LAG → NiFi queue relief playbook |
+
+Cross-stack details: [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md). Kafka-only fault inject: [KAFKA_MONITOR.md](KAFKA_MONITOR.md#heal-demo-script-safe--lab).
+
+Manual stop-consume (without the catalog script):
 
 ```bash
 python3 scripts/nifi_fault_inject.py --target kafka --stop-consume
@@ -96,7 +111,7 @@ python3 examples/agents/run_workflow_nifi_monitor_local.py --count 1
 # Expect start_processor on ConsumeKafka
 ```
 
-## Heal demo script (1B / 1C)
+## Heal demo script (sample flow — 1B / 1C)
 
 Prereqs: `ratatoskr up --profile nifi`, `./scripts/nifi_load_sample_flow.sh`, and `source .venv/bin/activate`.
 Use `--restore` between scenarios to reset the sample flow.
@@ -111,15 +126,24 @@ python3 examples/agents/run_workflow_nifi_monitor_local.py --count 1
 # Expect heal_actions: start_processor on GenerateFlowFile
 ```
 
-**1C — lab terminate (INVALID LogAttribute)**
+**1C — lab config fix (INVALID LogAttribute)**
 
 ```bash
 python3 scripts/nifi_fault_inject.py --restore
 python3 scripts/nifi_fault_inject.py --invalid-log
+# or kafka demo: python3 scripts/nifi_fault_inject.py --target kafka --kafka-invalid-log
 export NIFI_HEAL_PHASE=lab
 python3 examples/agents/run_workflow_nifi_monitor_local.py --count 1
-# Expect heal_actions: terminate_processor on LogAttribute
-# (INVALID processors are not started)
+# Expect heal_actions: fix_processor_config (auto_terminate_success) — not terminate
+```
+
+**1C — lab terminate (INVALID without template)**
+
+```bash
+# Processor names without a CONFIG_FIX_TEMPLATES match still get terminate_processor
+export NIFI_HEAL_PHASE=lab
+export NIFI_HEAL_ALLOW_CONFIG_FIX=0   # force terminate path even for LogAttribute
+python3 examples/agents/run_workflow_nifi_monitor_local.py --count 1
 ```
 
 **1C — lab empty queue (BACKPRESSURE)**

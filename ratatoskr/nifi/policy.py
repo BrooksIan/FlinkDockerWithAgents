@@ -9,7 +9,9 @@ from typing import Any, Callable
 
 from ratatoskr.nifi.client import NiFiClient
 from ratatoskr.nifi.env import (
+    allow_config_fix,
     allow_empty_queue,
+    allow_restart,
     empty_queue_min_flowfiles,
     heal_allow_ids,
     heal_allow_name_regex,
@@ -19,6 +21,7 @@ from ratatoskr.nifi.env import (
     heal_phase,
     heal_verify,
     phase_at_least,
+    restart_min_bulletin_count,
 )
 
 # Severity → score penalty (100 = perfect). Caps at 0.
@@ -56,15 +59,31 @@ HEAL_RULES: list[dict[str, Any]] = [
         "skip_if_invalid": True,
     },
     {
+        "op": "fix_processor_config",
+        "min_phase": "lab",
+        "source": "invalid_processors",
+        "requires_config_fix": True,
+        "reason": "templated_invalid_fix",
+    },
+    {
         "op": "stop_processor",
         "min_phase": "lab",
         "source": "backpressure_sources",
         "reason": "safer_queue_relief",
     },
     {
+        "op": "restart_processor",
+        "min_phase": "lab",
+        "source": "bulletin_restart_targets",
+        "requires_restart": True,
+        "reason": "repeated_bulletins",
+    },
+    {
         "op": "terminate_processor",
         "min_phase": "lab",
         "source": "invalid_processors",
+        "skip_if_config_fixable": True,
+        "reason": "invalid_containment",
     },
     {
         "op": "empty_connection_queue",
@@ -74,6 +93,16 @@ HEAL_RULES: list[dict[str, Any]] = [
         "reason": "destructive_queue_drain",
     },
 ]
+
+# Narrow lab templates — never arbitrary property writes.
+# Matched by processor component name (exact or contains key).
+CONFIG_FIX_TEMPLATES: dict[str, dict[str, Any]] = {
+    "LogAttribute": {
+        "template": "auto_terminate_success",
+        "auto_terminated_relationships": ["success"],
+        "then_start": True,
+    },
+}
 
 # (op, id) → monotonic timestamp of last successful/proposed apply
 _COOLDOWN: dict[tuple[str, str], float] = {}
@@ -220,9 +249,52 @@ def _backpressure_source_entities(health: dict[str, Any]) -> list[dict[str, Any]
     return out
 
 
+def _config_fix_template(name: str | None) -> dict[str, Any] | None:
+    """Return a lab config-fix template for a processor name, if any."""
+    if not name:
+        return None
+    if name in CONFIG_FIX_TEMPLATES:
+        return dict(CONFIG_FIX_TEMPLATES[name])
+    for key, tmpl in CONFIG_FIX_TEMPLATES.items():
+        if key in name:
+            return dict(tmpl)
+    return None
+
+
+def _bulletin_restart_targets(health: dict[str, Any]) -> list[dict[str, Any]]:
+    """Processors with repeated ERROR/WARNING bulletins (lab restart candidates)."""
+    min_count = restart_min_bulletin_count()
+    invalid = _invalid_ids(health)
+    groups = _bulletin_groups(health)
+    # Prefer highest count per sourceId
+    best: dict[str, dict[str, Any]] = {}
+    for g in groups:
+        level = str(g.get("level") or "").upper()
+        if level not in ("ERROR", "WARNING", "WARN"):
+            continue
+        sid = g.get("sourceId")
+        if not sid or str(sid) in invalid:
+            continue
+        count = int(g.get("count") or 0)
+        if count < min_count:
+            continue
+        prev = best.get(str(sid))
+        if prev is None or count > int(prev.get("bulletin_count") or 0):
+            best[str(sid)] = {
+                "id": sid,
+                "name": g.get("sourceName") or sid,
+                "revision": None,
+                "bulletin_count": count,
+                "bulletin_fingerprint": g.get("fingerprint"),
+            }
+    return list(best.values())
+
+
 def _source_entities(health: dict[str, Any], source: str) -> list[dict[str, Any]]:
     if source == "backpressure_sources":
         return _backpressure_source_entities(health)
+    if source == "bulletin_restart_targets":
+        return _bulletin_restart_targets(health)
     return list(health.get(source) or [])
 
 
@@ -246,6 +318,10 @@ def build_heal_plan(
             continue
         if rule.get("requires_allow_empty") and not allow_empty_queue():
             continue
+        if rule.get("requires_config_fix") and not allow_config_fix():
+            continue
+        if rule.get("requires_restart") and not allow_restart():
+            continue
 
         op = str(rule["op"])
         for ent in _source_entities(health, str(rule["source"])):
@@ -254,6 +330,13 @@ def build_heal_plan(
                 continue
             if rule.get("skip_if_invalid") and str(eid) in invalid:
                 continue
+            name = ent.get("name")
+            tmpl = _config_fix_template(str(name) if name else None)
+            if rule.get("skip_if_config_fixable") and tmpl and allow_config_fix():
+                continue
+            if op == "fix_processor_config":
+                if not tmpl:
+                    continue
             if op == "empty_connection_queue":
                 queued = int(ent.get("flowFilesQueued") or 0)
                 if queued < empty_min:
@@ -263,7 +346,7 @@ def build_heal_plan(
             item: dict[str, Any] = {
                 "op": op,
                 "id": eid,
-                "name": ent.get("name"),
+                "name": name,
                 "version": version,
                 "proposed": True,
             }
@@ -271,6 +354,15 @@ def build_heal_plan(
                 item["reason"] = rule["reason"]
             if ent.get("from_connection"):
                 item["from_connection"] = ent["from_connection"]
+            if ent.get("bulletin_count") is not None:
+                item["bulletin_count"] = ent["bulletin_count"]
+            if op == "fix_processor_config" and tmpl:
+                item["template"] = tmpl.get("template")
+                item["auto_terminated_relationships"] = tmpl.get(
+                    "auto_terminated_relationships"
+                )
+                item["properties"] = tmpl.get("properties")
+                item["then_start"] = bool(tmpl.get("then_start", True))
             plan.append(item)
 
     return plan
@@ -322,6 +414,17 @@ def _execute_action(client: NiFiClient, action: dict[str, Any]) -> dict[str, Any
             client.enable_controller_service(eid, version)
         elif op == "terminate_processor":
             client.terminate_processor(eid, version)
+        elif op == "restart_processor":
+            client.restart_processor(eid, version)
+        elif op == "fix_processor_config":
+            client.fix_processor_config(
+                eid,
+                auto_terminated_relationships=action.get(
+                    "auto_terminated_relationships"
+                ),
+                properties=action.get("properties"),
+                then_start=bool(action.get("then_start", True)),
+            )
         elif op == "empty_connection_queue":
             client.empty_connection_queue(eid)
             out["warning"] = "flowfiles permanently dropped"
@@ -348,6 +451,12 @@ def _verify_action(action: dict[str, Any], health_after: dict[str, Any]) -> bool
         return eid not in _entity_ids(health_after, "disabled_controller_services")
     if op == "terminate_processor":
         return eid not in _entity_ids(health_after, "invalid_processors")
+    if op == "fix_processor_config":
+        return eid not in _entity_ids(health_after, "invalid_processors")
+    if op == "restart_processor":
+        return eid not in _entity_ids(
+            health_after, "stopped_processors"
+        ) and eid not in _entity_ids(health_after, "invalid_processors")
     if op == "empty_connection_queue":
         return eid not in _entity_ids(health_after, "queued_connections")
     if op == "stop_processor":
@@ -374,7 +483,9 @@ def apply_heal_policy(
 
     - monitor: no mutations
     - safe: enable services, start processors
-    - lab: safe + stop upstream (queue relief), terminate invalid, empty queues if allowed
+    - lab: safe + templated config fix, stop upstream (queue relief),
+      restart on repeated bulletins, terminate invalid (no template),
+      empty queues if allowed
     """
     active = (phase or heal_phase()).lower()
     is_dry = heal_dry_run() if dry_run is None else dry_run

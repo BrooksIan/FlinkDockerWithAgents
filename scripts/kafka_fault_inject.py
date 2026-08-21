@@ -122,6 +122,40 @@ def restore_catalog(client) -> dict:
     }
 
 
+def inject_undersize_topic(client, topic: str, *, partitions: int = 1) -> dict:
+    """Recreate topic with fewer partitions than catalog (lab increase_partitions)."""
+    live = client.list_topics()
+    if topic in live:
+        client.delete_topic(topic)
+    # Broker may keep the name "marked for deletion" briefly — wait it out.
+    for _ in range(60):
+        if topic not in client.list_topics():
+            break
+        time.sleep(0.5)
+    else:
+        raise RuntimeError(f"topic {topic!r} still present after delete")
+    last_err = None
+    for _ in range(10):
+        try:
+            client.create_topic(topic, partitions=max(1, partitions))
+            last_err = None
+            break
+        except Exception as exc:  # noqa: BLE001
+            last_err = exc
+            time.sleep(0.75)
+    if last_err is not None:
+        raise RuntimeError(f"create after undersize delete failed: {last_err}") from last_err
+    time.sleep(0.5)
+    details = client.describe_topics([topic])
+    have = int((details[0].get("partition_count") if details else 0) or 0)
+    return {
+        "undersize": True,
+        "topic": topic,
+        "partition_count": have,
+        "note": "raise KAFKA_TOPIC_PARTITIONS above this for TOPIC_PARTITIONS_LOW",
+    }
+
+
 def main() -> int:
     _bootstrap()
     parser = argparse.ArgumentParser(description=__doc__)
@@ -131,6 +165,13 @@ def main() -> int:
         const=DEFAULT_DEMO_TOPIC,
         metavar="TOPIC",
         help=f"Delete a catalog topic (default {DEFAULT_DEMO_TOPIC}) for safe create_topic",
+    )
+    parser.add_argument(
+        "--undersize-topic",
+        nargs="?",
+        const=DEFAULT_DEMO_TOPIC,
+        metavar="TOPIC",
+        help="Recreate topic with 1 partition (pair with KAFKA_TOPIC_PARTITIONS>1)",
     )
     parser.add_argument(
         "--lag-group",
@@ -180,6 +221,10 @@ def main() -> int:
 
         if args.delete_topic is not None:
             print(inject_delete_topic(client, args.delete_topic))
+            return 0
+
+        if args.undersize_topic is not None:
+            print(inject_undersize_topic(client, args.undersize_topic, partitions=1))
             return 0
 
         if args.lab_demo or args.lag_group or args.empty_lag_group:

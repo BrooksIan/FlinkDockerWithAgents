@@ -144,3 +144,20 @@ def heal_allow_name_regex() -> Pattern[str] | None:
         return re.compile(raw)
     except re.error:
         return None
+
+
+def allow_config_fix() -> bool:
+    """Lab allowlisted property templates (default on). Set NIFI_HEAL_ALLOW_CONFIG_FIX=0 to disable."""
+    raw = (os.environ.get("NIFI_HEAL_ALLOW_CONFIG_FIX") or "1").strip().lower()
+    return raw not in ("0", "false", "no", "off")
+
+
+def allow_restart() -> bool:
+    """Lab restart_processor for repeated bulletins (default on). Set NIFI_HEAL_ALLOW_RESTART=0 to disable."""
+    raw = (os.environ.get("NIFI_HEAL_ALLOW_RESTART") or "1").strip().lower()
+    return raw not in ("0", "false", "no", "off")
+
+
+def restart_min_bulletin_count() -> int:
+    """Min grouped ERROR/WARNING bulletins before restart_processor (default 2)."""
+    return max(1, _int_env("NIFI_HEAL_RESTART_MIN_BULLETINS", 2))

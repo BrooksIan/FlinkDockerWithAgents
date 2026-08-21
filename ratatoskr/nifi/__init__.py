@@ -9,6 +9,7 @@ from ratatoskr.nifi.client import (
 )
 from ratatoskr.nifi.env import default_nifi_api_base
 from ratatoskr.nifi.policy import (
+    CONFIG_FIX_TEMPLATES,
     HEAL_RULES,
     apply_heal_policy,
     build_heal_plan,
@@ -19,6 +20,7 @@ from ratatoskr.nifi.policy import (
 )
 
 __all__ = [
+    "CONFIG_FIX_TEMPLATES",
     "DEFAULT_API_BASE",
     "HEAL_PHASES",
     "HEAL_RULES",

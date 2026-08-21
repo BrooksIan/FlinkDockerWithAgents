@@ -164,6 +164,63 @@ def inject_lab_demo(client, pg_id: str) -> dict:
     return {"lab_demo": True, "backlog": backlog, "invalid": invalid}
 
 
+def inject_kafka_invalid_log(client, pg_id: str) -> dict:
+    """Make Kafka-demo LogAttribute INVALID (lab → terminate_processor)."""
+    return inject_invalid_log(client, pg_id)
+
+
+def restore_log_attribute_config(client, pg_id: str) -> dict:
+    """After terminate: restore success auto-terminate + start LogAttribute."""
+    procs = _processors_by_name(client, pg_id)
+    log = procs.get("LogAttribute")
+    if not log:
+        raise SystemExit("LogAttribute not found")
+    if log.get("state") not in ("STOPPED", "DISABLED"):
+        try:
+            _stop(client, log, "LogAttribute")
+        except Exception:  # noqa: BLE001
+            pass
+        time.sleep(0.75)
+        procs = _processors_by_name(client, pg_id)
+        log = procs["LogAttribute"]
+    client.update_processor_config(log["id"], auto_terminated_relationships=["success"])
+    # Config PUT bumps revision; terminate/start often 409 if we race.
+    time.sleep(0.75)
+    last_err: Exception | None = None
+    for _ in range(8):
+        procs = _processors_by_name(client, pg_id)
+        log = procs.get("LogAttribute") or log
+        if log.get("state") == "RUNNING":
+            return {
+                "restored_log": log["id"],
+                "auto_terminated": ["success"],
+                "state": "RUNNING",
+            }
+        try:
+            client.start_processor(
+                log["id"], (log.get("revision") or {}).get("version")
+            )
+            last_err = None
+            break
+        except Exception as exc:  # noqa: BLE001
+            last_err = exc
+            time.sleep(0.75)
+    if last_err is not None:
+        procs = _processors_by_name(client, pg_id)
+        log = procs.get("LogAttribute") or log
+        if log.get("state") == "RUNNING":
+            return {
+                "restored_log": log["id"],
+                "auto_terminated": ["success"],
+                "state": "RUNNING",
+                "note": "start raced but processor is RUNNING",
+            }
+        raise RuntimeError(
+            f"failed to start LogAttribute after config restore: {last_err}"
+        ) from last_err
+    return {"restored_log": log["id"], "auto_terminated": ["success"]}
+
+
 def inject_stop_consume(client, pg_id: str) -> dict:
     """Stop ConsumeKafka — Phase 1B safe heal (start_processor)."""
     procs = _processors_by_name(client, pg_id)
@@ -314,6 +371,11 @@ def main() -> int:
         help="Kafka target: stop LogAttribute + publish (queue backlog)",
     )
     parser.add_argument(
+        "--kafka-invalid-log",
+        action="store_true",
+        help="Kafka target: make LogAttribute INVALID (lab terminate)",
+    )
+    parser.add_argument(
         "--settle-sec",
         type=float,
         default=3.0,
@@ -349,6 +411,9 @@ def main() -> int:
                 )
             )
             return 0
+        if args.kafka_invalid_log or args.invalid_log:
+            print(inject_kafka_invalid_log(client, pg_id))
+            return 0
         if args.restore:
             flow = _load_sibling("nifi_load_kafka_flow")
             print(
@@ -359,11 +424,9 @@ def main() -> int:
             return 0
         if args.stop_generate or args.lab_demo or args.queue_backlog:
             raise SystemExit(
-                "sample-only flags used with --target kafka — try --stop-consume / --disable-cs / --stop-log"
+                "sample-only flags used with --target kafka — try "
+                "--stop-consume / --disable-cs / --stop-log / --kafka-invalid-log"
             )
-        if args.invalid_log:
-            print(inject_invalid_log(client, pg_id))
-            return 0
         parser.print_help()
         return 1
 

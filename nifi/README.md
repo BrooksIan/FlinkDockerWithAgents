@@ -121,9 +121,11 @@ Cluster submit copies `ratatoskr/nifi/` into the JobManager. Rebuild the image (
 |-------|-----|----------|
 | **1A monitor** | `NIFI_HEAL_PHASE=monitor` | Poll health; emit alerts; **no** NiFi mutations |
 | **1B safe** | `NIFI_HEAL_PHASE=safe` | Start STOPPED processors; enable DISABLED controller services |
-| **1C lab** | `NIFI_HEAL_PHASE=lab` | Safe + terminate INVALID processors; empty queues only if `NIFI_HEAL_ALLOW_EMPTY_QUEUE=1` |
+| **1C lab** | `NIFI_HEAL_PHASE=lab` | Safe + templated `fix_processor_config`, `stop_processor` (queue relief), `restart_processor` (repeated bulletins), `terminate_processor` (INVALID without template); `empty_connection_queue` if `NIFI_HEAL_ALLOW_EMPTY_QUEUE=1` |
 
 **Warning:** emptying queues permanently drops flowfiles. Lab only.
+
+Full agent guide + heal matrix: [docs/NIFI_MONITOR.md](../docs/NIFI_MONITOR.md).
 
 ## Sample flow
 
@@ -139,23 +141,67 @@ python scripts/nifi_fault_inject.py --lab-demo        # INVALID + backlog for 1C
 python scripts/nifi_fault_inject.py --restore         # repair auto-terminate + restart
 ```
 
-Phase 1C lab demo:
+### Heal examples (sample flow)
 
-```bash
-python scripts/nifi_fault_inject.py --lab-demo
-export NIFI_HEAL_PHASE=lab
-export NIFI_HEAL_ALLOW_EMPTY_QUEUE=1   # optional destructive queue drain
-python examples/agents/run_workflow_nifi_monitor_local.py
-python scripts/nifi_fault_inject.py --restore
-```
-
-Safe heal demo:
+**Safe — start GenerateFlowFile**
 
 ```bash
 python scripts/nifi_fault_inject.py --stop-generate
 export NIFI_HEAL_PHASE=safe
-python examples/agents/run_workflow_nifi_monitor_local.py
+python examples/agents/run_workflow_nifi_monitor_local.py --count 1
+# Expect: start_processor on GenerateFlowFile
 ```
+
+**Lab — templated config fix**
+
+```bash
+python scripts/nifi_fault_inject.py --invalid-log
+export NIFI_HEAL_PHASE=lab
+python examples/agents/run_workflow_nifi_monitor_local.py --count 1
+# Expect: fix_processor_config (auto_terminate_success)
+```
+
+**Lab — empty queue**
+
+```bash
+python scripts/nifi_fault_inject.py --queue-backlog --settle-sec 5
+export NIFI_HEAL_PHASE=lab NIFI_HEAL_ALLOW_EMPTY_QUEUE=1
+python examples/agents/run_workflow_nifi_monitor_local.py --count 1
+```
+
+## Kafka→NiFi demo flow
+
+Shared base for NiFi + Kafka monitors (topic `nifi.kafka.demo`):
+
+```bash
+ratatoskr kafka up && ratatoskr up --profile nifi
+./scripts/nifi_load_kafka_flow.sh
+```
+
+### Orchestrated heal examples
+
+```bash
+python3 scripts/demo_nifi_kafka_heal.py --list
+python3 scripts/demo_nifi_kafka_heal.py --scenario stop-consume
+python3 scripts/demo_nifi_kafka_heal.py --scenario disable-cs
+python3 scripts/demo_nifi_kafka_heal.py --scenario invalid-log
+python3 scripts/demo_nifi_kafka_heal.py --scenario queue-backlog
+python3 scripts/demo_nifi_kafka_heal.py --scenario delete-topic
+python3 scripts/demo_nifi_kafka_heal.py --scenario increase-partitions
+python3 scripts/demo_nifi_kafka_heal.py --scenario lag-group
+python3 scripts/demo_nifi_kafka_heal.py --scenario lag-earliest
+python3 scripts/demo_nifi_kafka_heal.py --scenario cross-topic
+python3 scripts/demo_nifi_kafka_heal.py --scenario cross-lag
+```
+
+| Scenario | What it shows |
+|----------|----------------|
+| `stop-consume` / `disable-cs` | Safe NiFi heals on ConsumeKafka / Studio Kafka CS |
+| `invalid-log` / `queue-backlog` | Lab config fix and queue drain |
+| `delete-topic` … `lag-earliest` | Kafka create / partitions / lag heals |
+| `cross-topic` / `cross-lag` | Coordinated Kafka↔NiFi playbooks |
+
+See [docs/NIFI_MONITOR.md](../docs/NIFI_MONITOR.md#orchestrated-heal-examples) and [docs/SIGNAL_CORRELATE.md](../docs/SIGNAL_CORRELATE.md).
 
 ## Architecture
 
@@ -217,7 +263,7 @@ flowchart LR
 ```mermaid
 flowchart TB
   M["monitor — observe only"] --> S["safe — enable CS, start processors"]
-  S --> L["lab — + stop upstream, terminate,\nempty queue if allowed"]
+  S --> L["lab — + config fix, stop upstream, restart,\nterminate, empty queue if allowed"]
 ```
 
 ## Dual path: REST vs MCP

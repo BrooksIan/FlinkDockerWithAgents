@@ -22,7 +22,9 @@ Guides for the **Ratatoskr** Flink Agents workspace. Honeypot-specific docs live
 | [PLATFORM.md](PLATFORM.md) | Platform control plane — API, agent registry, Studio cluster, verify |
 | [Blog.md](Blog.md) | Narrative overview and design rationale |
 | [FLINK_AGENTS.md](FLINK_AGENTS.md) | Workflow vs ReAct agents — concepts, comparison, diagrams |
-| [NIFI_MONITOR.md](NIFI_MONITOR.md) | NiFi flow monitoring / healing workflow agent |
+| [NIFI_MONITOR.md](NIFI_MONITOR.md) | NiFi flow monitoring / healing + orchestrated demo catalog |
+| [KAFKA_MONITOR.md](KAFKA_MONITOR.md) | Kafka cluster monitoring / healing + demo scenarios |
+| [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md) | Cross-signal correlation and cross-stack heal playbooks |
 | [AGENT_DESIGNER_PLAN.md](AGENT_DESIGNER_PLAN.md) | Agent Designer — visual agent authoring, codegen, roadmap |
 | [../assets/branding/RATATOSKR.md](../assets/branding/RATATOSKR.md) | Name, mythology, icon and title banner assets |
 | [../dashboard/README.md](../dashboard/README.md) | Dashboard — pages, dev setup, project structure |
@@ -31,8 +33,9 @@ Guides for the **Ratatoskr** Flink Agents workspace. Honeypot-specific docs live
 
 | Doc | Description |
 |-----|-------------|
-| [../nifi/README.md](../nifi/README.md) | NiFi lab quickstart, heal phases, sample flow |
+| [../nifi/README.md](../nifi/README.md) | NiFi lab quickstart, heal phases, sample + Kafka demo heals |
 | [NIFI_MONITOR.md](NIFI_MONITOR.md) | Workflow agent + MCP dual-path guide |
+| [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md) | Cross-stack heals on Kafka→NiFi demo |
 | [NiFi-MCP-Server](https://github.com/cloudera/NiFi-MCP-Server) | CDP Knox MCP upstream |
 
 ## Optional honeypot (`honeypot/docs/`)

@@ -64,6 +64,9 @@ def _health_fixture(**overrides: Any) -> dict[str, Any]:
 def _clear_heal_env() -> None:
     for key in (
         "NIFI_HEAL_ALLOW_EMPTY_QUEUE",
+        "NIFI_HEAL_ALLOW_CONFIG_FIX",
+        "NIFI_HEAL_ALLOW_RESTART",
+        "NIFI_HEAL_RESTART_MIN_BULLETINS",
         "NIFI_HEAL_DRY_RUN",
         "NIFI_HEAL_VERIFY",
         "NIFI_HEAL_COOLDOWN_SEC",
@@ -217,15 +220,132 @@ def test_phase_1c_lab_without_empty_flag() -> None:
     client.start_processor = MagicMock(return_value={"ok": True})  # type: ignore[method-assign]
     client.enable_controller_service = MagicMock(return_value={"ok": True})  # type: ignore[method-assign]
     client.terminate_processor = MagicMock(return_value={"ok": True})  # type: ignore[method-assign]
+    client.fix_processor_config = MagicMock(return_value={"ok": True})  # type: ignore[method-assign]
+    client.restart_processor = MagicMock(return_value={"ok": True})  # type: ignore[method-assign]
     client.empty_connection_queue = MagicMock()  # type: ignore[method-assign]
     client.stop_processor = MagicMock()  # type: ignore[method-assign]
 
     actions = apply_heal_policy(client, _health_fixture(), phase="lab", verify=False)
     ops = [a["op"] for a in actions if a.get("ok")]
+    # Fixture INVALID name is "Broken" → no config template → terminate
     assert "terminate_processor" in ops
+    assert "fix_processor_config" not in ops
     assert "empty_connection_queue" not in ops
     client.terminate_processor.assert_called_once_with("proc-invalid", 1)
     client.empty_connection_queue.assert_not_called()
+
+
+def test_lab_config_fix_for_logattribute_skips_terminate() -> None:
+    from ratatoskr.nifi.client import NiFiClient
+    from ratatoskr.nifi.policy import apply_heal_policy, build_heal_plan, reset_heal_cooldown
+
+    _clear_heal_env()
+    reset_heal_cooldown()
+    os.environ["NIFI_HEAL_VERIFY"] = "0"
+    health = _health_fixture(
+        stopped_processors=[],
+        disabled_controller_services=[],
+        queued_connections=[],
+        invalid_processors=[
+            {
+                "id": "log-1",
+                "name": "LogAttribute",
+                "state": "STOPPED",
+                "validationStatus": "INVALID",
+                "revision": {"version": 4},
+            }
+        ],
+        severities=["INVALID"],
+    )
+    plan = build_heal_plan(health, phase="lab")
+    ops = [p["op"] for p in plan]
+    assert "fix_processor_config" in ops
+    assert "terminate_processor" not in ops
+    fix = next(p for p in plan if p["op"] == "fix_processor_config")
+    assert fix["template"] == "auto_terminate_success"
+    assert fix["auto_terminated_relationships"] == ["success"]
+
+    client = NiFiClient()
+    client.fix_processor_config = MagicMock(return_value={"ok": True})  # type: ignore[method-assign]
+    client.terminate_processor = MagicMock()  # type: ignore[method-assign]
+    actions = apply_heal_policy(client, health, phase="lab", verify=False)
+    assert any(a.get("op") == "fix_processor_config" and a.get("ok") for a in actions)
+    client.fix_processor_config.assert_called_once()
+    client.terminate_processor.assert_not_called()
+
+
+def test_lab_restart_on_repeated_bulletins() -> None:
+    from ratatoskr.nifi.client import NiFiClient
+    from ratatoskr.nifi.policy import apply_heal_policy, build_heal_plan, reset_heal_cooldown
+
+    _clear_heal_env()
+    reset_heal_cooldown()
+    os.environ["NIFI_HEAL_VERIFY"] = "0"
+    os.environ["NIFI_HEAL_RESTART_MIN_BULLETINS"] = "2"
+    health = _health_fixture(
+        stopped_processors=[],
+        invalid_processors=[],
+        disabled_controller_services=[],
+        queued_connections=[],
+        severities=["BULLETIN_ERROR"],
+        bulletins=[
+            {
+                "fingerprint": "fp1",
+                "level": "ERROR",
+                "message": "kafka timeout",
+                "sourceId": "consume-1",
+                "sourceName": "ConsumeKafka",
+            },
+            {
+                "fingerprint": "fp1",
+                "level": "ERROR",
+                "message": "kafka timeout",
+                "sourceId": "consume-1",
+                "sourceName": "ConsumeKafka",
+            },
+        ],
+    )
+    plan = build_heal_plan(health, phase="lab")
+    assert any(p["op"] == "restart_processor" and p["id"] == "consume-1" for p in plan)
+    safe_plan = build_heal_plan(health, phase="safe")
+    assert not any(p["op"] == "restart_processor" for p in safe_plan)
+
+    client = NiFiClient()
+    client.restart_processor = MagicMock(return_value={"ok": True})  # type: ignore[method-assign]
+    actions = apply_heal_policy(client, health, phase="lab", verify=False)
+    assert any(a.get("op") == "restart_processor" and a.get("ok") for a in actions)
+    client.restart_processor.assert_called_once_with("consume-1", None)
+
+
+def test_config_fix_disabled_falls_back_to_terminate() -> None:
+    from ratatoskr.nifi.client import NiFiClient
+    from ratatoskr.nifi.policy import apply_heal_policy, reset_heal_cooldown
+
+    _clear_heal_env()
+    reset_heal_cooldown()
+    os.environ["NIFI_HEAL_ALLOW_CONFIG_FIX"] = "0"
+    os.environ["NIFI_HEAL_VERIFY"] = "0"
+    health = _health_fixture(
+        stopped_processors=[],
+        disabled_controller_services=[],
+        queued_connections=[],
+        invalid_processors=[
+            {
+                "id": "log-1",
+                "name": "LogAttribute",
+                "state": "STOPPED",
+                "validationStatus": "INVALID",
+                "revision": {"version": 1},
+            }
+        ],
+        severities=["INVALID"],
+    )
+    client = NiFiClient()
+    client.fix_processor_config = MagicMock()  # type: ignore[method-assign]
+    client.terminate_processor = MagicMock(return_value={"ok": True})  # type: ignore[method-assign]
+    actions = apply_heal_policy(client, health, phase="lab", verify=False)
+    assert any(a.get("op") == "terminate_processor" and a.get("ok") for a in actions)
+    client.fix_processor_config.assert_not_called()
 
 
 def test_phase_1c_lab_with_empty_flag() -> None:
@@ -442,6 +562,9 @@ def main() -> int:
         test_phase_1a_monitor_no_mutations,
         test_phase_1b_safe_start_and_enable,
         test_phase_1c_lab_without_empty_flag,
+        test_lab_config_fix_for_logattribute_skips_terminate,
+        test_lab_restart_on_repeated_bulletins,
+        test_config_fix_disabled_falls_back_to_terminate,
         test_phase_1c_lab_with_empty_flag,
         test_dry_run_proposes_without_mutate,
         test_blast_radius_and_cooldown,

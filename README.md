@@ -16,7 +16,7 @@ Ratatoskr is a developer workspace for building, running, and verifying [Apache 
 |----------|----------------------|------------|
 | [Honeypot](#1-honeypot--cybersecurity) | Cowrie → Kafka → Flink Agents triage and enrichment | [honeypot/README.md](honeypot/README.md) |
 | [NiFi monitoring](#2-nifi-flow-monitoring) | Flow health checks and phased auto-healing | [nifi/README.md](nifi/README.md) · [docs/NIFI_MONITOR.md](docs/NIFI_MONITOR.md) |
-| [Kafka monitoring](#3-kafka-cluster-monitoring) | Broker/topic/lag probes and phased healing | [docs/KAFKA_MONITOR.md](docs/KAFKA_MONITOR.md) |
+| [Kafka monitoring](#3-kafka-cluster-monitoring) | Broker/topic/lag probes and phased healing | [docs/KAFKA_MONITOR.md](docs/KAFKA_MONITOR.md) · [docs/SIGNAL_CORRELATE.md](docs/SIGNAL_CORRELATE.md) |
 
 Registered agents (manifest + dashboard catalog): [`examples/agents/agent-catalog.yaml`](examples/agents/agent-catalog.yaml) · [`examples/agents/agent-manifest.yaml`](examples/agents/agent-manifest.yaml). Browse them in the dashboard at `/agents`, or via `ratatoskr agent list`.
 
@@ -59,6 +59,7 @@ ratatoskr agent run workflow_nifi_monitor --local
 ```
 
 - NiFi UI: https://localhost:8443/nifi — login `admin` / `RatatoskrNiFi1!`
+- Heal demos: [docs/NIFI_MONITOR.md](docs/NIFI_MONITOR.md#orchestrated-heal-examples) · `python3 scripts/demo_nifi_kafka_heal.py --list`
 - Details: [nifi/README.md](nifi/README.md) · [docs/NIFI_MONITOR.md](docs/NIFI_MONITOR.md)
 
 ### 3. Kafka cluster monitoring
@@ -71,6 +72,7 @@ export KAFKA_HEAL_PHASE=monitor
 ratatoskr agent run workflow_kafka_monitor --local
 ```
 
+- Heal demos: [docs/KAFKA_MONITOR.md](docs/KAFKA_MONITOR.md#heal-demo-script-safe--lab) · cross-stack [docs/SIGNAL_CORRELATE.md](docs/SIGNAL_CORRELATE.md)
 - Details: [docs/KAFKA_MONITOR.md](docs/KAFKA_MONITOR.md)
 
 ## Agent catalog
@@ -236,8 +238,9 @@ Local dev: leave `RATATOSKR_API_KEY` unset.
 - [docs/PLATFORM.md](docs/PLATFORM.md) — Control API, agents, Studio, dashboard
 - [docs/FLINK_AGENTS.md](docs/FLINK_AGENTS.md) — Workflow vs ReAct
 - [docs/AGENT_DESIGNER_PLAN.md](docs/AGENT_DESIGNER_PLAN.md) — Agent Designer authoring and codegen
-- [docs/NIFI_MONITOR.md](docs/NIFI_MONITOR.md) — NiFi monitoring agent
-- [docs/KAFKA_MONITOR.md](docs/KAFKA_MONITOR.md) — Kafka monitoring agent
+- [docs/NIFI_MONITOR.md](docs/NIFI_MONITOR.md) — NiFi monitoring / healing demos
+- [docs/KAFKA_MONITOR.md](docs/KAFKA_MONITOR.md) — Kafka monitoring / healing demos
+- [docs/SIGNAL_CORRELATE.md](docs/SIGNAL_CORRELATE.md) — Cross-signal correlation and cross-stack heals
 - [examples/README.md](examples/README.md) — Example agents
 - [examples/agents/agent-catalog.yaml](examples/agents/agent-catalog.yaml) — Agent catalog
 - [ratatoskr/README.md](ratatoskr/README.md) — CLI reference

@@ -29,7 +29,8 @@ class NiFiMonitorAgent(Agent):
     Heal behavior is gated by ``NIFI_HEAL_PHASE``:
       - monitor (1A): alerts only, no mutations
       - safe (1B): start stopped processors; enable disabled services
-      - lab (1C): safe + terminate invalid; optional empty queues
+      - lab (1C): safe + templated config fix; restart on repeated bulletins;
+        terminate invalid (no template); optional empty queues
     """
 
     @tool

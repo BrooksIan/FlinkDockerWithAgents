@@ -107,12 +107,17 @@ def _clear_env() -> None:
         "KAFKA_HEAL_MAX_MUTATIONS",
         "KAFKA_HEAL_ALLOW_TOPICS",
         "KAFKA_HEAL_ALLOW_GROUPS",
+        "KAFKA_HEAL_ALLOW_GROUP_PREFIXES",
         "KAFKA_HEAL_ALLOW_NAME_REGEX",
+        "KAFKA_HEAL_ALLOW_INCREASE_PARTITIONS",
+        "KAFKA_HEAL_ALLOW_RECREATE",
+        "KAFKA_HEAL_OFFSET_STRATEGY",
         "KAFKA_LAG_WARN",
         "KAFKA_LAG_CRIT",
         "KAFKA_WATCH_PREFIXES",
         "KAFKA_FLAG_UNEXPECTED",
         "KAFKA_CATALOG",
+        "KAFKA_TOPIC_PARTITIONS",
     ):
         os.environ.pop(key, None)
 
@@ -261,21 +266,130 @@ def test_lab_group_ops_require_allowlist() -> None:
     reset_heal_cooldown()
     health = _health_fixture(missing_topics=[])
     client = KafkaClient(bootstrap="localhost:9094")
-    client.reset_offsets_to_end = MagicMock(return_value={"ok": True})  # type: ignore[method-assign]
+    client.reset_offsets = MagicMock(return_value={"ok": True})  # type: ignore[method-assign]
     client.delete_consumer_group = MagicMock(return_value={"ok": True})  # type: ignore[method-assign]
 
     denied = apply_heal_policy(client, health, phase="lab", verify=False)
     assert denied
     assert all(a.get("skipped") == "allowlist" for a in denied)
-    client.reset_offsets_to_end.assert_not_called()
+    client.reset_offsets.assert_not_called()
 
     os.environ["KAFKA_HEAL_ALLOW_GROUPS"] = "lab-reset-group,dead-group"
     allowed = apply_heal_policy(client, health, phase="lab", verify=False)
     ops = [a["op"] for a in allowed if a.get("ok")]
     assert "reset_offsets" in ops
     assert "delete_group" in ops
-    client.reset_offsets_to_end.assert_called()
+    client.reset_offsets.assert_called()
+    assert client.reset_offsets.call_args.kwargs.get("strategy") == "latest"
     client.delete_consumer_group.assert_called()
+
+
+def test_lab_group_prefix_allowlist() -> None:
+    from ratatoskr.kafka.client import KafkaClient
+    from ratatoskr.kafka.policy import apply_heal_policy, reset_heal_cooldown
+
+    _clear_env()
+    reset_heal_cooldown()
+    os.environ["KAFKA_HEAL_ALLOW_GROUP_PREFIXES"] = "ratatoskr-"
+    health = _health_fixture(
+        missing_topics=[],
+        lag_crit_groups=[],
+        empty_lagging_groups=[
+            {
+                "group_id": "ratatoskr-kafka-fault-lab",
+                "lag": 40,
+                "members": 0,
+                "partitions": [],
+            }
+        ],
+    )
+    client = KafkaClient(bootstrap="localhost:9094")
+    client.delete_consumer_group = MagicMock(return_value={"ok": True})  # type: ignore[method-assign]
+    actions = apply_heal_policy(client, health, phase="lab", verify=False)
+    assert any(a.get("op") == "delete_group" and a.get("ok") for a in actions)
+    client.delete_consumer_group.assert_called_once()
+
+
+def test_lab_increase_partitions() -> None:
+    from ratatoskr.kafka.client import KafkaClient
+    from ratatoskr.kafka.policy import apply_heal_policy, build_heal_plan, reset_heal_cooldown
+
+    _clear_env()
+    reset_heal_cooldown()
+    health = _health_fixture(
+        missing_topics=[],
+        lag_crit_groups=[],
+        empty_lagging_groups=[],
+        severities=["TOPIC_PARTITIONS_LOW"],
+        undersized_topics=[
+            {
+                "name": "nifi.kafka.demo",
+                "partition_count": 1,
+                "desired_partitions": 3,
+                "partitions": 3,
+                "replication_factor": 1,
+            }
+        ],
+    )
+    plan = build_heal_plan(health, phase="lab")
+    assert any(p["op"] == "increase_partitions" and p["partitions"] == 3 for p in plan)
+    assert not any(p["op"] == "increase_partitions" for p in build_heal_plan(health, phase="safe"))
+
+    client = KafkaClient(bootstrap="localhost:9094")
+    client.increase_partitions = MagicMock(return_value={"ok": True})  # type: ignore[method-assign]
+    actions = apply_heal_policy(client, health, phase="lab", verify=False)
+    assert any(a.get("op") == "increase_partitions" and a.get("ok") for a in actions)
+    client.increase_partitions.assert_called_once_with("nifi.kafka.demo", 3)
+
+
+def test_lab_recreate_requires_flag() -> None:
+    from ratatoskr.kafka.client import KafkaClient
+    from ratatoskr.kafka.policy import apply_heal_policy, build_heal_plan, reset_heal_cooldown
+
+    _clear_env()
+    reset_heal_cooldown()
+    health = _health_fixture(
+        missing_topics=[],
+        lag_crit_groups=[],
+        empty_lagging_groups=[],
+        severities=["TOPIC_PARTITIONS_HIGH"],
+        oversized_topics=[
+            {
+                "name": "nifi.kafka.demo",
+                "partition_count": 5,
+                "desired_partitions": 1,
+                "partitions": 1,
+                "replication_factor": 1,
+            }
+        ],
+    )
+    assert not any(
+        p["op"] == "recreate_topic" for p in build_heal_plan(health, phase="lab")
+    )
+    os.environ["KAFKA_HEAL_ALLOW_RECREATE"] = "1"
+    plan = build_heal_plan(health, phase="lab")
+    assert any(p["op"] == "recreate_topic" for p in plan)
+
+    client = KafkaClient(bootstrap="localhost:9094")
+    client.recreate_topic = MagicMock(return_value={"ok": True})  # type: ignore[method-assign]
+    actions = apply_heal_policy(client, health, phase="lab", verify=False)
+    assert any(a.get("op") == "recreate_topic" and a.get("ok") for a in actions)
+
+
+def test_offset_strategy_earliest() -> None:
+    from ratatoskr.kafka.client import KafkaClient
+    from ratatoskr.kafka.policy import apply_heal_policy, reset_heal_cooldown
+
+    _clear_env()
+    reset_heal_cooldown()
+    os.environ["KAFKA_HEAL_ALLOW_GROUPS"] = "lab-reset-group"
+    os.environ["KAFKA_HEAL_OFFSET_STRATEGY"] = "earliest"
+    health = _health_fixture(missing_topics=[], empty_lagging_groups=[])
+    client = KafkaClient(bootstrap="localhost:9094")
+    client.reset_offsets = MagicMock(return_value={"ok": True})  # type: ignore[method-assign]
+    apply_heal_policy(client, health, phase="lab", verify=False)
+    assert client.reset_offsets.called
+    assert client.reset_offsets.call_args.kwargs.get("strategy") == "earliest"
 
 
 def test_verify_after_create() -> None:
@@ -410,10 +524,15 @@ def test_env_helpers() -> None:
     _clear_env()
     assert kafka_env.heal_phase() == "monitor"
     assert kafka_env.lag_warn_threshold() == 1000
+    assert kafka_env.offset_reset_strategy() == "latest"
+    assert kafka_env.allow_increase_partitions() is True
+    assert kafka_env.allow_recreate_topic() is False
     os.environ["KAFKA_LAG_WARN"] = "50"
     os.environ["KAFKA_LAG_CRIT"] = "200"
+    os.environ["KAFKA_HEAL_OFFSET_STRATEGY"] = "earliest"
     assert kafka_env.lag_warn_threshold() == 50
     assert kafka_env.lag_crit_threshold() == 200
+    assert kafka_env.offset_reset_strategy() == "earliest"
 
 
 def main() -> int:
@@ -426,6 +545,10 @@ def main() -> int:
         test_blast_radius_and_cooldown,
         test_topic_allowlist,
         test_lab_group_ops_require_allowlist,
+        test_lab_group_prefix_allowlist,
+        test_lab_increase_partitions,
+        test_lab_recreate_requires_flag,
+        test_offset_strategy_earliest,
         test_verify_after_create,
         test_cycle_refreshes_health_after_heal,
         test_agent_registered,

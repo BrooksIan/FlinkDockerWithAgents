@@ -41,6 +41,16 @@ CORRELATION_RULES: list[dict[str, Any]] = [
         "hint": "Misconfigured processors plus absent Studio topics — fix flow validation and ensure kafka-init topics.",
     },
     {
+        "id": "kafka_topic_nifi_consumer",
+        "nifi_any": frozenset(
+            {"STOPPED", "INVALID", "BULLETIN_ERROR", "DISABLED_SERVICE"}
+        ),
+        "kafka_any": frozenset({"TOPIC_MISSING"}),
+        "level": "HIGH",
+        "title": "Missing Kafka topic with unhealthy NiFi consumer path",
+        "hint": "Cross-stack: recreate catalog topic, then start ConsumeKafka / enable CS.",
+    },
+    {
         "id": "stack_degraded",
         "nifi_any": frozenset(
             {
