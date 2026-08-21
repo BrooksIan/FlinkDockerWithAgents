@@ -37,6 +37,7 @@ Gates: `KAFKA_HEAL_DRY_RUN`, `KAFKA_HEAL_MAX_MUTATIONS`, `KAFKA_HEAL_COOLDOWN_SE
 ```bash
 ratatoskr kafka up
 export KAFKA_HEAL_PHASE=monitor
+# Default KAFKA_CATALOG=studio — expects Studio topics only (not cowrie.*)
 python examples/agents/run_workflow_kafka_monitor_local.py
 # or: ratatoskr agent run workflow_kafka_monitor --local
 
@@ -44,6 +45,8 @@ export KAFKA_HEAL_PHASE=safe KAFKA_HEAL_DRY_RUN=1
 python examples/agents/run_workflow_kafka_monitor_local.py
 ```
 
+Honeypot / full-stack catalog: `export KAFKA_CATALOG=full`
+
 Continuous: `python examples/agents/run_workflow_kafka_monitor_local.py --interval 10 --count 6`
 
-Topics: `kafka.monitor.poll` / `kafka.monitor.output` (registered in `kafka_sources`).
+Topics: `kafka.monitor.poll` / `kafka.monitor.output` (Studio kafka-init + `kafka_sources`).

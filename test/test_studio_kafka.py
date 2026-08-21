@@ -27,6 +27,8 @@ def test_kafka_compose_declares_broker_port() -> None:
     assert "9094" in text
     assert "workflow.test.input" in text
     assert "workflow.test.output" in text
+    assert "kafka.monitor.poll" in text
+    assert "kafka.monitor.output" in text
 
 
 if __name__ == "__main__":

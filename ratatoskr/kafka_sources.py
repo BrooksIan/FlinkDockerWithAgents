@@ -12,7 +12,8 @@ from typing import Any
 from ratatoskr.constants import FULL_PROFILE, KAFKA_PROFILE
 from ratatoskr.docker_utils import container_id, project_root
 
-# Canonical Cowrie pipeline topics (env overrides applied in pipeline_kafka_topics when honeypot is loaded).
+# Canonical topic descriptions (Studio + honeypot). Monitor catalog scope is
+# controlled by KAFKA_CATALOG=studio|full (default studio — excludes cowrie.*).
 _STATIC_TOPICS: dict[str, str] = {
     "cowrie.events": "Raw Cowrie JSON line events",
     "cowrie.normalized": "Normalized Cowrie events (Phase 1)",
@@ -31,6 +32,21 @@ _STATIC_TOPICS: dict[str, str] = {
     "kafka.monitor.poll": "Kafka monitor poll triggers (continuous / Kafka-driven)",
     "kafka.monitor.output": "Kafka monitor agent OutputEvents (optional sink)",
 }
+
+# Topics created by deploy/docker-compose.kafka.yml kafka-init (+ monitor topics).
+STUDIO_CATALOG_TOPICS: frozenset[str] = frozenset(
+    {
+        "workflow.test.input",
+        "workflow.test.output",
+        "session.window.input",
+        "session.window.output",
+        "nasa.neo",
+        "nifi.monitor.poll",
+        "nifi.monitor.output",
+        "kafka.monitor.poll",
+        "kafka.monitor.output",
+    }
+)
 
 DEFAULT_KAFKA_OUTPUT_TOPIC = "workflow.test.output"
 DEFAULT_KAFKA_INPUT_TOPIC = "workflow.test.input"

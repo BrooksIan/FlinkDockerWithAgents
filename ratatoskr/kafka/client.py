@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from ratatoskr.kafka.env import (
+    catalog_mode,
     default_partitions,
     default_replication_factor,
     flag_unexpected_topics,
@@ -16,6 +17,7 @@ from ratatoskr.kafka.env import (
     probe_slow_ms,
 )
 from ratatoskr.kafka_sources import (
+    STUDIO_CATALOG_TOPICS,
     _STATIC_TOPICS,
     kafka_bootstrap_servers,
     known_pipeline_topics,
@@ -25,10 +27,18 @@ from ratatoskr.kafka_sources import (
 
 
 def canonical_topic_catalog() -> dict[str, dict[str, Any]]:
-    """Expected topics → partitions / RF / description (Studio defaults RF=1)."""
+    """Expected topics → partitions / RF / description.
+
+    Default ``KAFKA_CATALOG=studio`` matches ``ratatoskr kafka up`` (no cowrie.*).
+    Set ``KAFKA_CATALOG=full`` when the honeypot broker / full profile is in use.
+    """
     parts = default_partitions()
     rf = default_replication_factor()
-    names = list(dict.fromkeys([*known_pipeline_topics(), *_STATIC_TOPICS.keys()]))
+    mode = catalog_mode()
+    if mode == "studio":
+        names = sorted(STUDIO_CATALOG_TOPICS)
+    else:
+        names = list(dict.fromkeys([*known_pipeline_topics(), *_STATIC_TOPICS.keys()]))
     catalog: dict[str, dict[str, Any]] = {}
     for name in names:
         if not name or name.startswith("__"):

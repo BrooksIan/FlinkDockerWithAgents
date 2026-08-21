@@ -7,6 +7,7 @@ import re
 from typing import Pattern
 
 HEAL_PHASES = frozenset({"monitor", "safe", "lab"})
+CATALOG_MODES = frozenset({"studio", "full"})
 
 _PHASE_RANK = {"monitor": 0, "safe": 1, "lab": 2}
 
@@ -43,6 +44,19 @@ def _float_env(name: str, default: float) -> float:
 def heal_phase() -> str:
     raw = (os.environ.get("KAFKA_HEAL_PHASE") or "monitor").strip().lower()
     return raw if raw in HEAL_PHASES else "monitor"
+
+
+def catalog_mode() -> str:
+    """
+    Topic catalog scope for TOPIC_MISSING.
+
+    - studio (default): Studio Kafka init topics only (no cowrie.*)
+    - full: all known pipeline + static topics (honeypot + studio)
+    """
+    raw = (os.environ.get("KAFKA_CATALOG") or "studio").strip().lower()
+    if raw in ("honeypot", "all"):
+        return "full"
+    return raw if raw in CATALOG_MODES else "studio"
 
 
 def phase_at_least(active: str, minimum: str) -> bool:

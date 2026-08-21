@@ -112,6 +112,7 @@ def _clear_env() -> None:
         "KAFKA_LAG_CRIT",
         "KAFKA_WATCH_PREFIXES",
         "KAFKA_FLAG_UNEXPECTED",
+        "KAFKA_CATALOG",
     ):
         os.environ.pop(key, None)
 
@@ -308,6 +309,46 @@ def test_verify_after_create() -> None:
     assert all(a.get("verified") is True for a in actions if a.get("ok"))
 
 
+def test_cycle_refreshes_health_after_heal() -> None:
+    from ratatoskr.kafka.client import KafkaClient
+    from ratatoskr.kafka.policy import reset_heal_cooldown, run_monitor_cycle
+
+    _clear_env()
+    reset_heal_cooldown()
+    before = _health_fixture(
+        missing_topics=[
+            {
+                "name": "kafka.monitor.poll",
+                "partitions": 1,
+                "replication_factor": 1,
+            }
+        ],
+        lag_crit_groups=[],
+        empty_lagging_groups=[],
+        lag_warn_groups=[],
+        severities=["TOPIC_MISSING"],
+    )
+    after = _health_fixture(
+        missing_topics=[],
+        lag_crit_groups=[],
+        empty_lagging_groups=[],
+        lag_warn_groups=[],
+        severities=[],
+        healthy=True,
+        counts={"live_topics": 9, "catalog_topics": 9, "missing": 0},
+    )
+    client = KafkaClient(bootstrap="localhost:9094")
+    client.get_cluster_health_status = MagicMock(side_effect=[before, after, after])  # type: ignore[method-assign]
+    client.create_topic = MagicMock(return_value={"ok": True})  # type: ignore[method-assign]
+
+    result = run_monitor_cycle(client, phase="safe", verify=True)
+    assert result["classification"]["healthy"] is True
+    assert result["classification"]["level"] == "OK"
+    assert result["health"]["missing_topics"] == []
+    assert result["delta"]["resolved"]["missing_topics"] == ["kafka.monitor.poll"]
+    assert any(a.get("ok") for a in result["heal_actions"])
+
+
 def test_agent_registered() -> None:
     from ratatoskr.agents.registry import load_agent_registry
 
@@ -315,13 +356,27 @@ def test_agent_registered() -> None:
     assert "workflow_kafka_monitor" in manifest.agents
 
 
-def test_canonical_catalog_includes_monitor_topics() -> None:
+def test_canonical_catalog_studio_excludes_cowrie() -> None:
     from ratatoskr.kafka.client import canonical_topic_catalog
 
+    os.environ.pop("KAFKA_CATALOG", None)
     catalog = canonical_topic_catalog()
     assert "kafka.monitor.poll" in catalog
     assert "kafka.monitor.output" in catalog
+    assert "workflow.test.input" in catalog
+    assert "cowrie.events" not in catalog
 
+
+def test_canonical_catalog_full_includes_cowrie() -> None:
+    from ratatoskr.kafka.client import canonical_topic_catalog
+
+    os.environ["KAFKA_CATALOG"] = "full"
+    try:
+        catalog = canonical_topic_catalog()
+        assert "cowrie.events" in catalog
+        assert "kafka.monitor.poll" in catalog
+    finally:
+        os.environ.pop("KAFKA_CATALOG", None)
 
 def test_env_helpers() -> None:
     from ratatoskr.kafka import env as kafka_env
@@ -346,8 +401,10 @@ def main() -> int:
         test_topic_allowlist,
         test_lab_group_ops_require_allowlist,
         test_verify_after_create,
+        test_cycle_refreshes_health_after_heal,
         test_agent_registered,
-        test_canonical_catalog_includes_monitor_topics,
+        test_canonical_catalog_studio_excludes_cowrie,
+        test_canonical_catalog_full_includes_cowrie,
         test_env_helpers,
     ]
     failed = 0

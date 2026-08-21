@@ -501,6 +501,7 @@ def run_monitor_cycle(
     classification = classify_health(health)
     delta = diff_health(previous_health, health) if previous_health is not None else None
     heal_plan = build_heal_plan(health, phase=active)
+    health_before = health
     heal_actions = apply_heal_policy(
         client,
         health,
@@ -509,6 +510,19 @@ def run_monitor_cycle(
         verify=verify,
         process_group_id=str(health.get("process_group_id") or process_group_id),
     )
+
+    if not is_dry and any(a.get("ok") for a in heal_actions):
+        try:
+            health = client.get_flow_health_status(
+                str(health.get("process_group_id") or process_group_id)
+            )
+            classification = classify_health(health)
+            if previous_health is not None:
+                delta = diff_health(previous_health, health)
+            else:
+                delta = diff_health(health_before, health)
+        except Exception:  # noqa: BLE001
+            pass
 
     health_out = {
         "process_group_id": health.get("process_group_id"),
