@@ -57,7 +57,7 @@ services:
     command:
       - |
         set -e
-        for topic in workflow.test.input workflow.test.output session.window.input session.window.output nasa.neo; do
+        for topic in workflow.test.input workflow.test.output session.window.input session.window.output nasa.neo nifi.monitor.poll nifi.monitor.output; do
           kafka-topics --bootstrap-server kafka:9092 \
             --create --if-not-exists \
             --topic "$$topic" \

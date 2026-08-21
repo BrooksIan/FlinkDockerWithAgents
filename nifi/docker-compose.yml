@@ -15,7 +15,8 @@ services:
       SINGLE_USER_CREDENTIALS_USERNAME: ${NIFI_USERNAME:-admin}
       SINGLE_USER_CREDENTIALS_PASSWORD: ${NIFI_PASSWORD:-RatatoskrNiFi1!}
       NIFI_WEB_HTTPS_PORT: 8443
-      NIFI_WEB_PROXY_HOST: localhost:${NIFI_HTTPS_PORT:-8443}
+      # Allow browser (localhost) and Flink containers (nifi service DNS)
+      NIFI_WEB_PROXY_HOST: "localhost:${NIFI_HTTPS_PORT:-8443},nifi:8443,nifi:${NIFI_HTTPS_PORT:-8443}"
     volumes:
       - nifi_conf:/opt/nifi/nifi-current/conf
       - nifi_content:/opt/nifi/nifi-current/content_repository
@@ -23,7 +24,30 @@ services:
       - nifi_flowfile:/opt/nifi/nifi-current/flowfile_repository
       - nifi_provenance:/opt/nifi/nifi-current/provenance_repository
       - nifi_logs:/opt/nifi/nifi-current/logs
-      - ./flows:/opt/nifi/flows:ro
+      # Paths are relative to the Compose project dir (deploy/ when using ratatoskr).
+      - ../nifi/flows:/opt/nifi/flows:ro
+    # Lab: relax SNI so Flink can call https://nifi:8443 against the localhost cert.
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        set -euo pipefail
+        props=/opt/nifi/nifi-current/conf/nifi.properties
+        patch() {
+          [[ -f "$$props" ]] || return 0
+          if grep -q '^nifi.web.https.sni.required=' "$$props"; then
+            sed -i 's/^nifi.web.https.sni.required=.*/nifi.web.https.sni.required=false/' "$$props"
+          else
+            echo 'nifi.web.https.sni.required=false' >>"$$props"
+          fi
+          if grep -q '^nifi.web.https.sni.host.check=' "$$props"; then
+            sed -i 's/^nifi.web.https.sni.host.check=.*/nifi.web.https.sni.host.check=false/' "$$props"
+          else
+            echo 'nifi.web.https.sni.host.check=false' >>"$$props"
+          fi
+        }
+        patch
+        ( for _ in $$(seq 1 30); do sleep 2; patch || true; done ) &
+        exec /opt/nifi/scripts/start.sh
     healthcheck:
       test: ["CMD-SHELL", "curl -kf https://localhost:8443/nifi-api/system-diagnostics >/dev/null 2>&1 || exit 1"]
       interval: 15s

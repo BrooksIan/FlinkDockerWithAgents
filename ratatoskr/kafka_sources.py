@@ -26,6 +26,10 @@ _STATIC_TOPICS: dict[str, str] = {
     "session.window.input": "Cowrie-like events for session window detect demo (keyed by src_ip)",
     "session.window.output": "Session detect agent output",
     "nasa.neo": "NASA NEO — near-earth object close-approach feed",
+    "nifi.monitor.poll": "NiFi monitor poll triggers (continuous / Kafka-driven)",
+    "nifi.monitor.output": "NiFi monitor agent OutputEvents (optional sink)",
+    "kafka.monitor.poll": "Kafka monitor poll triggers (continuous / Kafka-driven)",
+    "kafka.monitor.output": "Kafka monitor agent OutputEvents (optional sink)",
 }
 
 DEFAULT_KAFKA_OUTPUT_TOPIC = "workflow.test.output"

@@ -2,32 +2,165 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
+import socket
+import time
 import warnings
 from dataclasses import dataclass, field
-from typing import Any, Optional
-from urllib.parse import urljoin
+from typing import Any, Optional, Pattern
+from urllib.parse import urljoin, urlparse
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.connection import HTTPSConnection
+from urllib3.connectionpool import HTTPSConnectionPool
 from urllib3.exceptions import InsecureRequestWarning
+from urllib3.poolmanager import PoolManager
 
+from ratatoskr.nifi.env import (
+    HEAL_PHASES,
+    allow_empty_queue,
+    backpressure_crit_threshold,
+    backpressure_warn_threshold,
+    default_nifi_api_base,
+    heal_phase,
+    probe_slow_ms,
+    watch_id_regex,
+    watch_name_regex,
+)
 
 DEFAULT_API_BASE = "https://localhost:8443/nifi-api"
-HEAL_PHASES = frozenset({"monitor", "safe", "lab"})
+
+# Re-export for callers that import gates from client
+__all__ = [
+    "DEFAULT_API_BASE",
+    "HEAL_PHASES",
+    "NiFiClient",
+    "allow_empty_queue",
+    "heal_phase",
+]
 
 
-def heal_phase() -> str:
-    raw = (os.environ.get("NIFI_HEAL_PHASE") or "monitor").strip().lower()
-    return raw if raw in HEAL_PHASES else "monitor"
+class _SNIHTTPSConnection(HTTPSConnection):
+    """TCP to ``connect_host`` while ``host`` (localhost) is used for SNI."""
+
+    connect_host: str | None = None
+
+    def _new_conn(self):  # type: ignore[no-untyped-def]
+        from urllib3.util import connection as urllib3_connection
+
+        extra: dict[str, Any] = {}
+        if self.source_address:
+            extra["source_address"] = self.source_address
+        if self.socket_options:
+            extra["socket_options"] = self.socket_options
+        return urllib3_connection.create_connection(
+            (self.connect_host or self.host, self.port),
+            self.timeout,
+            **extra,
+        )
 
 
-def allow_empty_queue() -> bool:
-    return os.environ.get("NIFI_HEAL_ALLOW_EMPTY_QUEUE", "").strip().lower() in (
-        "1",
-        "true",
-        "yes",
-        "on",
-    )
+class _SNIHTTPSConnectionPool(HTTPSConnectionPool):
+    ConnectionCls = _SNIHTTPSConnection
+
+    def __init__(
+        self,
+        *args: Any,
+        connect_host: str | None = None,
+        **kwargs: Any,
+    ):
+        self._connect_host = connect_host
+        super().__init__(*args, **kwargs)
+
+    def _new_conn(self) -> HTTPSConnection:
+        conn = super()._new_conn()
+        conn.connect_host = self._connect_host
+        return conn
+
+
+class _SNIPoolManager(PoolManager):
+    def __init__(
+        self,
+        *args: Any,
+        connect_host: str | None = None,
+        **kwargs: Any,
+    ):
+        self._connect_host = connect_host
+        super().__init__(*args, **kwargs)
+
+    def connection_from_host(
+        self,
+        host: str,
+        port: int | None = None,
+        scheme: str = "http",
+        pool_kwargs: Any = None,
+    ):
+        if scheme == "https" and self._connect_host:
+            port = port or 443
+            pool_key = ("https", host, port, self._connect_host)
+            with self.pools.lock:
+                pool = self.pools.get(pool_key)
+                if pool is None:
+                    pool = _SNIHTTPSConnectionPool(
+                        host,
+                        port,
+                        connect_host=self._connect_host,
+                        **self.connection_pool_kw,
+                    )
+                    self.pools[pool_key] = pool
+                return pool
+        return super().connection_from_host(
+            host, port=port, scheme=scheme, pool_kwargs=pool_kwargs
+        )
+
+
+class _SNIAdapter(HTTPAdapter):
+    """Connect to Docker DNS IP while presenting localhost SNI (lab NiFi cert)."""
+
+    def __init__(self, connect_host: str, **kwargs: Any) -> None:
+        self._connect_host = connect_host
+        super().__init__(**kwargs)
+
+    def init_poolmanager(
+        self, connections: int, maxsize: int, block: bool = False, **pool_kwargs: Any
+    ):
+        self.poolmanager = _SNIPoolManager(
+            num_pools=connections,
+            maxsize=maxsize,
+            block=block,
+            connect_host=self._connect_host,
+            **pool_kwargs,
+        )
+
+
+def _bulletin_fingerprint(
+    *,
+    source_id: Any,
+    level: str,
+    message: Any,
+) -> str:
+    raw = f"{source_id or ''}|{level}|{message or ''}"
+    return hashlib.sha256(raw.encode("utf-8", errors="replace")).hexdigest()[:16]
+
+
+def _watch_keep(
+    item: dict[str, Any],
+    *,
+    name_re: Pattern[str] | None,
+    id_re: Pattern[str] | None,
+) -> bool:
+    """If any watch regex is set, keep items matching name OR id."""
+    if name_re is None and id_re is None:
+        return True
+    name = str(item.get("name") or "")
+    eid = str(item.get("id") or "")
+    if name_re is not None and name_re.search(name):
+        return True
+    if id_re is not None and id_re.search(eid):
+        return True
+    return False
 
 
 @dataclass
@@ -48,9 +181,11 @@ class NiFiClient:
     # Mutation call log for tests / agent OutputEvents
     mutations: list[dict[str, Any]] = field(default_factory=list, repr=False)
     _token: str = field(default="", repr=False)
+    _last_login_ms: float = field(default=0.0, repr=False)
+    _last_request_ms: float = field(default=0.0, repr=False)
 
     def __post_init__(self) -> None:
-        base = (self.api_base or os.environ.get("NIFI_API_BASE") or DEFAULT_API_BASE).rstrip(
+        base = (self.api_base or default_nifi_api_base()).rstrip(
             "/"
         )
         if base.endswith("/nifi"):
@@ -64,6 +199,23 @@ class NiFiClient:
         if not self.verify_ssl:
             warnings.filterwarnings("ignore", category=InsecureRequestWarning)
 
+        # Flink containers use https://nifi:8443 but the lab cert only has localhost.
+        # Rewrite to https://localhost + TCP to the nifi service IP (curl --resolve).
+        tls_name = (os.environ.get("NIFI_TLS_SERVER_NAME") or "").strip()
+        host = (urlparse(self.api_base).hostname or "").lower()
+        port = urlparse(self.api_base).port or 8443
+        if not tls_name and host in ("nifi", "host.docker.internal"):
+            tls_name = "localhost"
+        if tls_name and host and host != tls_name:
+            try:
+                connect_ip = socket.gethostbyname(host)
+            except OSError:
+                connect_ip = host
+            path = urlparse(self.api_base).path or "/nifi-api"
+            self.api_base = f"https://{tls_name}:{port}{path}".rstrip("/")
+            self.session.headers["Host"] = f"{tls_name}:{port}"
+            self.session.mount("https://", _SNIAdapter(connect_ip))
+
     def login(self) -> str:
         """Obtain a bearer token via POST /access/token (required for NiFi 2.x)."""
         # Token endpoint returns text/plain — do not send Accept: application/json.
@@ -71,20 +223,26 @@ class NiFiClient:
             "Content-Type": "application/x-www-form-urlencoded",
             "Accept": "*/*",
         }
-        resp = requests.post(
-            self._url("/access/token"),
-            data={"username": self.username, "password": self.password},
-            headers=headers,
-            verify=self.verify_ssl,
-            timeout=self.timeout,
-        )
-        resp.raise_for_status()
-        token = (resp.text or "").strip()
-        if not token:
-            raise RuntimeError("NiFi /access/token returned an empty token")
-        self._token = token
-        self.session.headers["Authorization"] = f"Bearer {token}"
-        return token
+        # Preserve Host override from session if present
+        if "Host" in self.session.headers:
+            headers["Host"] = self.session.headers["Host"]
+        t0 = time.perf_counter()
+        try:
+            resp = self.session.post(
+                self._url("/access/token"),
+                data={"username": self.username, "password": self.password},
+                headers=headers,
+                timeout=self.timeout,
+            )
+            resp.raise_for_status()
+            token = (resp.text or "").strip()
+            if not token:
+                raise RuntimeError("NiFi /access/token returned an empty token")
+            self._token = token
+            self.session.headers["Authorization"] = f"Bearer {token}"
+            return token
+        finally:
+            self._last_login_ms = (time.perf_counter() - t0) * 1000.0
 
     def _ensure_auth(self) -> None:
         if not self._token:
@@ -104,18 +262,8 @@ class NiFiClient:
         mutation_name: str = "",
     ) -> Any:
         self._ensure_auth()
-        resp = self.session.request(
-            method,
-            self._url(path),
-            json=json_body,
-            params=params,
-            timeout=self.timeout,
-        )
-        # Token expired — refresh once
-        if resp.status_code == 401 and path.rstrip("/") != "/access/token":
-            self._token = ""
-            self.session.headers.pop("Authorization", None)
-            self.login()
+        t0 = time.perf_counter()
+        try:
             resp = self.session.request(
                 method,
                 self._url(path),
@@ -123,21 +271,35 @@ class NiFiClient:
                 params=params,
                 timeout=self.timeout,
             )
-        if record_mutation:
-            self.mutations.append(
-                {
-                    "op": mutation_name or method,
-                    "path": path,
-                    "status": resp.status_code,
-                }
-            )
-        resp.raise_for_status()
-        if resp.status_code == 204 or not resp.content:
-            return None
-        ctype = resp.headers.get("Content-Type", "")
-        if "json" in ctype:
-            return resp.json()
-        return resp.text
+            # Token expired — refresh once
+            if resp.status_code == 401 and path.rstrip("/") != "/access/token":
+                self._token = ""
+                self.session.headers.pop("Authorization", None)
+                self.login()
+                resp = self.session.request(
+                    method,
+                    self._url(path),
+                    json=json_body,
+                    params=params,
+                    timeout=self.timeout,
+                )
+            if record_mutation:
+                self.mutations.append(
+                    {
+                        "op": mutation_name or method,
+                        "path": path,
+                        "status": resp.status_code,
+                    }
+                )
+            resp.raise_for_status()
+            if resp.status_code == 204 or not resp.content:
+                return None
+            ctype = resp.headers.get("Content-Type", "")
+            if "json" in ctype:
+                return resp.json()
+            return resp.text
+        finally:
+            self._last_request_ms = (time.perf_counter() - t0) * 1000.0
 
     # --- Read (MCP-aligned) ---
 
@@ -240,7 +402,16 @@ class NiFiClient:
 
         When ``recursive`` is true (default), also inspects child process groups
         so sample flows under nested PGs are visible from ``root``.
+
+        Adds probe timings, DISABLED_SERVICE, graded backpressure, and optional
+        watchlist filtering (``NIFI_WATCH_NAME_REGEX`` / ``NIFI_WATCH_ID_REGEX``).
         """
+        poll_t0 = time.perf_counter()
+        name_re = watch_name_regex()
+        id_re = watch_id_regex()
+        bp_warn = backpressure_warn_threshold()
+        bp_crit = backpressure_crit_threshold()
+
         if process_group_id == "root":
             root = self.get_root_process_group()
             flow = root.get("processGroupFlow") or {}
@@ -281,6 +452,8 @@ class NiFiClient:
                 "validationStatus": validation,
                 "revision": ent.get("revision"),
             }
+            if not _watch_keep(item, name_re=name_re, id_re=id_re):
+                continue
             if state == "STOPPED":
                 stopped.append(item)
             if validation and validation.upper() == "INVALID":
@@ -290,31 +463,41 @@ class NiFiClient:
         for ent in services:
             comp = ent.get("component") or {}
             state = comp.get("state") or ""
-            if state == "DISABLED":
-                disabled_services.append(
-                    {
-                        "id": comp.get("id") or ent.get("id"),
-                        "name": comp.get("name"),
-                        "state": state,
-                        "revision": ent.get("revision"),
-                    }
-                )
+            if state != "DISABLED":
+                continue
+            item = {
+                "id": comp.get("id") or ent.get("id"),
+                "name": comp.get("name"),
+                "state": state,
+                "revision": ent.get("revision"),
+            }
+            if not _watch_keep(item, name_re=name_re, id_re=id_re):
+                continue
+            disabled_services.append(item)
 
         backpressured: list[dict[str, Any]] = []
         for ent in connections:
             status = ent.get("status") or {}
             agg = status.get("aggregateSnapshot") or status
             queued = int(agg.get("flowFilesQueued") or 0)
-            if queued > 0:
-                backpressured.append(
-                    {
-                        "id": (ent.get("component") or {}).get("id") or ent.get("id"),
-                        "name": (ent.get("component") or {}).get("name"),
-                        "flowFilesQueued": queued,
-                        "bytesQueued": int(agg.get("bytesQueued") or 0),
-                        "revision": ent.get("revision"),
-                    }
-                )
+            if queued < bp_warn:
+                continue
+            comp = ent.get("component") or {}
+            source = comp.get("source") or {}
+            level = "crit" if queued >= bp_crit else "warn"
+            item = {
+                "id": comp.get("id") or ent.get("id"),
+                "name": comp.get("name"),
+                "flowFilesQueued": queued,
+                "bytesQueued": int(agg.get("bytesQueued") or 0),
+                "backpressure_level": level,
+                "sourceId": source.get("id"),
+                "sourceName": source.get("name"),
+                "revision": ent.get("revision"),
+            }
+            if not _watch_keep(item, name_re=name_re, id_re=id_re):
+                continue
+            backpressured.append(item)
 
         # Index current processor problems so stale bulletins don't keep the flow "unhealthy".
         problem_ids = {
@@ -338,32 +521,60 @@ class NiFiClient:
             level = (bulletin.get("level") or "").upper()
             if level not in ("ERROR", "WARNING"):
                 continue
+            source_id = bulletin.get("sourceId")
+            message = bulletin.get("message")
             entry = {
                 "level": level,
-                "message": bulletin.get("message"),
+                "message": message,
                 "sourceName": bulletin.get("sourceName"),
-                "sourceId": bulletin.get("sourceId"),
+                "sourceId": source_id,
+                "fingerprint": _bulletin_fingerprint(
+                    source_id=source_id, level=level, message=message
+                ),
             }
-            source_id = bulletin.get("sourceId")
+            if name_re is not None or id_re is not None:
+                if not _watch_keep(
+                    {"id": source_id, "name": bulletin.get("sourceName")},
+                    name_re=name_re,
+                    id_re=id_re,
+                ):
+                    continue
             if source_id and source_id in problem_ids:
                 active_error_bulletins.append(entry)
             elif source_id and source_id in proc_by_id:
-                # Source exists but is healthy now — bulletin is residual on the board.
                 stale_bulletins.append(entry)
             elif level == "ERROR" and not source_id:
                 active_error_bulletins.append(entry)
             else:
                 stale_bulletins.append(entry)
 
+        poll_ms = (time.perf_counter() - poll_t0) * 1000.0
+        probe = {
+            "ok": True,
+            "login_ms": round(self._last_login_ms, 2),
+            "poll_ms": round(poll_ms, 2),
+            "last_request_ms": round(self._last_request_ms, 2),
+        }
+
         severities: list[str] = []
         if stopped:
             severities.append("STOPPED")
         if invalid:
             severities.append("INVALID")
+        if disabled_services:
+            severities.append("DISABLED_SERVICE")
+        warn_queues = [c for c in backpressured if c.get("backpressure_level") == "warn"]
+        crit_queues = [c for c in backpressured if c.get("backpressure_level") == "crit"]
+        if warn_queues:
+            severities.append("BACKPRESSURE_WARN")
+        if crit_queues:
+            severities.append("BACKPRESSURE_CRIT")
         if backpressured:
             severities.append("BACKPRESSURE")
         if active_error_bulletins:
             severities.append("BULLETIN_ERROR")
+        if poll_ms >= probe_slow_ms():
+            severities.append("NIFI_SLOW")
 
         return {
             "process_group_id": process_group_id,
@@ -375,6 +586,7 @@ class NiFiClient:
             "queued_connections": backpressured,
             "bulletins": active_error_bulletins,
             "stale_bulletins": stale_bulletins,
+            "probe": probe,
             "counts": {
                 "processors": len(processors),
                 "connections": len(connections),
@@ -522,6 +734,7 @@ class NiFiClient:
         *,
         properties: Optional[dict[str, str]] = None,
         auto_terminated_relationships: Optional[list[str]] = None,
+        scheduling_period: Optional[str] = None,
     ) -> dict[str, Any]:
         """Update processor config (revision-aware). Processor should be STOPPED."""
         details = self.get_processor_details(processor_id)
@@ -534,6 +747,8 @@ class NiFiClient:
             config["properties"] = merged
         if auto_terminated_relationships is not None:
             config["autoTerminatedRelationships"] = list(auto_terminated_relationships)
+        if scheduling_period is not None:
+            config["schedulingPeriod"] = scheduling_period
         component["config"] = config
         body = {
             "revision": revision,

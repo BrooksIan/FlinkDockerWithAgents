@@ -24,16 +24,20 @@ NiFi heal actions should be **deterministic and auditable**: same health snapsho
 |----------|---------|
 | `STOPPED` | Processor in STOPPED state |
 | `INVALID` | Processor validationStatus INVALID |
-| `BACKPRESSURE` | Connection with queued flowfiles |
+| `DISABLED_SERVICE` | Controller service DISABLED |
+| `BACKPRESSURE` / `_WARN` / `_CRIT` | Queued flowfiles (graded by `NIFI_BP_WARN` / `NIFI_BP_CRIT`) |
 | `BULLETIN_ERROR` | ERROR/WARNING bulletins on the board |
+| `NIFI_SLOW` / `NIFI_UNREACHABLE` | API probe latency or connect failure |
 
 ## Heal matrix
 
 | Phase | Env | Mutations |
 |-------|-----|-----------|
 | monitor (1A) | `NIFI_HEAL_PHASE=monitor` | none |
-| safe (1B) | `NIFI_HEAL_PHASE=safe` | `start_processor`, `enable_controller_service` |
-| lab (1C) | `NIFI_HEAL_PHASE=lab` | safe + `terminate_processor`; `empty_connection_queue` if `NIFI_HEAL_ALLOW_EMPTY_QUEUE=1` |
+| safe (1B) | `NIFI_HEAL_PHASE=safe` | `enable_controller_service`, `start_processor` (ordered) |
+| lab (1C) | `NIFI_HEAL_PHASE=lab` | safe + `stop_processor` (upstream of backpressure) + `terminate_processor`; `empty_connection_queue` if `NIFI_HEAL_ALLOW_EMPTY_QUEUE=1` |
+
+Gates: `NIFI_HEAL_DRY_RUN`, `NIFI_HEAL_MAX_MUTATIONS`, `NIFI_HEAL_COOLDOWN_SEC`, `NIFI_HEAL_ALLOW_IDS` / `NIFI_HEAL_ALLOW_NAME_REGEX`, `NIFI_HEAL_VERIFY`.
 
 ## Run locally
 
@@ -59,5 +63,13 @@ Local Docker NiFi has no Knox. For CDP Flow Management:
 1. Install / configure [NiFi-MCP-Server](https://github.com/cloudera/NiFi-MCP-Server) with `NIFI_API_BASE` and `KNOX_TOKEN`
 2. Enable the **Apache NiFi (MCP)** entry under Dashboard Settings → MCP (catalog in `examples/mcp/mcp-server-catalog.yaml`)
 3. Keep heal policies written against the same tool names as `ratatoskr.nifi.client`
+
+## Continuous and cluster
+
+- Host interval: `python examples/agents/run_workflow_nifi_monitor_local.py --interval 10 --count 6`
+- Kafka ticks: `scripts/nifi_publish_poll_ticks.py` + runner `--kafka-topic nifi.monitor.poll`
+- Cluster: `ratatoskr agent run workflow_nifi_monitor --cluster` (uses `run_workflow_nifi_monitor_cluster.py`, `NIFI_MONITOR_POLLS`)
+
+Fault injectors for demos: `--stop-generate`, `--invalid-log`, `--queue-backlog`, `--lab-demo`, `--restore`.
 
 See [nifi/README.md](../nifi/README.md) for ports, sample flow, and layout.

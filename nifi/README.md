@@ -80,6 +80,39 @@ ratatoskr up --profile nifi
 
 The monitoring agent and sample-flow scripts authenticate the same way the UI does: `POST /nifi-api/access/token` with `NIFI_USERNAME` / `NIFI_PASSWORD`, then use a **Bearer** token (HTTP Basic is not used for NiFi 2.x API calls).
 
+## Continuous monitoring
+
+**Host interval loop** (no Flink Agents required):
+
+```bash
+export NIFI_HEAL_PHASE=monitor
+python examples/agents/run_workflow_nifi_monitor_local.py --interval 10 --count 6
+# --count 0 = forever (Ctrl-C to stop)
+```
+
+**Kafka-triggered polls** (Studio Kafka):
+
+```bash
+ratatoskr kafka up
+# Terminal A — consumer / agent
+python examples/agents/run_workflow_nifi_monitor_local.py --kafka-topic nifi.monitor.poll
+# Terminal B — publish ticks
+python scripts/nifi_publish_poll_ticks.py --count 5 --interval 2 --phase monitor
+```
+
+## Cluster path (Flink Agents in Docker)
+
+Requires `ratatoskr up --profile nifi` (JobManager reaches NiFi at `https://nifi:8443/nifi-api`).
+
+```bash
+export NIFI_HEAL_PHASE=monitor
+export NIFI_MONITOR_POLLS=5   # finite burst; job completes after N polls
+ratatoskr agent run workflow_nifi_monitor --cluster
+# or: ratatoskr agent submit workflow_nifi_monitor
+```
+
+Cluster submit copies `ratatoskr/nifi/` into the JobManager. Rebuild the image (`ratatoskr build`) after pulling Dockerfile changes that add `requests` + `ratatoskr/nifi` into the image for a colder start without copy.
+
 ## Heal phases
 
 | Phase | Env | Behavior |
@@ -97,15 +130,29 @@ The monitoring agent and sample-flow scripts authenticate the same way the UI do
 Fault injection:
 
 ```bash
-python3 scripts/nifi_fault_inject.py --stop-generate   # creates STOPPED severity
-python3 scripts/nifi_fault_inject.py --restore
+python scripts/nifi_fault_inject.py --stop-generate   # 1B — STOPPED GenerateFlowFile
+python scripts/nifi_fault_inject.py --invalid-log     # LogAttribute INVALID
+python scripts/nifi_fault_inject.py --queue-backlog   # queue buildup (LogAttribute stopped)
+python scripts/nifi_fault_inject.py --lab-demo        # INVALID + backlog for 1C
+python scripts/nifi_fault_inject.py --restore         # repair auto-terminate + restart
+```
+
+Phase 1C lab demo:
+
+```bash
+python scripts/nifi_fault_inject.py --lab-demo
+export NIFI_HEAL_PHASE=lab
+export NIFI_HEAL_ALLOW_EMPTY_QUEUE=1   # optional destructive queue drain
+python examples/agents/run_workflow_nifi_monitor_local.py
+python scripts/nifi_fault_inject.py --restore
 ```
 
 Safe heal demo:
 
 ```bash
+python scripts/nifi_fault_inject.py --stop-generate
 export NIFI_HEAL_PHASE=safe
-python3 examples/agents/run_workflow_nifi_monitor_local.py
+python examples/agents/run_workflow_nifi_monitor_local.py
 ```
 
 ## Architecture

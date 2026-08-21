@@ -17,6 +17,12 @@ agents:
     description: "Monitor Apache NiFi flow health and optionally auto-heal (NIFI_HEAL_PHASE=monitor|safe|lab)"
     entry: examples.agents.workflow_nifi_monitor:NiFiMonitorAgent
     runner: examples/agents/run_workflow_nifi_monitor_local.py
+    cluster_script: examples/agents/run_workflow_nifi_monitor_cluster.py
+  workflow_kafka_monitor:
+    type: workflow
+    description: "Monitor Apache Kafka cluster health and optionally auto-heal (KAFKA_HEAL_PHASE=monitor|safe|lab)"
+    entry: examples.agents.workflow_kafka_monitor:KafkaMonitorAgent
+    runner: examples/agents/run_workflow_kafka_monitor_local.py
   react_echo:
     type: react
     description: "Tool-chaining lab agent (no LLM) \u2014 classify and summarize text"

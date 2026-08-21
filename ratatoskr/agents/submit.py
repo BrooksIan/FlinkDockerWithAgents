@@ -104,10 +104,27 @@ def _agent_copy_pairs(spec: AgentSpec, *, root: Path) -> List[Tuple[str, str]]:
         "ratatoskr/kafka_sources.py",
         "ratatoskr/paths.py",
         "ratatoskr/docker_utils.py",
+        "ratatoskr/nifi/__init__.py",
+        "ratatoskr/nifi/client.py",
+        "ratatoskr/nifi/policy.py",
+        "ratatoskr/nifi/env.py",
     ):
         local = root / rel
         if local.is_file():
             pairs.append((str(local), f"/opt/flink/{rel}"))
+
+    if spec.name == "workflow_nifi_monitor":
+        # Ensure package marker dirs exist for import on cluster.
+        for rel in (
+            "ratatoskr/nifi/__init__.py",
+            "ratatoskr/nifi/client.py",
+            "ratatoskr/nifi/policy.py",
+            "ratatoskr/nifi/env.py",
+        ):
+            local = root / rel
+            remote = f"/opt/flink/{rel}"
+            if local.is_file() and (str(local), remote) not in pairs:
+                pairs.append((str(local), remote))
 
     examples_init = root / "examples" / "__init__.py"
     if not examples_init.is_file():
