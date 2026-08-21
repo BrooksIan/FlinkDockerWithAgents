@@ -39,6 +39,7 @@ RUN git clone --depth 1 --branch "${FLINK_AGENTS_VERSION}" https://github.com/ap
         'setuptools>=75.3,<82' \
         'avro-python3>=1.10.0,<1.12.0' \
         'requests>=2.32.0' \
+        'kafka-python>=2.0.2' \
         ./python/dist/*.whl \
         ruamel.yaml \
     && cp dist/common/target/flink-agents-dist-common-*.jar /opt/flink/lib/ \
@@ -56,6 +57,7 @@ COPY examples/agents /opt/flink/examples/agents
 COPY ratatoskr/__init__.py ratatoskr/constants.py ratatoskr/paths.py ratatoskr/docker_utils.py ratatoskr/kafka_sources.py /opt/flink/ratatoskr/
 COPY ratatoskr/agents/__init__.py ratatoskr/agents/published_copy.py /opt/flink/ratatoskr/agents/
 COPY ratatoskr/nifi /opt/flink/ratatoskr/nifi
+COPY ratatoskr/kafka /opt/flink/ratatoskr/kafka
 COPY ratatoskr/runtime /opt/flink/ratatoskr/runtime
 RUN chown -R flink:flink /opt/flink/examples /opt/flink/ratatoskr /opt/flink/pythonpath
 

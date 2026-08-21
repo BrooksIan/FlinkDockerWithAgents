@@ -23,12 +23,23 @@ agents:
     description: "Monitor Apache Kafka cluster health and optionally auto-heal (KAFKA_HEAL_PHASE=monitor|safe|lab)"
     entry: examples.agents.workflow_kafka_monitor:KafkaMonitorAgent
     runner: examples/agents/run_workflow_kafka_monitor_local.py
+    cluster_script: examples/agents/run_workflow_kafka_monitor_cluster.py
+  workflow_signal_correlate:
+    type: workflow
+    description: "Correlate NiFi and Kafka monitor signals into cross-stack incidents (observe-only)"
+    entry: examples.agents.workflow_signal_correlate:SignalCorrelateAgent
+    runner: examples/agents/run_workflow_signal_correlate_local.py
   react_echo:
     type: react
     description: "Tool-chaining lab agent (no LLM) \u2014 classify and summarize text"
     entry: examples.agents.react_echo:ReactEchoAgent
     runner: examples/agents/run_react_local.py
     cluster_script: examples/agents/run_react_cluster.py
+  react_incident_scribe:
+    type: react
+    description: "Explain correlated NiFi/Kafka incidents (LLM when configured; never mutates)"
+    entry: examples.agents.react_incident_scribe:IncidentScribeAgent
+    runner: examples/agents/run_react_incident_scribe_local.py
   react_double_value:
     type: react
     description: "ReAct agent \u2014 LLM prompt doubles numeric input from a message"

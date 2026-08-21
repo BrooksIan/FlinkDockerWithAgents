@@ -652,6 +652,78 @@ class NiFiClient:
             mutation_name="enable_controller_service",
         ) or {"ok": True, "id": service_id, "state": "ENABLED"}
 
+    def disable_controller_service(
+        self, service_id: str, version: Optional[int] = None
+    ) -> dict[str, Any]:
+        details = self.get_controller_service_details(service_id)
+        revision = details.get("revision") or {}
+        if version is not None:
+            revision = {**revision, "version": version}
+        body = {
+            "revision": revision,
+            "state": "DISABLED",
+            "disconnectedNodeAcknowledged": True,
+        }
+        return self._request(
+            "PUT",
+            f"/controller-services/{service_id}/run-status",
+            json_body=body,
+            record_mutation=True,
+            mutation_name="disable_controller_service",
+        ) or {"ok": True, "id": service_id, "state": "DISABLED"}
+
+    def create_controller_service(
+        self,
+        process_group_id: str,
+        service_type: str,
+        name: str,
+        *,
+        properties: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
+        body = {
+            "revision": {"version": 0},
+            "component": {
+                "type": service_type,
+                "name": name,
+                "properties": properties or {},
+            },
+        }
+        return self._request(
+            "POST",
+            f"/process-groups/{process_group_id}/controller-services",
+            json_body=body,
+            record_mutation=True,
+            mutation_name="create_controller_service",
+        ) or {}
+
+    def update_controller_service_properties(
+        self,
+        service_id: str,
+        properties: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Update CS properties (service should be DISABLED)."""
+        details = self.get_controller_service_details(service_id)
+        revision = details.get("revision") or {"version": 0}
+        component = dict(details.get("component") or {})
+        merged = dict(component.get("properties") or {})
+        merged.update(properties)
+        body = {
+            "revision": revision,
+            "component": {
+                "id": service_id,
+                "name": component.get("name"),
+                "properties": merged,
+            },
+            "disconnectedNodeAcknowledged": True,
+        }
+        return self._request(
+            "PUT",
+            f"/controller-services/{service_id}",
+            json_body=body,
+            record_mutation=True,
+            mutation_name="update_controller_service",
+        ) or {}
+
     def terminate_processor(
         self, processor_id: str, version: Optional[int] = None
     ) -> dict[str, Any]:

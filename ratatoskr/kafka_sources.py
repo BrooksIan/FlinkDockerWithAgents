@@ -31,6 +31,9 @@ _STATIC_TOPICS: dict[str, str] = {
     "nifi.monitor.output": "NiFi monitor agent OutputEvents (optional sink)",
     "kafka.monitor.poll": "Kafka monitor poll triggers (continuous / Kafka-driven)",
     "kafka.monitor.output": "Kafka monitor agent OutputEvents (optional sink)",
+    "nifi.kafka.demo": "Shared NiFi←Kafka demo topic (ConsumeKafka lab flow)",
+    "signals.correlate.output": "NiFi↔Kafka correlation incidents (workflow_signal_correlate)",
+    "signals.incident.brief": "Incident scribe briefs (react_incident_scribe)",
 }
 
 # Topics created by deploy/docker-compose.kafka.yml kafka-init (+ monitor topics).
@@ -45,6 +48,7 @@ STUDIO_CATALOG_TOPICS: frozenset[str] = frozenset(
         "nifi.monitor.output",
         "kafka.monitor.poll",
         "kafka.monitor.output",
+        "nifi.kafka.demo",
     }
 )
 

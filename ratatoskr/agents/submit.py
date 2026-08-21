@@ -108,6 +108,10 @@ def _agent_copy_pairs(spec: AgentSpec, *, root: Path) -> List[Tuple[str, str]]:
         "ratatoskr/nifi/client.py",
         "ratatoskr/nifi/policy.py",
         "ratatoskr/nifi/env.py",
+        "ratatoskr/kafka/__init__.py",
+        "ratatoskr/kafka/client.py",
+        "ratatoskr/kafka/policy.py",
+        "ratatoskr/kafka/env.py",
     ):
         local = root / rel
         if local.is_file():
@@ -120,6 +124,18 @@ def _agent_copy_pairs(spec: AgentSpec, *, root: Path) -> List[Tuple[str, str]]:
             "ratatoskr/nifi/client.py",
             "ratatoskr/nifi/policy.py",
             "ratatoskr/nifi/env.py",
+        ):
+            local = root / rel
+            remote = f"/opt/flink/{rel}"
+            if local.is_file() and (str(local), remote) not in pairs:
+                pairs.append((str(local), remote))
+
+    if spec.name == "workflow_kafka_monitor":
+        for rel in (
+            "ratatoskr/kafka/__init__.py",
+            "ratatoskr/kafka/client.py",
+            "ratatoskr/kafka/policy.py",
+            "ratatoskr/kafka/env.py",
         ):
             local = root / rel
             remote = f"/opt/flink/{rel}"

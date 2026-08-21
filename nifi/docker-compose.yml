@@ -17,6 +17,8 @@ services:
       NIFI_WEB_HTTPS_PORT: 8443
       # Allow browser (localhost) and Flink containers (nifi service DNS)
       NIFI_WEB_PROXY_HOST: "localhost:${NIFI_HTTPS_PORT:-8443},nifi:8443,nifi:${NIFI_HTTPS_PORT:-8443}"
+      # ConsumeKafka / PublishKafka bootstrap inside compose (Studio Kafka INTERNAL)
+      NIFI_KAFKA_BOOTSTRAP: ${NIFI_KAFKA_BOOTSTRAP:-kafka:9092}
     volumes:
       - nifi_conf:/opt/nifi/nifi-current/conf
       - nifi_content:/opt/nifi/nifi-current/content_repository
@@ -56,6 +58,8 @@ services:
       start_period: 90s
     networks:
       - flink-network
+      # Studio Kafka INTERNAL listener (kafka:9092). Create via: ratatoskr kafka up
+      - kafka-network
     restart: unless-stopped
 
 volumes:
@@ -65,3 +69,8 @@ volumes:
   nifi_flowfile:
   nifi_provenance:
   nifi_logs:
+
+networks:
+  kafka-network:
+    external: true
+    name: ratatoskr-kafka_kafka-network

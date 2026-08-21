@@ -356,6 +356,32 @@ def test_agent_registered() -> None:
     assert "workflow_kafka_monitor" in manifest.agents
 
 
+def test_cluster_script_registered() -> None:
+    from pathlib import Path
+
+    from ratatoskr.agents.registry import get_agent_spec
+
+    root = Path(__file__).resolve().parents[1]
+    spec = get_agent_spec("workflow_kafka_monitor")
+    assert spec.cluster_script.endswith("run_workflow_kafka_monitor_cluster.py")
+    assert (root / spec.cluster_script).is_file()
+
+
+def test_fault_inject_helpers_importable() -> None:
+    import importlib.util
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[1] / "scripts" / "kafka_fault_inject.py"
+    spec = importlib.util.spec_from_file_location("kafka_fault_inject", path)
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    assert mod.DEFAULT_DEMO_TOPIC == "kafka.monitor.poll"
+    assert callable(mod.inject_delete_topic)
+    assert callable(mod.inject_lag_group)
+    assert callable(mod.restore_catalog)
+
+
 def test_canonical_catalog_studio_excludes_cowrie() -> None:
     from ratatoskr.kafka.client import canonical_topic_catalog
 
@@ -403,6 +429,8 @@ def main() -> int:
         test_verify_after_create,
         test_cycle_refreshes_health_after_heal,
         test_agent_registered,
+        test_cluster_script_registered,
+        test_fault_inject_helpers_importable,
         test_canonical_catalog_studio_excludes_cowrie,
         test_canonical_catalog_full_includes_cowrie,
         test_env_helpers,

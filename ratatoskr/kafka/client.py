@@ -388,6 +388,19 @@ class KafkaClient:
             },
         }
 
+    def delete_topic(self, name: str) -> dict[str, Any]:
+        """Delete a topic (lab / fault-inject only)."""
+        admin = self._get_admin()
+        try:
+            admin.delete_topics([name])
+            self.mutations.append({"op": "delete_topic", "target": name, "ok": True})
+            return {"ok": True, "name": name}
+        except Exception as exc:  # noqa: BLE001
+            self.mutations.append(
+                {"op": "delete_topic", "target": name, "ok": False, "error": str(exc)}
+            )
+            raise
+
     def create_topic(
         self,
         name: str,
@@ -447,7 +460,7 @@ class KafkaClient:
             consumer.assign(tps)
             ends = consumer.end_offsets(tps)
             to_commit = {
-                tp: OffsetAndMetadata(ends[tp], "") for tp in tps
+                tp: OffsetAndMetadata(ends[tp], "", -1) for tp in tps
             }
             consumer.commit(to_commit)
             self.mutations.append(
