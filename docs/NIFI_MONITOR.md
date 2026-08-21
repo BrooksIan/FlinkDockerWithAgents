@@ -56,6 +56,52 @@ export NIFI_HEAL_PHASE=safe
 python3 examples/agents/run_workflow_nifi_monitor_local.py
 ```
 
+## Heal demo script (1B / 1C)
+
+Prereqs: `ratatoskr up --profile nifi`, `./scripts/nifi_load_sample_flow.sh`, and `source .venv/bin/activate`.
+Use `--restore` between scenarios to reset the sample flow.
+
+**1B — safe start (STOPPED GenerateFlowFile)**
+
+```bash
+python3 scripts/nifi_fault_inject.py --restore
+python3 scripts/nifi_fault_inject.py --stop-generate
+export NIFI_HEAL_PHASE=safe
+python3 examples/agents/run_workflow_nifi_monitor_local.py --count 1
+# Expect heal_actions: start_processor on GenerateFlowFile
+```
+
+**1C — lab terminate (INVALID LogAttribute)**
+
+```bash
+python3 scripts/nifi_fault_inject.py --restore
+python3 scripts/nifi_fault_inject.py --invalid-log
+export NIFI_HEAL_PHASE=lab
+python3 examples/agents/run_workflow_nifi_monitor_local.py --count 1
+# Expect heal_actions: terminate_processor on LogAttribute
+# (INVALID processors are not started)
+```
+
+**1C — lab empty queue (BACKPRESSURE)**
+
+```bash
+python3 scripts/nifi_fault_inject.py --restore
+python3 scripts/nifi_fault_inject.py --queue-backlog --settle-sec 5
+export NIFI_HEAL_PHASE=lab
+export NIFI_HEAL_ALLOW_EMPTY_QUEUE=1
+python3 examples/agents/run_workflow_nifi_monitor_local.py --count 1
+# Expect queued update-to-log, then empty_connection_queue (+ start LogAttribute)
+```
+
+`--queue-backlog` temporarily sets GenerateFlowFile to `1 sec` so queues build in a few seconds (NiFi’s default is often `1 min`).
+
+Cluster path (after `ratatoskr build`):
+
+```bash
+export NIFI_HEAL_PHASE=monitor NIFI_MONITOR_POLLS=5
+ratatoskr agent run workflow_nifi_monitor --cluster --profile nifi
+```
+
 ## CDP / MCP dual path
 
 Local Docker NiFi has no Knox. For CDP Flow Management:
@@ -68,8 +114,8 @@ Local Docker NiFi has no Knox. For CDP Flow Management:
 
 - Host interval: `python examples/agents/run_workflow_nifi_monitor_local.py --interval 10 --count 6`
 - Kafka ticks: `scripts/nifi_publish_poll_ticks.py` + runner `--kafka-topic nifi.monitor.poll`
-- Cluster: `ratatoskr agent run workflow_nifi_monitor --cluster` (uses `run_workflow_nifi_monitor_cluster.py`, `NIFI_MONITOR_POLLS`)
+- Cluster: see heal demo script above (`--cluster --profile nifi`)
 
-Fault injectors for demos: `--stop-generate`, `--invalid-log`, `--queue-backlog`, `--lab-demo`, `--restore`.
+Also: `--lab-demo` combines INVALID + backlog in one inject.
 
 See [nifi/README.md](../nifi/README.md) for ports, sample flow, and layout.
