@@ -63,6 +63,20 @@ def test_kafka_compose_declares_demo_topic_optional() -> None:
     assert "kafka-network" in text
 
 
+def test_fault_inject_kafka_helpers_importable() -> None:
+    import importlib.util
+
+    path = ROOT / "scripts" / "nifi_fault_inject.py"
+    spec = importlib.util.spec_from_file_location("nifi_fault_inject", path)
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    assert mod.KAFKA_PG == "Ratatoskr Kafka Demo"
+    assert callable(mod.inject_stop_consume)
+    assert callable(mod.inject_disable_kafka_cs)
+    assert (ROOT / "scripts" / "demo_nifi_kafka_heal.py").is_file()
+
+
 def main() -> int:
     tests = [
         test_loader_script_and_shell_exist,
@@ -70,6 +84,7 @@ def main() -> int:
         test_topic_in_studio_catalog,
         test_nifi_compose_joins_kafka_network,
         test_kafka_compose_declares_demo_topic_optional,
+        test_fault_inject_kafka_helpers_importable,
     ]
     failed = 0
     for fn in tests:

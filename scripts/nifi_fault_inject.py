@@ -1,20 +1,34 @@
 #!/usr/bin/env python3
-"""Inject faults into the Ratatoskr sample NiFi flow for heal demos.
+"""Inject faults into Ratatoskr NiFi demo flows for heal demos.
+
+Targets:
+  sample  — Ratatoskr Sample (Generate→Update→Log)  [default]
+  kafka   — Ratatoskr Kafka Demo (ConsumeKafka→Update→Log)
 
 Examples:
-  python scripts/nifi_fault_inject.py --stop-generate          # 1B safe heal
-  python scripts/nifi_fault_inject.py --invalid-log            # INVALID LogAttribute
-  python scripts/nifi_fault_inject.py --queue-backlog          # stop LogAttribute, leave Generate running
-  python scripts/nifi_fault_inject.py --lab-demo               # INVALID + backlog for 1C
+  # Sample flow (1B / 1C)
+  python scripts/nifi_fault_inject.py --stop-generate
+  python scripts/nifi_fault_inject.py --invalid-log
+  python scripts/nifi_fault_inject.py --queue-backlog
   python scripts/nifi_fault_inject.py --restore
+
+  # Kafka→NiFi demo flow
+  python scripts/nifi_fault_inject.py --target kafka --stop-consume
+  python scripts/nifi_fault_inject.py --target kafka --disable-cs
+  python scripts/nifi_fault_inject.py --target kafka --stop-log
+  python scripts/nifi_fault_inject.py --target kafka --restore
 """
 
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import sys
 import time
 from pathlib import Path
+
+SAMPLE_PG = "Ratatoskr Sample"
+KAFKA_PG = "Ratatoskr Kafka Demo"
 
 
 def _bootstrap() -> None:
@@ -23,23 +37,46 @@ def _bootstrap() -> None:
         sys.path.insert(0, str(root))
 
 
-def _find_sample_pg(client):
+def _load_sibling(name: str):
+    path = Path(__file__).resolve().parent / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(name, path)
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _find_pg(client, name: str) -> str:
     root = client.get_root_process_group()
     flow = root.get("processGroupFlow") or {}
     root_id = flow.get("id")
     pgs = client._request("GET", f"/process-groups/{root_id}/process-groups")
     for ent in (pgs or {}).get("processGroups") or []:
-        name = (ent.get("component") or {}).get("name")
-        if name == "Ratatoskr Sample":
+        if (ent.get("component") or {}).get("name") == name:
             return (ent.get("component") or {}).get("id")
-    raise RuntimeError(
-        "Ratatoskr Sample process group not found — run scripts/nifi_load_sample_flow.sh"
+    hint = (
+        "scripts/nifi_load_sample_flow.sh"
+        if name == SAMPLE_PG
+        else "scripts/nifi_load_kafka_flow.sh"
     )
+    raise RuntimeError(f"{name!r} process group not found — run {hint}")
 
 
 def _processors_by_name(client, pg_id: str) -> dict[str, dict]:
     out = {}
     for ent in client.list_processors(pg_id):
+        comp = ent.get("component") or {}
+        out[comp.get("name") or ""] = {
+            "id": comp.get("id"),
+            "revision": ent.get("revision"),
+            "state": comp.get("state"),
+        }
+    return out
+
+
+def _services_by_name(client, pg_id: str) -> dict[str, dict]:
+    out = {}
+    for ent in client.get_controller_services(pg_id):
         comp = ent.get("component") or {}
         out[comp.get("name") or ""] = {
             "id": comp.get("id"),
@@ -73,7 +110,6 @@ def inject_invalid_log(client, pg_id: str) -> dict:
         procs = _processors_by_name(client, pg_id)
         log = procs["LogAttribute"]
     client.update_processor_config(log["id"], auto_terminated_relationships=[])
-    # Try start so NiFi emits INVALID / bulletin (may fail — that's the point)
     try:
         procs = _processors_by_name(client, pg_id)
         log = procs["LogAttribute"]
@@ -95,7 +131,6 @@ def inject_queue_backlog(client, pg_id: str, *, settle_sec: float = 3.0) -> dict
     gen = procs.get("GenerateFlowFile")
     if not log:
         raise SystemExit("LogAttribute not found")
-    # Speed Generate (often defaults to 1 min) so demos build a queue quickly.
     if gen and gen.get("state") != "STOPPED":
         _stop(client, gen, "GenerateFlowFile")
         procs = _processors_by_name(client, pg_id)
@@ -106,13 +141,11 @@ def inject_queue_backlog(client, pg_id: str, *, settle_sec: float = 3.0) -> dict
         _stop(client, log, "LogAttribute")
     procs = _processors_by_name(client, pg_id)
     log = procs["LogAttribute"]
-    # Keep success auto-terminated so Generate→Update still run; LogAttribute stopped = backlog
     client.update_processor_config(log["id"], auto_terminated_relationships=["success"])
     _ensure_generate_running(client, _processors_by_name(client, pg_id))
     upd = _processors_by_name(client, pg_id).get("UpdateAttribute")
     if upd and upd.get("state") != "RUNNING":
         client.start_processor(upd["id"], (upd.get("revision") or {}).get("version"))
-    # Leave LogAttribute STOPPED
     time.sleep(max(0.0, settle_sec))
     return {
         "queue_backlog": True,
@@ -131,10 +164,125 @@ def inject_lab_demo(client, pg_id: str) -> dict:
     return {"lab_demo": True, "backlog": backlog, "invalid": invalid}
 
 
+def inject_stop_consume(client, pg_id: str) -> dict:
+    """Stop ConsumeKafka — Phase 1B safe heal (start_processor)."""
+    procs = _processors_by_name(client, pg_id)
+    consume = procs.get("ConsumeKafka")
+    if not consume:
+        raise SystemExit("ConsumeKafka not found — is this the Kafka demo PG?")
+    return _stop(client, consume, "ConsumeKafka")
+
+
+def inject_disable_kafka_cs(client, pg_id: str) -> dict:
+    """Disable Studio Kafka CS — Phase 1B safe heal (enable_controller_service)."""
+    procs = _processors_by_name(client, pg_id)
+    # Stop consumers first so disable is clean.
+    for name in ("ConsumeKafka", "UpdateAttribute", "LogAttribute"):
+        proc = procs.get(name)
+        if proc and proc.get("state") != "STOPPED":
+            _stop(client, proc, name)
+    # NiFi needs a beat before CS run-status accepts DISABLED.
+    for _ in range(10):
+        time.sleep(0.5)
+        procs = _processors_by_name(client, pg_id)
+        if all(
+            (procs.get(n) or {}).get("state") == "STOPPED"
+            for n in ("ConsumeKafka", "UpdateAttribute", "LogAttribute")
+            if n in procs
+        ):
+            break
+    services = _services_by_name(client, pg_id)
+    cs = services.get("Studio Kafka")
+    if not cs:
+        raise SystemExit("Studio Kafka controller service not found")
+    if cs.get("state") == "DISABLED":
+        return {"disabled": cs["id"], "name": "Studio Kafka", "already": True}
+    last_err = None
+    for _ in range(6):
+        services = _services_by_name(client, pg_id)
+        cs = services.get("Studio Kafka") or cs
+        try:
+            client.disable_controller_service(
+                cs["id"], (cs.get("revision") or {}).get("version")
+            )
+            last_err = None
+            break
+        except Exception as exc:  # noqa: BLE001
+            last_err = exc
+            time.sleep(0.75)
+    if last_err is not None:
+        raise RuntimeError(f"failed to disable Studio Kafka: {last_err}") from last_err
+    # Confirm
+    for _ in range(10):
+        services = _services_by_name(client, pg_id)
+        cs = services.get("Studio Kafka") or cs
+        if cs.get("state") == "DISABLED":
+            return {"disabled": cs["id"], "name": "Studio Kafka"}
+        time.sleep(0.5)
+    return {
+        "disabled": cs["id"],
+        "name": "Studio Kafka",
+        "state": cs.get("state"),
+        "warning": "disable requested but state not yet DISABLED",
+    }
+
+
+def inject_kafka_stop_log(
+    client, pg_id: str, *, publish: int = 5, settle_sec: float = 3.0
+) -> dict:
+    """Stop LogAttribute, publish to nifi.kafka.demo → queue backlog (lab)."""
+    procs = _processors_by_name(client, pg_id)
+    log = procs.get("LogAttribute")
+    if not log:
+        raise SystemExit("LogAttribute not found")
+    if log.get("state") != "STOPPED":
+        _stop(client, log, "LogAttribute")
+    # Keep Consume + Update running so flowfiles pile up on update-to-log.
+    for name in ("ConsumeKafka", "UpdateAttribute"):
+        proc = _processors_by_name(client, pg_id).get(name)
+        if proc and proc.get("state") != "RUNNING":
+            client.start_processor(proc["id"], (proc.get("revision") or {}).get("version"))
+    published = 0
+    if publish > 0:
+        try:
+            from kafka import KafkaProducer
+
+            producer = KafkaProducer(bootstrap_servers="localhost:9094")
+            for i in range(publish):
+                producer.send(
+                    "nifi.kafka.demo",
+                    f'{{"fault":"queue","i":{i}}}'.encode(),
+                )
+            producer.flush()
+            producer.close()
+            published = publish
+        except Exception as exc:  # noqa: BLE001
+            return {
+                "queue_backlog": True,
+                "stopped": log["id"],
+                "name": "LogAttribute",
+                "publish_error": str(exc),
+            }
+    time.sleep(max(0.0, settle_sec))
+    return {
+        "queue_backlog": True,
+        "stopped": log["id"],
+        "name": "LogAttribute",
+        "published": published,
+        "settle_sec": settle_sec,
+    }
+
+
 def main() -> int:
     _bootstrap()
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--stop-generate", action="store_true", help="Stop GenerateFlowFile (1B)")
+    parser.add_argument(
+        "--target",
+        choices=("sample", "kafka"),
+        default="sample",
+        help="Which process group to fault (default: sample)",
+    )
+    parser.add_argument("--stop-generate", action="store_true", help="Stop GenerateFlowFile (sample 1B)")
     parser.add_argument(
         "--invalid-log",
         action="store_true",
@@ -143,28 +291,83 @@ def main() -> int:
     parser.add_argument(
         "--queue-backlog",
         action="store_true",
-        help="Stop LogAttribute while Generate runs to build a queue",
+        help="Sample: stop LogAttribute while Generate runs",
     )
     parser.add_argument(
         "--lab-demo",
         action="store_true",
-        help="INVALID + queue backlog for Phase 1C (lab heal) demos",
+        help="Sample: INVALID + queue backlog for Phase 1C",
+    )
+    parser.add_argument(
+        "--stop-consume",
+        action="store_true",
+        help="Kafka target: stop ConsumeKafka (1B safe heal)",
+    )
+    parser.add_argument(
+        "--disable-cs",
+        action="store_true",
+        help="Kafka target: disable Studio Kafka controller service (1B)",
+    )
+    parser.add_argument(
+        "--stop-log",
+        action="store_true",
+        help="Kafka target: stop LogAttribute + publish (queue backlog)",
     )
     parser.add_argument(
         "--settle-sec",
         type=float,
         default=3.0,
-        help="Seconds to wait for queue buildup (--queue-backlog)",
+        help="Seconds to wait for queue buildup",
     )
-    parser.add_argument("--restore", action="store_true", help="Repair + start all sample processors")
+    parser.add_argument(
+        "--publish",
+        type=int,
+        default=5,
+        help="Messages to publish for kafka --stop-log",
+    )
+    parser.add_argument("--restore", action="store_true", help="Repair + start target flow")
     args = parser.parse_args()
 
     from ratatoskr.nifi.client import NiFiClient
 
     client = NiFiClient()
-    pg_id = _find_sample_pg(client)
+    pg_name = KAFKA_PG if args.target == "kafka" else SAMPLE_PG
+    pg_id = _find_pg(client, pg_name)
     procs = _processors_by_name(client, pg_id)
 
+    if args.target == "kafka":
+        if args.stop_consume:
+            print(inject_stop_consume(client, pg_id))
+            return 0
+        if args.disable_cs:
+            print(inject_disable_kafka_cs(client, pg_id))
+            return 0
+        if args.stop_log:
+            print(
+                inject_kafka_stop_log(
+                    client, pg_id, publish=args.publish, settle_sec=args.settle_sec
+                )
+            )
+            return 0
+        if args.restore:
+            flow = _load_sibling("nifi_load_kafka_flow")
+            print(
+                flow.repair_kafka_flow(
+                    client, pg_id, bootstrap=flow.default_bootstrap()
+                )
+            )
+            return 0
+        if args.stop_generate or args.lab_demo or args.queue_backlog:
+            raise SystemExit(
+                "sample-only flags used with --target kafka — try --stop-consume / --disable-cs / --stop-log"
+            )
+        if args.invalid_log:
+            print(inject_invalid_log(client, pg_id))
+            return 0
+        parser.print_help()
+        return 1
+
+    # sample target
     if args.stop_generate:
         gen = procs.get("GenerateFlowFile")
         if not gen:
@@ -185,16 +388,12 @@ def main() -> int:
         return 0
 
     if args.restore:
-        # Reuse repair from sample flow loader (same directory sibling).
-        import importlib.util
-
-        repair_path = Path(__file__).resolve().parent / "nifi_load_sample_flow.py"
-        spec = importlib.util.spec_from_file_location("nifi_load_sample_flow", repair_path)
-        mod = importlib.util.module_from_spec(spec)
-        assert spec.loader is not None
-        spec.loader.exec_module(mod)
+        mod = _load_sibling("nifi_load_sample_flow")
         print(mod.repair_sample_flow(client, pg_id))
         return 0
+
+    if args.stop_consume or args.disable_cs or args.stop_log:
+        raise SystemExit("kafka-only flags — re-run with --target kafka")
 
     parser.print_help()
     return 1

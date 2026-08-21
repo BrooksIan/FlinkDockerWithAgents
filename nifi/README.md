@@ -163,25 +163,61 @@ python examples/agents/run_workflow_nifi_monitor_local.py
 flowchart TB
   subgraph Stack["ratatoskr up --profile nifi"]
     NiFi["Apache NiFi :8443"]
-    Sample["Sample flow"]
+    Sample["Sample / Kafka demo flows"]
     Flink["Flink JM/TM :8082"]
   end
 
   subgraph Agent["workflow_nifi_monitor"]
     Poll["get_flow_health_status"]
-    Policy["classify + heal policy"]
+    Classify["classify_health + score"]
+    Plan["build_heal_plan"]
+    Heal["apply_heal_policy"]
     Out["OutputEvent"]
   end
 
-  subgraph CDP["Phase 2A dual path"]
+  subgraph Triggers["Poll triggers"]
+    Host["Host --interval / one-shot"]
+    Ticks["nifi.monitor.poll Kafka ticks"]
+    Cluster["Cluster NIFI_MONITOR_POLLS"]
+  end
+
+  subgraph CDP["CDP dual path"]
     MCP["NiFi-MCP-Server via Knox"]
   end
 
   Sample --> NiFi
+  Host --> Poll
+  Ticks --> Poll
+  Cluster --> Poll
   Poll --> NiFi
-  Poll --> Policy --> Out
-  Policy -->|"safe/lab"| NiFi
-  MCP -.->|"same ops"| NiFiCDP["CDP NiFi"]
+  Poll --> Classify --> Plan --> Heal --> Out
+  Heal -->|"safe / lab"| NiFi
+  MCP -.->|"same tool names"| NiFiCDP["CDP NiFi"]
+```
+
+### Monitor → heal cycle
+
+```mermaid
+flowchart LR
+  A["Poll health"] --> B["Classify\nseverities + score"]
+  B --> C{"NIFI_HEAL_PHASE"}
+  C -->|monitor| D["OutputEvent\nheal_actions: []"]
+  C -->|safe / lab| E["Ordered heal plan"]
+  E --> F{"dry-run / allowlist\ncooldown / blast"}
+  F -->|skip| G["skipped actions"]
+  F -->|execute| H["Mutate NiFi"]
+  H --> I["Verify re-poll"]
+  I --> J["OutputEvent\n+ audit"]
+  G --> J
+  D --> J
+```
+
+### Heal phases
+
+```mermaid
+flowchart TB
+  M["monitor — observe only"] --> S["safe — enable CS, start processors"]
+  S --> L["lab — + stop upstream, terminate,\nempty queue if allowed"]
 ```
 
 ## Dual path: REST vs MCP

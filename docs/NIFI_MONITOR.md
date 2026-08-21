@@ -74,6 +74,28 @@ python3 -c "from kafka import KafkaProducer; p=KafkaProducer(bootstrap_servers='
 
 Future hooks: stop `ConsumeKafka` (NiFi STOPPED), delete `nifi.kafka.demo` (Kafka TOPIC_MISSING), stop `LogAttribute` (queue backlog), inspect group lag on `ratatoskr-nifi-kafka-demo`.
 
+### Orchestrated heal demo (Kafka→NiFi)
+
+Break `ConsumeKafka`, show monitor-only detection, then safe-phase heal:
+
+```bash
+python3 scripts/demo_nifi_kafka_heal.py
+# or: python3 scripts/demo_nifi_kafka_heal.py --scenario disable-cs
+```
+
+Manual steps:
+
+```bash
+python3 scripts/nifi_fault_inject.py --target kafka --stop-consume
+export NIFI_HEAL_PHASE=monitor
+python3 examples/agents/run_workflow_nifi_monitor_local.py --count 1
+# Expect STOPPED ConsumeKafka, heal_actions: []
+
+export NIFI_HEAL_PHASE=safe
+python3 examples/agents/run_workflow_nifi_monitor_local.py --count 1
+# Expect start_processor on ConsumeKafka
+```
+
 ## Heal demo script (1B / 1C)
 
 Prereqs: `ratatoskr up --profile nifi`, `./scripts/nifi_load_sample_flow.sh`, and `source .venv/bin/activate`.

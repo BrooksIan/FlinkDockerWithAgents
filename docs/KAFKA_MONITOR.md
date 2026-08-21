@@ -2,6 +2,69 @@
 
 Deterministic **workflow agent** for Apache Kafka health monitoring and phased auto-healing in Ratatoskr (same pattern as [NiFi](NIFI_MONITOR.md)).
 
+## Architecture
+
+```mermaid
+flowchart TB
+  subgraph Studio["ratatoskr kafka up"]
+    ZK["Zookeeper :2182"]
+    Broker["Kafka broker :9094"]
+    Init["kafka-init\nStudio catalog topics"]
+    ZK --> Broker
+    Init --> Broker
+  end
+
+  subgraph Agent["workflow_kafka_monitor"]
+    Probe["probe + list/describe"]
+    Lag["consumer group lag"]
+    Classify["classify_health + score"]
+    Plan["build_heal_plan"]
+    Heal["apply_heal_policy"]
+    Out["OutputEvent"]
+  end
+
+  subgraph Catalog["KAFKA_CATALOG"]
+    StudioCat["studio — workflow/session/nasa/\nnifi.monitor/kafka.monitor"]
+    FullCat["full — + cowrie.* honeypot"]
+  end
+
+  Broker --> Probe
+  Broker --> Lag
+  Probe --> Classify
+  Lag --> Classify
+  Catalog --> Classify
+  Classify --> Plan --> Heal --> Out
+  Heal -->|"safe: create_topic"| Broker
+  Heal -->|"lab: reset/delete group"| Broker
+```
+
+### Monitor → heal cycle
+
+```mermaid
+flowchart LR
+  A["Probe broker"] --> B["Inventory vs catalog"]
+  B --> C["Describe + lag"]
+  C --> D["Classify\nseverities + score"]
+  D --> E{"KAFKA_HEAL_PHASE"}
+  E -->|monitor| F["OutputEvent\nheal_actions: []"]
+  E -->|safe / lab| G["Ordered heal plan"]
+  G --> H{"dry-run / allowlist\ncooldown / blast"}
+  H -->|skip| I["skipped actions"]
+  H -->|execute| J["Admin mutate"]
+  J --> K["Verify re-poll"]
+  K --> L["OutputEvent\n+ audit"]
+  I --> L
+  F --> L
+```
+
+### Heal phases
+
+```mermaid
+flowchart TB
+  M["monitor — observe only"] --> S["safe — create missing catalog topics"]
+  S --> L["lab — + reset_offsets / delete_group\nonly if KAFKA_HEAL_ALLOW_GROUPS"]
+```
+
 ## Components
 
 | Piece | Role |
@@ -95,3 +158,5 @@ ratatoskr agent run workflow_kafka_monitor --cluster
 ```
 
 Topics: `kafka.monitor.poll` / `kafka.monitor.output` (Studio kafka-init + `kafka_sources`).
+
+Studio compose: [`deploy/docker-compose.kafka.yml`](../deploy/docker-compose.kafka.yml). Cross-signal with NiFi: [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md).

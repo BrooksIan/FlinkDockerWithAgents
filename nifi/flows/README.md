@@ -20,6 +20,12 @@
 #     python3 test/test_nifi_kafka_demo.py          # offline (CI-safe)
 #     python3 scripts/smoke_nifi_kafka_demo.py      # live publish → ConsumeKafka
 #
+#   Heal demo (break → monitor → safe heal):
+#     python3 scripts/demo_nifi_kafka_heal.py
+#     python3 scripts/demo_nifi_kafka_heal.py --scenario disable-cs
+#     python3 scripts/nifi_fault_inject.py --target kafka --stop-consume
+#     python3 scripts/nifi_fault_inject.py --target kafka --restore
+#
 #   Publish a test message from the host:
 #     python3 -c "
 #     from kafka import KafkaProducer
@@ -27,10 +33,9 @@
 #     p.send('nifi.kafka.demo', b'{\"hello\":\"nifi\"}'); p.flush()
 #     "
 #
-#   Future monitor hooks:
-#     - Stop ConsumeKafka → NiFi STOPPED
+#   More fault hooks:
 #     - Delete nifi.kafka.demo → Kafka TOPIC_MISSING + NiFi consumer errors
-#     - Stop LogAttribute → connection backlog (NiFi BACKPRESSURE)
+#     - --target kafka --stop-log → queue backlog (lab)
 #     - Group ratatoskr-nifi-kafka-demo lag → Kafka LAG_*
 #
 # Fault injection (sample flow):
