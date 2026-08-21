@@ -9,4 +9,6 @@ Docker deployment configs for the Ratatoskr Flink Agents stack.
 | `docker-compose.kafka.yml` | Studio Kafka (`ratatoskr kafka up`) |
 | `docker-compose-cowrie.yml` | Deprecated pointer → `honeypot/docker-compose.yml` |
 
+NiFi lab compose lives under [`nifi/docker-compose.yml`](../nifi/docker-compose.yml) and is stacked with this minimal file when using `ratatoskr up --profile nifi`.
+
 Honeypot / full profile compose remains under [`honeypot/docker-compose.yml`](../honeypot/docker-compose.yml).

@@ -7,7 +7,10 @@ from typing import Final, FrozenSet, Tuple
 DEFAULT_PROFILE: Final[str] = "minimal"
 FULL_PROFILE: Final[str] = "full"
 KAFKA_PROFILE: Final[str] = "kafka"
-VALID_PROFILES: Final[FrozenSet[str]] = frozenset({DEFAULT_PROFILE, FULL_PROFILE, KAFKA_PROFILE})
+NIFI_PROFILE: Final[str] = "nifi"
+VALID_PROFILES: Final[FrozenSet[str]] = frozenset(
+    {DEFAULT_PROFILE, FULL_PROFILE, KAFKA_PROFILE, NIFI_PROFILE}
+)
 
 VERIFY_PROFILE_HONEYPOT: Final[str] = "honeypot"
 VALID_VERIFY_PROFILES: Final[FrozenSet[str]] = frozenset(
@@ -21,10 +24,10 @@ DEFAULT_API_PORT: Final[int] = 8090
 
 PROFILE_HELP: Final[str] = (
     "Stack profile: 'minimal' (Flink JM/TM), 'full' (honeypot + Kafka + dashboard), "
-    "or 'kafka' (Studio Kafka only)"
+    "'kafka' (Studio Kafka only), or 'nifi' (Flink + Apache NiFi monitoring lab)"
 )
 STARTUP_MODE_HELP: Final[str] = (
-    "Startup preset: flink (default), honeypot. Run: ratatoskr modes"
+    "Startup preset: flink (default), honeypot, nifi. Run: ratatoskr modes"
 )
 
 GENERIC_DEMOS: Final[FrozenSet[str]] = frozenset({"datastream", "table", "workflow", "react"})
@@ -40,6 +43,8 @@ def normalize_profile(profile: str) -> str:
         return DEFAULT_PROFILE
     if value in ("full", "honeypot", "cowrie"):
         return FULL_PROFILE
+    if value in ("nifi", "flow", "flow-management"):
+        return NIFI_PROFILE
     return value
 
 

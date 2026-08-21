@@ -22,7 +22,8 @@ app = typer.Typer(help="Manage the Docker Compose stack.")
 
 PROFILE_HELP = (
     "Stack profile: 'full' (honeypot + Kafka + dashboard), "
-    "'minimal' (Flink only), or 'kafka' (Studio Kafka only)"
+    "'minimal' (Flink only), 'kafka' (Studio Kafka only), "
+    "or 'nifi' (Flink + Apache NiFi)"
 )
 
 _ENSURE_PIPELINE_CMD = (

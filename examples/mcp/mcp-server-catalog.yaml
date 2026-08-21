@@ -32,3 +32,106 @@ categories:
               type: integer
               default: 90
               description: AbuseIPDB maxAgeInDays parameter
+
+  - id: data_in_motion
+    label: Data in Motion
+    description: Flow Management and streaming control-plane integrations.
+    servers:
+      - id: nifi_mcp
+        display_name: Apache NiFi (MCP)
+        description: >
+          Cloudera NiFi-MCP-Server — explore and (optionally) mutate NiFi flows via Knox.
+          Local Docker labs use ratatoskr.nifi REST instead; enable this for CDP.
+        transport: stdio
+        docs_url: https://github.com/cloudera/NiFi-MCP-Server
+        tags:
+          - nifi
+          - flow-management
+          - monitoring
+          - cdp
+        tools:
+          - name: get_flow_health_status
+            description: Comprehensive flow health (processors, services, connections, errors).
+            input_schema:
+              type: object
+              properties:
+                process_group_id:
+                  type: string
+                  description: Process group id (default root)
+          - name: get_bulletins
+            description: Recent bulletins and alerts.
+            input_schema:
+              type: object
+              properties:
+                after_ms:
+                  type: integer
+          - name: get_processor_state
+            description: Quick processor state check.
+            input_schema:
+              type: object
+              required: [processor_id]
+              properties:
+                processor_id:
+                  type: string
+          - name: check_connection_queue
+            description: Queue size (flowfiles + bytes).
+            input_schema:
+              type: object
+              required: [connection_id]
+              properties:
+                connection_id:
+                  type: string
+          - name: start_processor
+            description: Start a processor (requires NIFI_READONLY=false on MCP server).
+            input_schema:
+              type: object
+              required: [processor_id, version]
+              properties:
+                processor_id:
+                  type: string
+                version:
+                  type: integer
+          - name: enable_controller_service
+            description: Enable a controller service.
+            input_schema:
+              type: object
+              required: [service_id, version]
+              properties:
+                service_id:
+                  type: string
+                version:
+                  type: integer
+          - name: terminate_processor
+            description: Force-terminate stuck processor threads (lab / last resort).
+            input_schema:
+              type: object
+              required: [processor_id, version]
+              properties:
+                processor_id:
+                  type: string
+                version:
+                  type: integer
+          - name: empty_connection_queue
+            description: Empty flowfiles from a queue (destructive).
+            input_schema:
+              type: object
+              required: [connection_id]
+              properties:
+                connection_id:
+                  type: string
+        required_secrets:
+          - name: NIFI_API_BASE
+            label: NiFi API base URL (CDP Knox path ending in /nifi-api)
+          - name: KNOX_TOKEN
+            label: Knox JWT bearer token
+        config_schema:
+          type: object
+          properties:
+            NIFI_READONLY:
+              type: string
+              default: "true"
+              description: Set false to allow write/heal tools on the MCP server
+            command:
+              type: string
+              default: uvx
+              description: Launcher for NiFi-MCP-Server (see upstream README)

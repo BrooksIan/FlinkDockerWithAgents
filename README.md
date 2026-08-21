@@ -24,7 +24,7 @@ Named for the Norse squirrel that carries messages up and down **Yggdrasil** —
 
 ## Overview
 
-Ratatoskr is a developer workspace for building, running, and verifying [Apache Flink Agents](https://github.com/apache/flink-agents) on Docker. It ships a Typer CLI, FastAPI Control API, React dashboard with visual Agent Designer and Agentic Studio, example workflow/ReAct agents, and an optional Cowrie honeypot pipeline that demonstrates Cloudera Data in Motion plus Cloudera AI Inference on streaming security events. The goal is a single-command path from clone to working Flink agent jobs — without the usual PyFlink, Kafka, and image-build yak shave.
+Ratatoskr is a developer workspace for building, running, and verifying [Apache Flink Agents](https://github.com/apache/flink-agents) on Docker. It ships a Typer CLI, FastAPI Control API, React dashboard with visual Agent Designer and Agentic Studio, example workflow/ReAct agents, an optional **Apache NiFi flow monitoring and healing** lab, and an optional Cowrie honeypot pipeline that demonstrates Cloudera Data in Motion plus Cloudera AI Inference on streaming security events. The goal is a single-command path from clone to working Flink agent jobs — without the usual PyFlink, Kafka, and image-build yak shave.
 
 ## Demo
 
@@ -43,11 +43,13 @@ Dashboard walkthrough (screenshots):
 
 > Reprise / recorded walkthrough: set `reprise_link` in [`METADATA.yaml`](METADATA.yaml) when published.
 
-Optional honeypot demo: [honeypot/README.md](honeypot/README.md).
+Optional honeypot demo: [honeypot/README.md](honeypot/README.md). Optional NiFi monitoring lab: [nifi/README.md](nifi/README.md).
 
 ## Use Case
 
 Streaming AI agents are easy to pitch and hard to stand up: PyFlink classloaders, unpublished SDK wheels, Kafka port conflicts, and cluster submit gaps burn days before any agent logic ships. Ratatoskr collapses that into a reproducible Docker stack so teams can focus on workflow and ReAct agent design for real-time triage, enrichment, and automation — including cybersecurity honeypot alerting as a reference vertical.
+
+A second blueprint path targets **Apache NiFi flow monitoring and healing**: a deterministic workflow agent polls NiFi health (stopped/invalid processors, queues, bulletins) and can auto-heal under gated phases (`monitor` → `safe` → `lab`). Local labs use NiFi REST; CDP uses the same tool semantics via [NiFi-MCP-Server](https://github.com/cloudera/NiFi-MCP-Server).
 
 ## Key Features
 
@@ -55,6 +57,7 @@ Streaming AI agents are easy to pitch and hard to stand up: PyFlink classloaders
 - CLI + Control API for agent list/run/submit, health, and dashboard integration
 - Visual Agent Designer and Agentic Studio (source → agent → sink pipelines, codegen to Python)
 - Studio Kafka independent of the optional honeypot stack
+- Optional **NiFi monitoring / healing** profile (`ratatoskr up --profile nifi`) with phased workflow agent
 - Optional Cowrie honeypot reference pipeline with Cloudera AI enrichment
 - Verify tiers (`quick` / `standard` / `full` / `nightly`) for CI-friendly smoke checks
 
@@ -103,6 +106,18 @@ ratatoskr verify --tier quick
 # Dashboard: http://localhost:3000
 # Stop: ./scripts/dev-stop.sh
 ```
+
+6. (Optional) NiFi flow monitoring lab:
+
+```bash
+ratatoskr up --profile nifi
+# UI: https://localhost:8443/nifi  — login admin / RatatoskrNiFi1!  (see nifi/README.md)
+./scripts/nifi_load_sample_flow.sh
+export NIFI_HEAL_PHASE=monitor   # or safe / lab
+ratatoskr agent run workflow_nifi_monitor --local
+```
+
+See [nifi/README.md](nifi/README.md) (credentials + heal phases) and [docs/NIFI_MONITOR.md](docs/NIFI_MONITOR.md).
 
 **After code or image updates**, restart the Studio cluster:
 
@@ -170,8 +185,10 @@ flowchart TB
 | Docker Compose (`deploy/`) | JobManager, TaskManager, Studio Kafka |
 | `ratatoskr` CLI / Control API | Build, stack, agents, health, OpenAPI |
 | React dashboard | Overview, Designer, Studio, Runs, Settings |
+| Optional Apache NiFi (`nifi/`) | Flow monitoring / healing lab + sample flow |
 | Optional Cowrie honeypot | End-to-end cybersecurity reference pipeline |
 | Cloudera AI Inference (optional) | LLM enrichment for honeypot / ReAct agents |
+| NiFi-MCP (CDP dual path) | Same heal ops via Knox — [NiFi-MCP-Server](https://github.com/cloudera/NiFi-MCP-Server) |
 
 Extended narrative: [docs/Blog.md](docs/Blog.md). Platform details: [docs/PLATFORM.md](docs/PLATFORM.md).
 
@@ -194,7 +211,8 @@ Extended narrative: [docs/Blog.md](docs/Blog.md). Platform details: [docs/PLATFO
 | `examples/` | Generic Flink Agents demos and agent registry |
 | `dashboard/` | Web UI — Overview, Agents, Designer, Studio, Runs, Jobs |
 | `honeypot/` | Optional Cowrie honeypot reference pipeline |
-| `scripts/` | Dev start/stop, Studio cluster restart, diagram render |
+| `nifi/` | Optional Apache NiFi monitoring / healing lab |
+| `scripts/` | Dev start/stop, Studio cluster restart, NiFi sample/fault scripts |
 | `test/` | CLI and platform tests |
 
 ## Prerequisites
@@ -204,6 +222,7 @@ Extended narrative: [docs/Blog.md](docs/Blog.md). Platform details: [docs/PLATFO
 - Git (image build clones `apache/flink-agents`)
 - Optional: Node.js for dashboard development (`dashboard/`)
 - Optional honeypot / LLM: Cloudera AI Inference endpoint + JWT (`CLOUDERA_AI_BASE_URL`, `CLOUDERA_JWT_TOKEN` in `.env`)
+- Optional NiFi lab: `NIFI_API_BASE`, `NIFI_USERNAME`, `NIFI_PASSWORD`, `NIFI_HEAL_PHASE` (see `.env.example`)
 
 Local dev: leave `RATATOSKR_API_KEY` unset. See [`.env.example`](.env.example).
 
@@ -212,6 +231,7 @@ Local dev: leave `RATATOSKR_API_KEY` unset. See [`.env.example`](.env.example).
 | Deployment | Minimum |
 | --- | --- |
 | Launchable / demo (minimal + Kafka) | 4 CPU, 8 GB RAM, 20 GB disk |
+| NiFi profile (Flink + NiFi) | 6 CPU, 12 GB RAM, 30 GB disk |
 | Full profile (honeypot + Flink + Kafka) | 8 CPU, 16 GB RAM, 40 GB disk |
 | Production / enterprise | Size Flink TaskManagers and Kafka to event volume; GPU optional only if hosting local LLMs |
 
@@ -221,6 +241,8 @@ TaskManager compose default process memory is 4 GB (`taskmanager.memory.process.
 
 - [docs/PLATFORM.md](docs/PLATFORM.md) — Control API, agents, observability, dashboard integration
 - [docs/FLINK_AGENTS.md](docs/FLINK_AGENTS.md) — Workflow vs ReAct agents
+- [docs/NIFI_MONITOR.md](docs/NIFI_MONITOR.md) — NiFi flow monitoring / healing workflow agent
+- [nifi/README.md](nifi/README.md) — NiFi lab quickstart and heal phases
 - [docs/Blog.md](docs/Blog.md) — Narrative overview and design rationale
 - [docs/AGENT_DESIGNER_PLAN.md](docs/AGENT_DESIGNER_PLAN.md) — Visual authoring and codegen roadmap
 - [assets/branding/RATATOSKR.md](assets/branding/RATATOSKR.md) — Name, mythology, brand assets
@@ -229,6 +251,7 @@ TaskManager compose default process memory is 4 GB (`taskmanager.memory.process.
 - [examples/README.md](examples/README.md) — Example agents and demos
 - [honeypot/README.md](honeypot/README.md) — Cowrie cybersecurity demo (optional)
 - [Apache Flink Agents docs](https://nightlies.apache.org/flink/flink-agents-docs-release-0.3/)
+- [NiFi-MCP-Server](https://github.com/cloudera/NiFi-MCP-Server) — CDP dual-path MCP
 
 ## License
 

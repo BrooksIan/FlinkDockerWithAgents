@@ -12,6 +12,11 @@ agents:
       \ (Settings \u2192 API fetch)"
     entry: examples.agents.workflow_api_fetch:ApiFetchAgent
     runner: examples/agents/run_workflow_api_fetch_local.py
+  workflow_nifi_monitor:
+    type: workflow
+    description: "Monitor Apache NiFi flow health and optionally auto-heal (NIFI_HEAL_PHASE=monitor|safe|lab)"
+    entry: examples.agents.workflow_nifi_monitor:NiFiMonitorAgent
+    runner: examples/agents/run_workflow_nifi_monitor_local.py
   react_echo:
     type: react
     description: "Tool-chaining lab agent (no LLM) \u2014 classify and summarize text"

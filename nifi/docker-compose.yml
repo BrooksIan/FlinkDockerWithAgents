@@ -1,0 +1,43 @@
+# NiFi lab stack — Apache NiFi for flow monitoring / healing demos.
+# Combined with Flink:
+#   docker compose -f deploy/docker-compose.yml -f nifi/docker-compose.yml up -d
+#   ratatoskr up --profile nifi
+#
+# UI:  https://localhost:8443/nifi  (accept self-signed cert)
+# API: https://localhost:8443/nifi-api
+
+services:
+  nifi:
+    image: ${NIFI_IMAGE:-apache/nifi:2.0.0}
+    ports:
+      - "${NIFI_HTTPS_PORT:-8443}:8443"
+    environment:
+      SINGLE_USER_CREDENTIALS_USERNAME: ${NIFI_USERNAME:-admin}
+      SINGLE_USER_CREDENTIALS_PASSWORD: ${NIFI_PASSWORD:-RatatoskrNiFi1!}
+      NIFI_WEB_HTTPS_PORT: 8443
+      NIFI_WEB_PROXY_HOST: localhost:${NIFI_HTTPS_PORT:-8443}
+    volumes:
+      - nifi_conf:/opt/nifi/nifi-current/conf
+      - nifi_content:/opt/nifi/nifi-current/content_repository
+      - nifi_db:/opt/nifi/nifi-current/database_repository
+      - nifi_flowfile:/opt/nifi/nifi-current/flowfile_repository
+      - nifi_provenance:/opt/nifi/nifi-current/provenance_repository
+      - nifi_logs:/opt/nifi/nifi-current/logs
+      - ./flows:/opt/nifi/flows:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -kf https://localhost:8443/nifi-api/system-diagnostics >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 90s
+    networks:
+      - flink-network
+    restart: unless-stopped
+
+volumes:
+  nifi_conf:
+  nifi_content:
+  nifi_db:
+  nifi_flowfile:
+  nifi_provenance:
+  nifi_logs:

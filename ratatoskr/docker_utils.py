@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import List, Optional, Sequence
 
-from ratatoskr.constants import DEFAULT_PROFILE, FULL_PROFILE, KAFKA_PROFILE
+from ratatoskr.constants import DEFAULT_PROFILE, FULL_PROFILE, KAFKA_PROFILE, NIFI_PROFILE
 from ratatoskr.paths import project_root
 
 IMAGE_NAME = "agent_flink_image"
@@ -16,6 +16,7 @@ IMAGE_TAG = "latest"
 COMPOSE_MINIMAL = "deploy/docker-compose.yml"
 COMPOSE_FULL = "honeypot/docker-compose.yml"
 COMPOSE_KAFKA = "deploy/docker-compose.kafka.yml"
+COMPOSE_NIFI = "nifi/docker-compose.yml"
 PYFLINK_PYTHONPATH = (
     "/opt/flink:/opt/flink/pythonpath/agent-site-packages:"
     "/opt/flink/opt/python/pyflink:/opt/flink/opt/python/py4j"
@@ -30,12 +31,21 @@ def compose_available() -> bool:
     return True
 
 
-def compose_file(profile: str = DEFAULT_PROFILE) -> Path:
+def compose_files(profile: str = DEFAULT_PROFILE) -> list[Path]:
+    """Return one or more compose files for the profile (nifi stacks Flink + NiFi)."""
     root = project_root()
     if profile == KAFKA_PROFILE:
-        return root / COMPOSE_KAFKA
-    name = COMPOSE_MINIMAL if profile == DEFAULT_PROFILE else COMPOSE_FULL
-    return root / name
+        return [root / COMPOSE_KAFKA]
+    if profile == NIFI_PROFILE:
+        return [root / COMPOSE_MINIMAL, root / COMPOSE_NIFI]
+    if profile == DEFAULT_PROFILE:
+        return [root / COMPOSE_MINIMAL]
+    return [root / COMPOSE_FULL]
+
+
+def compose_file(profile: str = DEFAULT_PROFILE) -> Path:
+    """Primary compose file (first in the profile file list)."""
+    return compose_files(profile)[0]
 
 
 def _compose_base_cmd() -> List[str]:
@@ -60,7 +70,8 @@ def compose_cmd(
     cwd: Optional[Path] = None,
 ) -> List[str]:
     cmd = _compose_base_cmd()
-    cmd.extend(["-f", str(compose_file(profile))])
+    for path in compose_files(profile):
+        cmd.extend(["-f", str(path)])
     cmd.extend(args)
     return cmd
 

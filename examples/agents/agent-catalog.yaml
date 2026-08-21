@@ -125,6 +125,40 @@ categories:
             type: array
           agent:
             type: string
+    - id: nifi_monitor
+      manifest: workflow_nifi_monitor
+      display_name: NiFi Flow Monitor
+      description: Poll Apache NiFi flow health (stopped/invalid processors, queues,
+        bulletins) and optionally auto-heal. Gate mutations with NIFI_HEAL_PHASE=monitor|safe|lab.
+      tags:
+      - demo
+      - nifi
+      - monitoring
+      - ops
+      input_schema:
+        type: object
+        properties:
+          process_group_id:
+            type: string
+            description: NiFi process group id (default root)
+          phase:
+            type: string
+            description: Override heal phase for this event (monitor|safe|lab)
+      output_schema:
+        type: object
+        properties:
+          agent:
+            type: string
+          phase:
+            type: string
+          classification:
+            type: object
+          health:
+            type: object
+          heal_actions:
+            type: array
+          mutations:
+            type: array
     - id: square_workflow_agent
       manifest: square_workflow_agent
       display_name: Square Workflow Agent

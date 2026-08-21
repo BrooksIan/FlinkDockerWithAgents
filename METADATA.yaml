@@ -4,7 +4,7 @@
 # --- Identity ---
 name: "Ratatoskr — Apache Flink Agents on Docker"
 slug: "ratatoskr-flink-agents" # URL-safe repo / catalog identifier
-description: "Build, run, and verify Apache Flink Agents with a CLI, Control API, visual designer, and optional Cowrie honeypot demo."
+description: "Build, run, and verify Apache Flink Agents with a CLI, Control API, visual designer, optional NiFi flow monitoring/healing, and Cowrie honeypot demo."
 reprise_link: "https://[catalog-url]/ratatoskr-flink-agents" # Public reprise link
 
 # --- Classification (website filters) ---
@@ -27,6 +27,9 @@ tags:
   - flink-agents
   - streaming
   - kafka
+  - nifi
+  - flow-management
+  - monitoring
   - agents
   - cybersecurity
   - honeypot
@@ -35,6 +38,7 @@ tags:
 product_mapping: # Cloudera products used
   - Cloudera Data in Motion
   - Cloudera AI Inference Service
+  - Cloudera Flow Management
 # model_dependencies: # Models, embeddings, or external AI services, if any. Comment out if none.
 # - openai-compatible-llm
 
@@ -51,5 +55,5 @@ maintainer_name: "Ian Brooks"
 
 # --- Dates ---
 date_created: "2025-06-09"
-date_updated: "2026-08-04"
-published_date: "2026-08-04" # Published date / last modified
+date_updated: "2026-08-21"
+published_date: "2026-08-21" # Published date / last modified

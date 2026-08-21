@@ -48,3 +48,16 @@ modes:
       - "Flink Web UI: http://localhost:8081"
       - "Dashboard: http://localhost:8501"
       - "Cowrie SSH: localhost:2222"
+
+  nifi:
+    description: Minimal Flink + Apache NiFi for flow monitoring / healing demos
+    profile: nifi
+    wait: 45
+    run_doctor: true
+    build_image_if_missing: true
+    ensure_kafka_topics: false
+    ensure_flink_jobs: false
+    endpoints:
+      - "Flink Web UI: http://localhost:8082"
+      - "NiFi UI: https://localhost:8443/nifi"
+      - "NiFi API: https://localhost:8443/nifi-api"
