@@ -94,11 +94,14 @@ ratatoskr monitor stop
 ratatoskr agent run workflow_nifi_monitor --local --continuous --interval 10
 ```
 
-Cluster continuous jobs consume Kafka poll ticks:
+Cluster continuous jobs use in-job interval ticks:
 
 ```bash
-ratatoskr agent run workflow_nifi_monitor --cluster --continuous --profile nifi
-python scripts/publish_monitor_poll_ticks.py --continuous --target nifi
+# NiFi heal on Flink
+ratatoskr monitor start --cluster --profile nifi --phase safe --interval 10 --no-kafka
+
+# Kafka heal on Flink (same CLI)
+ratatoskr monitor start --cluster --profile nifi --phase safe --interval 10 --no-nifi
 ```
 
 Host interval / Kafka ticks (direct runner):

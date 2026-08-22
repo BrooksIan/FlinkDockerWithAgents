@@ -98,6 +98,23 @@ Gates: `KAFKA_HEAL_DRY_RUN`, `KAFKA_HEAL_MAX_MUTATIONS`, `KAFKA_HEAL_COOLDOWN_SE
 
 Lab `reset_offsets` defaults to **latest** (skips backlog). Set `KAFKA_HEAL_OFFSET_STRATEGY=earliest` to replay.
 
+There is no separate Kafka “heal agent.” Healing is **`workflow_kafka_monitor`** with `KAFKA_HEAL_PHASE=safe|lab` (same pattern as NiFi).
+
+## How Kafka monitor / heal gets deployed
+
+| Path | Command | Where it runs | Flink UI |
+|------|---------|---------------|----------|
+| **Local one-shot** | `ratatoskr agent run workflow_kafka_monitor --local --phase safe` | Host Python runner | No |
+| **Host continuous** | `ratatoskr monitor start --no-nifi --phase safe` | Background host PIDs | No |
+| **Cluster continuous** | `ratatoskr monitor start --cluster --no-nifi --phase safe` | Flink JM/TM | Yes |
+| **Cluster one-liner** | `ratatoskr agent run workflow_kafka_monitor --cluster --continuous --phase safe` | Flink JM/TM | Yes |
+
+Prereqs: `ratatoskr kafka up` (Studio broker `:9094`). For `--cluster`, Flink must be up (`ratatoskr up` or `--profile nifi`).
+
+**Cluster path:** registry → copy `ratatoskr/kafka/` + cluster script into containers → `flink run` on `run_workflow_kafka_monitor_cluster.py`. Continuous uses **in-job interval ticks** by default (no tick publisher). Burst demos use `KAFKA_MONITOR_POLLS` (default 5).
+
+> **Note:** The Kafka *agent* still needs TM→broker reachability for AdminClient probes. Studio Kafka advertises `EXTERNAL://localhost:9094`, which can break clients inside TaskManagers. Prefer **host continuous** for reliable Kafka heal labs, or set `KAFKA_BOOTSTRAP_SERVERS` / attach Flink to the Kafka Docker network and use `kafka:9092`. Interval ticks keep the Flink job RUNNING either way; heal mutations fail only if the broker probe cannot connect.
+
 ## Run locally
 
 ```bash
@@ -160,24 +177,43 @@ python3 examples/agents/run_workflow_kafka_monitor_local.py --count 1
 
 ## Continuous queries
 
-**Host (managed):**
+**Host continuous** (managed — best for Kafka heal labs today):
 
 ```bash
-ratatoskr monitor start --interval 10 --phase monitor   # NiFi + Kafka background
+# Kafka only, heal on create_topic etc.
+ratatoskr monitor start --no-nifi --interval 10 --phase safe
 ratatoskr monitor status
 ratatoskr monitor stop
 
-ratatoskr agent run workflow_kafka_monitor --local --continuous --interval 10
+# Or per agent
+ratatoskr agent run workflow_kafka_monitor --local --continuous --interval 10 --phase safe
 ```
 
-**Cluster (unbounded + ticks):**
+**Cluster continuous** (Flink UI; in-job interval ticks — no publisher needed):
 
 ```bash
-ratatoskr agent run workflow_kafka_monitor --cluster --continuous
-python scripts/publish_monitor_poll_ticks.py --continuous --target kafka --interval 10
+ratatoskr kafka up
+ratatoskr up --profile nifi   # or minimal Flink stack
+
+# Both agents as two separate Flink jobs (recommended)
+python3 scripts/deploy_continuous_monitors.py --phase monitor --interval 10
+python3 scripts/deploy_continuous_monitors.py --phase safe --interval 10   # with healing
+python3 scripts/deploy_continuous_monitors.py --status
+python3 scripts/deploy_continuous_monitors.py --stop
+
+# Or via monitor CLI
+ratatoskr monitor start --cluster --profile nifi --phase safe --interval 10
 ```
 
-`MONITOR_MODE=continuous` or `KAFKA_MONITOR_POLLS=0` selects the Kafka tick source. Default burst remains `KAFKA_MONITOR_POLLS=5`.
+| Flag / env | Meaning |
+|------------|---------|
+| `--phase monitor` | Observe only (`heal_actions: []`) |
+| `--phase safe` | Create missing catalog topics |
+| `--phase lab` | + partitions / allowlisted lag heals |
+| `MONITOR_MODE=continuous` or `KAFKA_MONITOR_POLLS=0` | Unbounded cluster job |
+| `MONITOR_CONTINUOUS_SOURCE=kafka` | Optional tick topic (needs TM→broker; not default) |
+
+Default burst remains `KAFKA_MONITOR_POLLS=5` when not continuous.
 
 ## Orchestrated heal examples (shared base)
 

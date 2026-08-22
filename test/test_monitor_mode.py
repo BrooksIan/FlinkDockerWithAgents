@@ -71,22 +71,27 @@ def test_monitor_state_roundtrip(tmp_path: Path | None = None) -> None:
         state = MonitorState(
             started_at="2026-01-01T00:00:00+00:00",
             interval=10.0,
-            phase="monitor",
+            phase="safe",
+            mode="cluster",
+            profile="nifi",
             processes=[
                 MonitorProc(
                     key="nifi",
                     agent="workflow_nifi_monitor",
-                    pid=1,
-                    log=".ratatoskr/monitor/nifi.log",
+                    pid=0,
+                    log="",
                     started_at="2026-01-01T00:00:00+00:00",
+                    flink_job_id="abc123",
+                    kind="cluster",
                 )
             ],
         )
         save_state(state, root=root)
         loaded = load_state(root=root)
         assert loaded is not None
-        assert loaded.interval == 10.0
-        assert loaded.processes[0].agent == "workflow_nifi_monitor"
+        assert loaded.mode == "cluster"
+        assert loaded.phase == "safe"
+        assert loaded.processes[0].flink_job_id == "abc123"
         clear_state(root=root)
         assert load_state(root=root) is None
     finally:

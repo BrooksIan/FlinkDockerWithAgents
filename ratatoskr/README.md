@@ -39,7 +39,8 @@ Entry point: `ratatoskr.main:main` → `ratatoskr.cli:app` (Typer).
 | `ratatoskr agent run <name> --local --continuous` | Forever host polls (NiFi/Kafka monitors) |
 | `ratatoskr agent run <name> --cluster` | Submit cluster job via JobManager |
 | `ratatoskr agent run <name> --cluster --continuous` | Unbounded monitor job (Kafka poll ticks) |
-| `ratatoskr monitor start` / `status` / `stop` | Turn continuous NiFi+Kafka host monitors on/off |
+| `ratatoskr monitor start` / `status` / `stop` | Continuous NiFi/Kafka monitors (host or `--cluster`) |
+| `ratatoskr monitor start --cluster --phase safe` | Deploy continuous monitor+heal jobs to Flink |
 
 | `ratatoskr agent submit <name>` | Same as `--cluster` |
 | `ratatoskr agent status` | Flink jobs via REST |

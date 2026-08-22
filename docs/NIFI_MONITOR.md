@@ -184,6 +184,11 @@ ratatoskr monitor start --interval 10 --phase monitor
 ratatoskr monitor status
 ratatoskr monitor stop
 
+# Same agents on Flink (visible in UI) — healing via --phase safe|lab
+ratatoskr monitor start --cluster --profile nifi --phase safe --interval 10 --no-kafka
+ratatoskr monitor status
+ratatoskr monitor stop
+
 # Foreground until Ctrl-C
 ratatoskr monitor start --foreground --no-kafka --interval 5
 ```
@@ -200,9 +205,13 @@ ratatoskr agent run workflow_kafka_monitor --local --continuous --interval 10
 
 ```bash
 ratatoskr kafka up
-ratatoskr agent run workflow_nifi_monitor --cluster --continuous --profile nifi --interval 10
-# Optional Kafka-tick source (needs Flink on kafka network + INTERNAL bootstrap):
-# MONITOR_CONTINUOUS_SOURCE=kafka python scripts/publish_monitor_poll_ticks.py --continuous --target nifi
+# Both NiFi + Kafka as two Flink jobs
+python3 scripts/deploy_continuous_monitors.py --phase safe --interval 10
+python3 scripts/deploy_continuous_monitors.py --status
+python3 scripts/deploy_continuous_monitors.py --stop
+
+# Or NiFi-only via monitor CLI
+ratatoskr monitor start --cluster --profile nifi --phase safe --interval 10 --no-kafka
 ```
 
 Burst (demo-friendly): `NIFI_MONITOR_POLLS=5` / `KAFKA_MONITOR_POLLS=5` (default).  

@@ -73,7 +73,8 @@ export KAFKA_HEAL_PHASE=monitor
 ratatoskr agent run workflow_kafka_monitor --local
 ```
 
-- Heal demos: [docs/KAFKA_MONITOR.md](docs/KAFKA_MONITOR.md#heal-demo-script-safe--lab) · cross-stack [docs/SIGNAL_CORRELATE.md](docs/SIGNAL_CORRELATE.md)
+- Heal demos: [docs/KAFKA_MONITOR.md](docs/KAFKA_MONITOR.md#heal-demo-script-safe--lab) · continuous/cluster [docs/KAFKA_MONITOR.md](docs/KAFKA_MONITOR.md#how-kafka-monitor--heal-gets-deployed)
+- Cross-stack: [docs/SIGNAL_CORRELATE.md](docs/SIGNAL_CORRELATE.md)
 - Details: [docs/KAFKA_MONITOR.md](docs/KAFKA_MONITOR.md)
 
 ## Agent catalog
