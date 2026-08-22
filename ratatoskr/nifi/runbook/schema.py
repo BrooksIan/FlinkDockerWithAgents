@@ -27,6 +27,7 @@ REQUIRED_REMEDIATION_KEYS = frozenset({"safe_options", "lab_options", "do_not"})
 
 ALLOWED_MODES = frozenset({"llm", "fallback"})
 ALLOWED_CONFIDENCE = frozenset({"high", "medium", "low"})
+ALLOWED_RUNBOOK_AGENTS = frozenset({"react_nifi_runbook", "react_cross_runbook"})
 
 
 def empty_runbook(*, mode: str = "fallback") -> dict[str, Any]:
@@ -49,10 +50,17 @@ def empty_runbook(*, mode: str = "fallback") -> dict[str, Any]:
     }
 
 
-def wrap_runbook_event(runbook: dict[str, Any], *, source: dict[str, Any] | None = None) -> dict[str, Any]:
+def wrap_runbook_event(
+    runbook: dict[str, Any],
+    *,
+    source: dict[str, Any] | None = None,
+    agent: str = "react_nifi_runbook",
+) -> dict[str, Any]:
     """Agent OutputEvent envelope — mutations always empty."""
+    if agent not in ALLOWED_RUNBOOK_AGENTS:
+        agent = "react_nifi_runbook"
     return {
-        "agent": "react_nifi_runbook",
+        "agent": agent,
         "schema_version": RUNBOOK_SCHEMA_VERSION,
         "mutations": [],
         "runbook": runbook,
@@ -135,8 +143,11 @@ def validate_runbook_event(event: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     if not isinstance(event, dict):
         return ["event must be an object"]
-    if event.get("agent") != "react_nifi_runbook":
-        errors.append("agent must be 'react_nifi_runbook'")
+    if event.get("agent") not in ALLOWED_RUNBOOK_AGENTS:
+        errors.append(
+            f"agent must be one of {sorted(ALLOWED_RUNBOOK_AGENTS)}, "
+            f"got {event.get('agent')!r}"
+        )
     if event.get("mutations") not in ([], None):
         if event.get("mutations") != []:
             errors.append("mutations must be an empty list")

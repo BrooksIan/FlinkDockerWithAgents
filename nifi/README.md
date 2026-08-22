@@ -146,7 +146,20 @@ Cluster submit copies `ratatoskr/nifi/` into the JobManager. Rebuild the image (
 
 **Warning:** emptying queues permanently drops flowfiles. Lab only.
 
-Full agent guide + heal matrix: [docs/NIFI_MONITOR.md](../docs/NIFI_MONITOR.md).
+Full agent guide + heal matrix: [docs/NIFI_MONITOR.md](../docs/NIFI_MONITOR.md).  
+Runbooks (ReAct + HITL): [docs/NIFI_RUNBOOK.md](../docs/NIFI_RUNBOOK.md).
+
+## Structured runbook (explain-only)
+
+`react_nifi_runbook` turns a monitor OutputEvent into diagnosis → remediation → verify. It **never** mutates NiFi. Optional HITL: propose on `nifi.runbook.propose`, ack on `nifi.runbook.ack`, then heal via `workflow_nifi_monitor`.
+
+```bash
+python examples/agents/run_react_nifi_runbook_local.py --fixture stop-generate
+python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal --approve --restore
+```
+
+Cross-stack checklist: `python3 scripts/demo_cross_runbook.py` · [docs/SIGNAL_CORRELATE.md](../docs/SIGNAL_CORRELATE.md).  
+Data-plane customer path (not heal): [docs/CUSTOMER_POC.md](../docs/CUSTOMER_POC.md).
 
 ## Sample flow
 
@@ -242,6 +255,11 @@ flowchart TB
     Out["OutputEvent"]
   end
 
+  subgraph Runbook["react_nifi_runbook"]
+    RB["diagnosis → remediation → verify"]
+    HITL["nifi.runbook.propose / ack"]
+  end
+
   subgraph Triggers["Poll triggers"]
     Host["Host --interval / one-shot"]
     Ticks["nifi.monitor.poll Kafka ticks"]
@@ -259,6 +277,9 @@ flowchart TB
   Poll --> NiFi
   Poll --> Classify --> Plan --> Heal --> Out
   Heal -->|"safe / lab"| NiFi
+  Out --> RB
+  RB --> HITL
+  HITL -.->|"approved"| Heal
   MCP -.->|"same tool names"| NiFiCDP["CDP NiFi"]
 ```
 
@@ -310,7 +331,10 @@ python3 test/test_nifi_monitor.py
 | `nifi/flows/` | Sample flow notes |
 | `ratatoskr/nifi/` | REST client + heal policy |
 | `examples/agents/workflow_nifi_monitor.py` | Workflow agent |
+| `examples/agents/react_nifi_runbook.py` | Structured runbook (never mutates) |
 | `scripts/nifi_load_sample_flow.sh` | Bootstrap sample PG |
+| `scripts/nifi_load_dataplane_flow.sh` | Schema / route / replay spine |
+| `scripts/demo_nifi_runbook.py` | Runbook HITL POC |
 | `scripts/nifi_fault_inject.py` | Demo fault injector |
 
-Extended guide: [docs/NIFI_MONITOR.md](../docs/NIFI_MONITOR.md).
+Extended guide: [docs/NIFI_MONITOR.md](../docs/NIFI_MONITOR.md) · runbooks: [docs/NIFI_RUNBOOK.md](../docs/NIFI_RUNBOOK.md).

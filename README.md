@@ -15,7 +15,7 @@ Ratatoskr is a developer workspace for building, running, and verifying [Apache 
 | Use case | What it demonstrates | Start here |
 |----------|----------------------|------------|
 | [Honeypot](#1-honeypot--cybersecurity) | Cowrie → Kafka → Flink Agents triage and enrichment | [honeypot/README.md](honeypot/README.md) |
-| [NiFi monitoring](#2-nifi-flow-monitoring) | Flow health checks and phased auto-healing | [nifi/README.md](nifi/README.md) · [docs/NIFI_MONITOR.md](docs/NIFI_MONITOR.md) |
+| [NiFi monitoring](#2-nifi-flow-monitoring) | Flow health, phased heal, runbook HITL | [nifi/README.md](nifi/README.md) · [docs/NIFI_MONITOR.md](docs/NIFI_MONITOR.md) · [docs/NIFI_RUNBOOK.md](docs/NIFI_RUNBOOK.md) |
 | [Kafka monitoring](#3-kafka-cluster-monitoring) | Broker/topic/lag probes and phased healing | [docs/KAFKA_MONITOR.md](docs/KAFKA_MONITOR.md) |
 | [Cross-signal](#4-cross-signal-correlation) | NiFi↔Kafka incidents, scribe, coordinated heals | [docs/SIGNAL_CORRELATE.md](docs/SIGNAL_CORRELATE.md) |
 
@@ -61,8 +61,8 @@ python examples/agents/run_react_nifi_runbook_local.py   # fixture; add --live a
 ```
 
 - NiFi UI: https://localhost:8443/nifi — login `admin` / `RatatoskrNiFi1!`
+- Runbook POC: `python3 scripts/demo_nifi_runbook.py --heal --approve` · HITL before mutate · [docs/NIFI_RUNBOOK.md](docs/NIFI_RUNBOOK.md)
 - Heal demos: [docs/NIFI_MONITOR.md](docs/NIFI_MONITOR.md#orchestrated-heal-examples) · `python3 scripts/demo_nifi_kafka_heal.py --list`
-- Runbook POC: `python3 scripts/demo_nifi_runbook.py --heal --approve` · HITL approve before mutate · [docs/NIFI_MONITOR.md](docs/NIFI_MONITOR.md#structured-runbook-react-never-mutates)
 - Continuous: `ratatoskr monitor start` · [docs/NIFI_MONITOR.md](docs/NIFI_MONITOR.md#continuous-and-cluster)
 - Details: [nifi/README.md](nifi/README.md) · [docs/NIFI_MONITOR.md](docs/NIFI_MONITOR.md)
 
@@ -82,11 +82,12 @@ ratatoskr agent run workflow_kafka_monitor --local
 
 ### 4. Cross-signal correlation
 
-Deterministic correlation of NiFi + Kafka monitor OutputEvents (`workflow_signal_correlate`), optional ReAct brief (`react_incident_scribe`, never mutates), and gated coordinated heals (`workflow_cross_stack_heal`).
+Deterministic correlation of NiFi + Kafka monitor OutputEvents (`workflow_signal_correlate`), optional ReAct brief (`react_incident_scribe`) or structured cross runbook (`react_cross_runbook`, never mutates), and gated coordinated heals (`workflow_cross_stack_heal`).
 
 ```bash
 python examples/agents/run_workflow_signal_correlate_local.py --demo
 python examples/agents/run_react_incident_scribe_local.py
+python3 scripts/demo_cross_runbook.py
 python3 scripts/demo_nifi_kafka_heal.py --scenario cross-topic
 ```
 
@@ -256,6 +257,8 @@ Local dev: leave `RATATOSKR_API_KEY` unset.
 - [docs/FLINK_AGENTS.md](docs/FLINK_AGENTS.md) — Workflow vs ReAct
 - [docs/AGENT_DESIGNER_PLAN.md](docs/AGENT_DESIGNER_PLAN.md) — Agent Designer authoring and codegen
 - [docs/NIFI_MONITOR.md](docs/NIFI_MONITOR.md) — NiFi monitoring / healing demos
+- [docs/NIFI_RUNBOOK.md](docs/NIFI_RUNBOOK.md) — ReAct runbooks + HITL approve before heal
+- [docs/CUSTOMER_POC.md](docs/CUSTOMER_POC.md) — Data-plane customer demo (propose → ack → apply)
 - [docs/KAFKA_MONITOR.md](docs/KAFKA_MONITOR.md) — Kafka monitoring / healing demos
 - [docs/SIGNAL_CORRELATE.md](docs/SIGNAL_CORRELATE.md) — Cross-signal correlation, scribe, cross-stack heals
 - [docs/README.md](docs/README.md) — Documentation index (incl. Mermaid diagram map)

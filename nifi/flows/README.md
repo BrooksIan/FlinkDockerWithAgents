@@ -17,6 +17,11 @@
 #     export NIFI_HEAL_PHASE=lab NIFI_HEAL_ALLOW_EMPTY_QUEUE=1
 #     python3 examples/agents/run_workflow_nifi_monitor_local.py --count 1
 #
+#   Runbook HITL (docs/NIFI_RUNBOOK.md):
+#     python3 scripts/demo_nifi_runbook.py --list
+#     python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal --approve --restore
+#     python examples/agents/run_react_nifi_runbook_local.py --fixture stop-generate
+#
 # ## Ratatoskr Kafka Demo (shared NiFi + Kafka base)
 #   Prerequisites: `ratatoskr kafka up` then `ratatoskr up --profile nifi`
 #   (NiFi joins `ratatoskr-kafka_kafka-network` so bootstrap `kafka:9092` works.)
@@ -47,6 +52,10 @@
 #     python3 scripts/demo_nifi_kafka_heal.py --scenario cross-lag
 #     python3 scripts/demo_nifi_kafka_heal.py --all
 #
+#   Cross runbook (explain-only):
+#     python3 scripts/demo_cross_runbook.py
+#     python3 scripts/demo_cross_runbook.py --scenario topic-missing
+#
 #   Fault inject (kafka target):
 #     python3 scripts/nifi_fault_inject.py --target kafka --stop-consume
 #     python3 scripts/nifi_fault_inject.py --target kafka --disable-cs
@@ -61,10 +70,17 @@
 #     p.send('nifi.kafka.demo', b'{\"hello\":\"nifi\"}'); p.flush()
 #     "
 #
+# ## Ratatoskr Data Plane (schema / route / replay)
+#   ./scripts/nifi_load_dataplane_flow.sh
+#   Customer POC (propose → ack → apply): docs/CUSTOMER_POC.md
+#     python3 scripts/demo_customer_poc.py
+#   Guides: docs/SCHEMA_GATE.md · docs/ROUTE_ENRICH.md · docs/REPLAY.md · docs/DATAPLANE_APPROVAL.md
+#
 #   Guides:
 #     docs/NIFI_MONITOR.md — NiFi + orchestrated catalog
+#     docs/NIFI_RUNBOOK.md — react_nifi_runbook + HITL
 #     docs/KAFKA_MONITOR.md — Kafka heals
-#     docs/SIGNAL_CORRELATE.md — cross-topic / cross-lag
+#     docs/SIGNAL_CORRELATE.md — cross-topic / cross-lag / cross runbook
 #
 # Fault injection (sample flow):
 #   python3 scripts/nifi_fault_inject.py --stop-generate

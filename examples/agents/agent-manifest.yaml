@@ -65,6 +65,11 @@ agents:
     description: "Explain correlated NiFi/Kafka incidents (LLM when configured; never mutates)"
     entry: examples.agents.react_incident_scribe:IncidentScribeAgent
     runner: examples/agents/run_react_incident_scribe_local.py
+  react_cross_runbook:
+    type: react
+    description: "Structured NiFi↔Kafka cross-signal runbook from correlation (LLM when configured; never mutates)"
+    entry: examples.agents.react_cross_runbook:CrossRunbookAgent
+    runner: examples/agents/run_react_cross_runbook_local.py
   react_nifi_runbook:
     type: react
     description: "Structured NiFi debugging runbook from monitor facts (LLM when configured; never mutates)"

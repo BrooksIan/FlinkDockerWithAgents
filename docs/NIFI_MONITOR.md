@@ -42,7 +42,7 @@ Lab quickstart and extra diagrams: [nifi/README.md](../nifi/README.md#architectu
 | `ratatoskr.nifi.NiFiClient` | Local REST client (MCP-aligned tool names) |
 | `ratatoskr.nifi.policy` | Classify severities; apply heal by phase |
 | `workflow_nifi_monitor` | Flink Agents workflow agent |
-| `react_nifi_runbook` | ReAct explain-only runbook from monitor facts (Cloudera Inference or fallback) |
+| `react_nifi_runbook` | ReAct explain-only runbook from monitor facts — [NIFI_RUNBOOK.md](NIFI_RUNBOOK.md) |
 | [NiFi-MCP-Server](https://github.com/cloudera/NiFi-MCP-Server) | CDP dual path via Knox (Designer / Claude) |
 
 ## Severities
@@ -77,42 +77,27 @@ ratatoskr agent run workflow_nifi_monitor --local
 
 ### Structured runbook (ReAct, never mutates)
 
-After a monitor poll (or from a fixture), `react_nifi_runbook` turns facts into diagnosis → remediation → verify. Mutations stay on `workflow_nifi_monitor` heal phases.
+After a monitor poll (or from a fixture), `react_nifi_runbook` turns facts into diagnosis → remediation → verify. Mutations stay on `workflow_nifi_monitor` heal phases (optionally after HITL ack).
 
-Phase 2: prompt includes queue depths, bulletin fingerprints, severity guidance, and an **allowed remediation catalog**. Even when `heal_plan` is empty (`NIFI_HEAL_PHASE=monitor`), the runbook proposes the same safe/lab ops `build_heal_plan(..., phase=lab)` would — then **constrains** LLM output to those exact `op:name` strings (enable before start).
-
-**Cloudera Inference:** configure Designer Settings (or `RATATOSKR_LLM_ENDPOINT_URL` / `RATATOSKR_LLM_MODEL_ID` / `RATATOSKR_LLM_API_KEY`, aliases `CLOUDERA_*`). Without a complete config the agent uses deterministic fallback (`mode: fallback`).
+**Full runbook guide (HITL topics, scenarios, cross runbook):** [NIFI_RUNBOOK.md](NIFI_RUNBOOK.md).
 
 ```bash
-# Offline (fixture → fallback or LLM if Designer settings configured)
+# Offline fixture
 python examples/agents/run_react_nifi_runbook_local.py
 python examples/agents/run_react_nifi_runbook_local.py --fixture invalid-log
 
 # Live: poll NiFi then build runbook
 export NIFI_HEAL_PHASE=monitor
 python examples/agents/run_react_nifi_runbook_local.py --live
-# or: ratatoskr agent run react_nifi_runbook --local
-```
 
-**POC chain (Phase 3–4):** fault → monitor → runbook → **HITL approve** → gated heal:
-
-Defaults: **clean** target flow before inject, **scope** watch/heal to scenario names (e.g. `stop-generate` only touches `GenerateFlowFile`, ignoring Replay*/JsonTreeReader noise). Override with `--no-clean` / `--no-scope`.
-
-```bash
+# POC: fault → monitor → runbook → HITL approve → heal
 python3 scripts/demo_nifi_runbook.py --list
-python3 scripts/demo_nifi_runbook.py --offline --scenario stop-generate
-# Clean + scoped + HITL auto-approve:
 python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal --approve --restore
-python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal --approve --dry-run-heal
-# Full-canvas (old behavior):
-python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal --approve --no-clean --no-scope
 ```
 
-HITL topics: `nifi.runbook.propose` / `nifi.runbook.ack`. ReAct still never mutates; only an approved ack triggers `workflow_nifi_monitor`.
+HITL topics: `nifi.runbook.propose` / `nifi.runbook.ack`. Talking point: *Inference didn’t touch the canvas; the operator approved; the workflow healed.*
 
-Talking point: *Inference didn’t touch the canvas; the operator approved; the workflow healed.*
-
-Inject a stopped processor, then heal:
+Direct heal without runbook (sample flow):
 
 ```bash
 python3 scripts/nifi_fault_inject.py --stop-generate

@@ -307,6 +307,40 @@ categories:
             type: object
           mode:
             type: string
+    - id: react_cross_runbook
+      manifest: react_cross_runbook
+      display_name: Cross-Signal Runbook
+      description: Turns workflow_signal_correlate OutputEvents into a structured
+        NiFi↔Kafka diagnosis → remediation → verify runbook. Never mutates.
+      tags:
+      - demo
+      - nifi
+      - kafka
+      - react
+      - ops
+      - llm
+      input_schema:
+        type: object
+        properties:
+          incidents:
+            type: array
+          classification:
+            type: object
+          signals:
+            type: object
+          correlation:
+            type: object
+      output_schema:
+        type: object
+        properties:
+          agent:
+            type: string
+          mutations:
+            type: array
+          runbook:
+            type: object
+          source:
+            type: object
   - id: numeric
     label: Numeric (LLM)
     description: Extract and transform numbers using ReAct + LLM prompts.

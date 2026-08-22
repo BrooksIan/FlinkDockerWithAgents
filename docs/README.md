@@ -23,6 +23,7 @@ Guides for the **Ratatoskr** Flink Agents workspace. Honeypot-specific docs live
 | [Blog.md](Blog.md) | Narrative overview and design rationale |
 | [FLINK_AGENTS.md](FLINK_AGENTS.md) | Workflow vs ReAct agents — concepts, comparison, diagrams |
 | [NIFI_MONITOR.md](NIFI_MONITOR.md) | NiFi flow monitoring / healing + orchestrated demo catalog |
+| [NIFI_RUNBOOK.md](NIFI_RUNBOOK.md) | ReAct NiFi / cross runbooks + HITL approve before heal |
 | [KAFKA_MONITOR.md](KAFKA_MONITOR.md) | Kafka cluster monitoring / healing + demo scenarios |
 | [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md) | NiFi↔Kafka correlation, incident scribe, cross-stack heal |
 | [SCHEMA_GATE.md](SCHEMA_GATE.md) | Data-plane schema/contract gate (`schema.violations`) |
@@ -40,6 +41,8 @@ Guides for the **Ratatoskr** Flink Agents workspace. Honeypot-specific docs live
 |-----|-------------|
 | [../nifi/README.md](../nifi/README.md) | NiFi lab quickstart, heal phases, sample + Kafka demo heals |
 | [NIFI_MONITOR.md](NIFI_MONITOR.md) | Workflow agent + MCP dual-path guide |
+| [NIFI_RUNBOOK.md](NIFI_RUNBOOK.md) | ReAct runbooks + HITL propose/ack before heal |
+| [CUSTOMER_POC.md](CUSTOMER_POC.md) | Data-plane customer demo path |
 | [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md) | Cross-stack heals on Kafka→NiFi demo |
 | [NiFi-MCP-Server](https://github.com/cloudera/NiFi-MCP-Server) | CDP Knox MCP upstream |
 

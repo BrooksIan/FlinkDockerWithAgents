@@ -10,6 +10,7 @@ flowchart LR
   K["workflow_kafka_monitor\nOutputEvent"] --> C
   C --> I["incidents[]\nmatched_rules"]
   I --> S["react_incident_scribe\nbrief only"]
+  I --> R["react_cross_runbook\nchecklist"]
   I --> H["workflow_cross_stack_heal\nCROSS_HEAL_PHASE"]
   H -->|"lab playbooks"| NifiMut["NiFi apply_heal_policy"]
   H -->|"lab playbooks"| KafkaMut["Kafka apply_heal_policy"]
@@ -24,6 +25,7 @@ flowchart TB
   C -->|no| D["summary: nifi_only:* / kafka_only:*\ncross_signal: false"]
   C -->|yes| E["incidents + evidence"]
   E --> F["react_incident_scribe\nLLM or fallback"]
+  E --> R["react_cross_runbook\nstructured checklist"]
   E --> G{"CROSS_HEAL_PHASE"}
   G -->|monitor| H["heal_plan only"]
   G -->|lab| I["CROSS_HEAL_PLAYBOOKS\nordered side heals"]
@@ -36,6 +38,7 @@ flowchart TB
 | `workflow_signal_correlate` | workflow | Match rules across NiFi + Kafka severities → `incidents[]` (observe-only) |
 | `workflow_cross_stack_heal` | workflow | Correlate, then run playbooks when `CROSS_HEAL_PHASE=lab` |
 | `react_incident_scribe` | react | Explain incidents (Designer LLM or deterministic fallback). **Never mutates.** |
+| `react_cross_runbook` | react | Structured diagnosis → remediation → verify checklist from correlation (same shape as NiFi runbook). **Never mutates.** See [NIFI_RUNBOOK.md](NIFI_RUNBOOK.md). |
 
 ## Rules
 
@@ -82,6 +85,11 @@ python examples/agents/run_workflow_cross_stack_heal_local.py --demo backpressur
 
 # Incident brief (never mutates)
 python examples/agents/run_react_incident_scribe_local.py
+
+# Cross-signal structured runbook (never mutates)
+python examples/agents/run_react_cross_runbook_local.py
+python3 scripts/demo_cross_runbook.py
+python3 scripts/demo_cross_runbook.py --scenario topic-missing
 ```
 
 ## Live heal examples
@@ -112,6 +120,8 @@ python3 scripts/demo_nifi_kafka_heal.py --dry-run --scenario cross-topic
 ```
 
 Single-stack heal examples on the same flow: [NIFI_MONITOR.md](NIFI_MONITOR.md#orchestrated-heal-examples) · [KAFKA_MONITOR.md](KAFKA_MONITOR.md#orchestrated-heal-examples-shared-base).
+
+Runbook checklist shape + HITL: [NIFI_RUNBOOK.md](NIFI_RUNBOOK.md).
 
 Optional Kafka topics: `signals.correlate.output`, `signals.cross_heal.output`, `signals.incident.brief`.
 
