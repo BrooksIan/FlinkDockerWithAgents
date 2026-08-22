@@ -16,7 +16,8 @@ Ratatoskr is a developer workspace for building, running, and verifying [Apache 
 |----------|----------------------|------------|
 | [Honeypot](#1-honeypot--cybersecurity) | Cowrie → Kafka → Flink Agents triage and enrichment | [honeypot/README.md](honeypot/README.md) |
 | [NiFi monitoring](#2-nifi-flow-monitoring) | Flow health checks and phased auto-healing | [nifi/README.md](nifi/README.md) · [docs/NIFI_MONITOR.md](docs/NIFI_MONITOR.md) |
-| [Kafka monitoring](#3-kafka-cluster-monitoring) | Broker/topic/lag probes and phased healing | [docs/KAFKA_MONITOR.md](docs/KAFKA_MONITOR.md) · [docs/SIGNAL_CORRELATE.md](docs/SIGNAL_CORRELATE.md) |
+| [Kafka monitoring](#3-kafka-cluster-monitoring) | Broker/topic/lag probes and phased healing | [docs/KAFKA_MONITOR.md](docs/KAFKA_MONITOR.md) |
+| [Cross-signal](#4-cross-signal-correlation) | NiFi↔Kafka incidents, scribe, coordinated heals | [docs/SIGNAL_CORRELATE.md](docs/SIGNAL_CORRELATE.md) |
 
 Registered agents (manifest + dashboard catalog): [`examples/agents/agent-catalog.yaml`](examples/agents/agent-catalog.yaml) · [`examples/agents/agent-manifest.yaml`](examples/agents/agent-manifest.yaml). Browse them in the dashboard at `/agents`, or via `ratatoskr agent list`.
 
@@ -76,6 +77,18 @@ ratatoskr agent run workflow_kafka_monitor --local
 - Heal demos: [docs/KAFKA_MONITOR.md](docs/KAFKA_MONITOR.md#heal-demo-script-safe--lab) · continuous/cluster [docs/KAFKA_MONITOR.md](docs/KAFKA_MONITOR.md#how-kafka-monitor--heal-gets-deployed)
 - Cross-stack: [docs/SIGNAL_CORRELATE.md](docs/SIGNAL_CORRELATE.md)
 - Details: [docs/KAFKA_MONITOR.md](docs/KAFKA_MONITOR.md)
+
+### 4. Cross-signal correlation
+
+Deterministic correlation of NiFi + Kafka monitor OutputEvents (`workflow_signal_correlate`), optional ReAct brief (`react_incident_scribe`, never mutates), and gated coordinated heals (`workflow_cross_stack_heal`).
+
+```bash
+python examples/agents/run_workflow_signal_correlate_local.py --demo
+python examples/agents/run_react_incident_scribe_local.py
+python3 scripts/demo_nifi_kafka_heal.py --scenario cross-topic
+```
+
+- Details: [docs/SIGNAL_CORRELATE.md](docs/SIGNAL_CORRELATE.md)
 
 ## Agent catalog
 
@@ -242,13 +255,15 @@ Local dev: leave `RATATOSKR_API_KEY` unset.
 - [docs/AGENT_DESIGNER_PLAN.md](docs/AGENT_DESIGNER_PLAN.md) — Agent Designer authoring and codegen
 - [docs/NIFI_MONITOR.md](docs/NIFI_MONITOR.md) — NiFi monitoring / healing demos
 - [docs/KAFKA_MONITOR.md](docs/KAFKA_MONITOR.md) — Kafka monitoring / healing demos
-- [docs/SIGNAL_CORRELATE.md](docs/SIGNAL_CORRELATE.md) — Cross-signal correlation and cross-stack heals
+- [docs/SIGNAL_CORRELATE.md](docs/SIGNAL_CORRELATE.md) — Cross-signal correlation, scribe, cross-stack heals
+- [docs/README.md](docs/README.md) — Documentation index (incl. Mermaid diagram map)
 - [examples/README.md](examples/README.md) — Example agents
 - [examples/agents/agent-catalog.yaml](examples/agents/agent-catalog.yaml) — Agent catalog
 - [ratatoskr/README.md](ratatoskr/README.md) — CLI reference
 - [dashboard/README.md](dashboard/README.md) — Dashboard, Designer, and Studio
 - [honeypot/README.md](honeypot/README.md) — Honeypot demo
 - [nifi/README.md](nifi/README.md) — NiFi lab
+- [deploy/README.md](deploy/README.md) — Compose / image layout
 - [Apache Flink Agents docs](https://nightlies.apache.org/flink/flink-agents-docs-release-0.3/)
 
 ## License

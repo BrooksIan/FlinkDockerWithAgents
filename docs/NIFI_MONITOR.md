@@ -8,6 +8,32 @@ NiFi heal actions should be **deterministic and auditable**: same health snapsho
 
 ![Workflow agent control flow](../assets/images/WorkflowAgentsDiagram.png)
 
+## Architecture
+
+```mermaid
+flowchart TB
+  subgraph Lab["ratatoskr up --profile nifi"]
+    NiFi["Apache NiFi :8443"]
+    Flink["Flink JM/TM :8082"]
+  end
+
+  subgraph Cycle["workflow_nifi_monitor"]
+    Poll["get_flow_health_status + probe"]
+    Classify["classify_health\nscore / bulletins / delta"]
+    Plan["build_heal_plan\nHEAL_RULES"]
+    Apply["apply_heal_policy\ndry-run · allowlist · cooldown"]
+    Verify["verify + refresh OutputEvent"]
+  end
+
+  Poll --> NiFi
+  Poll --> Classify --> Plan --> Apply
+  Apply -->|"safe / lab"| NiFi
+  Apply --> Verify
+  Verify --> Out["OutputEvent\npoll_id · audit · heal_actions"]
+```
+
+Lab quickstart and extra diagrams: [nifi/README.md](../nifi/README.md#architecture). Cross-stack: [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md).
+
 ## Components
 
 | Piece | Role |

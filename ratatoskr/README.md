@@ -27,6 +27,7 @@ Entry point: `ratatoskr.main:main` → `ratatoskr.cli:app` (Typer).
 | `ratatoskr up --profile full` | Optional honeypot stack |
 | `ratatoskr down` / `status` / `logs` | Compose lifecycle |
 | `ratatoskr kafka up` / `down` / `status` | Studio Kafka (`deploy/docker-compose.kafka.yml`, host `:9094`) |
+| `./scripts/nifi_load_dataplane_flow.sh` | Schema / route / replay NiFi spine (`docs/SCHEMA_GATE.md`) |
 | `ratatoskr doctor` | Platform preflight (manifest, Flink REST, API) |
 
 ### Agents
@@ -74,31 +75,19 @@ Legacy bytecode commands (`config`, `sync`, `dashboard`, …) load when availabl
 ratatoskr/
 ├── cli.py                 # Top-level Typer app
 ├── api/                   # FastAPI control plane
-│   ├── app.py             # Application factory
-│   ├── routes.py          # /v1/* handlers
-│   ├── auth.py            # Optional X-API-Key
-│   ├── observability.py   # Prometheus + JSON logging
-│   └── config.py          # Env-based settings
 ├── agents/                # Registry + submit helpers
-├── designer/              # Agent definitions, LLM + API fetch platform settings
+├── nifi/                  # NiFi REST client + heal policy
+├── kafka/                 # Kafka admin client + heal policy
+├── correlation/           # NiFi↔Kafka rules, playbooks, scribe inputs
+├── designer/              # Agent definitions, LLM + API fetch settings
 ├── pipelines/             # Studio pipelines, assist, validation, cluster codegen
 ├── http/                  # Shared HTTP fetch helper (workflow_api_fetch)
 ├── runtime/               # Flink cluster submit + studio sync
-│   ├── flink_cluster_submit.py
-│   └── studio_cluster_sync.py   # Copy runtime into JM/TM after updates
-├── docker_utils.py        # Compose helpers
-├── paths.py               # Repo root, honeypot_dir(), runtime paths
-├── manifests.py           # YAML catalogs
-├── startup_modes.py       # up --mode presets
-├── copy_manifest.py       # Copy files into containers
-└── commands/
-    ├── stack.py
-    ├── build.py
-    ├── agent_cmd.py
-    ├── api_cmd.py
-    ├── doctor_platform.py
-    ├── test_cmd.py
-    └── verify_cmd.py
+├── kafka_sources.py       # Studio topic catalog / sample / publish
+├── docker_utils.py
+├── paths.py
+├── manifests.py
+└── commands/              # stack, build, agent, api, monitor, …
 ```
 
 ## Compose profiles
@@ -107,9 +96,12 @@ ratatoskr/
 |---------|--------------|-------|
 | `minimal` (default) | `deploy/docker-compose.yml` | JobManager + TaskManager |
 | `kafka` | `deploy/docker-compose.kafka.yml` | Studio Zookeeper + Kafka (`ratatoskr kafka up`) |
+| `nifi` | `deploy/` + `nifi/docker-compose.yml` | Minimal Flink + NiFi lab |
 | `full` | `honeypot/docker-compose.yml` | Cowrie honeypot + Kafka + pipeline |
 
 `configure_runtime_sys_path()` loads honeypot modules only for the `full` profile.
+
+Monitor guides: [docs/NIFI_MONITOR.md](../docs/NIFI_MONITOR.md) · [docs/KAFKA_MONITOR.md](../docs/KAFKA_MONITOR.md) · [docs/SIGNAL_CORRELATE.md](../docs/SIGNAL_CORRELATE.md).
 
 ## Environment
 
@@ -121,6 +113,8 @@ ratatoskr/
 | `FLINK_REST_ADDRESS` | `localhost` | JobManager for API/CLI |
 | `FLINK_REST_PORT` | `8082` (minimal) / `8081` (full) | Host Flink REST port |
 | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9094` | Studio Kafka (after `ratatoskr kafka up`) |
+| `NIFI_HEAL_PHASE` / `KAFKA_HEAL_PHASE` / `CROSS_HEAL_PHASE` | `monitor` | Heal ladders — see monitor docs |
+| `KAFKA_CATALOG` | `studio` | Topic catalog (`studio` excludes cowrie.*) |
 | `RATATOSKR_API_FETCH_ENDPOINT_URL` | unset | Default URL for `workflow_api_fetch` |
 | `RATATOSKR_PROFILE` | `minimal` | Compose profile for agent/pipeline cluster submit |
 

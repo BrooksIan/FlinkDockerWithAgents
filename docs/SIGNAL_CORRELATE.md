@@ -2,6 +2,33 @@
 
 Pairing of [NiFi](NIFI_MONITOR.md) and [Kafka](KAFKA_MONITOR.md) monitor OutputEvents into incidents, optional ReAct brief, and gated coordinated heals on the shared Kafka→NiFi demo flow.
 
+## Architecture
+
+```mermaid
+flowchart LR
+  N["workflow_nifi_monitor\nOutputEvent"] --> C["workflow_signal_correlate"]
+  K["workflow_kafka_monitor\nOutputEvent"] --> C
+  C --> I["incidents[]\nmatched_rules"]
+  I --> S["react_incident_scribe\nbrief only"]
+  I --> H["workflow_cross_stack_heal\nCROSS_HEAL_PHASE"]
+  H -->|"lab playbooks"| NifiMut["NiFi apply_heal_policy"]
+  H -->|"lab playbooks"| KafkaMut["Kafka apply_heal_policy"]
+```
+
+### Correlate → brief → optional heal
+
+```mermaid
+flowchart TB
+  A["Poll / fixture\nNiFi + Kafka events"] --> B["correlate_signals\nCORRELATION_RULES"]
+  B --> C{"incidents?"}
+  C -->|no| D["summary: nifi_only:* / kafka_only:*\ncross_signal: false"]
+  C -->|yes| E["incidents + evidence"]
+  E --> F["react_incident_scribe\nLLM or fallback"]
+  E --> G{"CROSS_HEAL_PHASE"}
+  G -->|monitor| H["heal_plan only"]
+  G -->|lab| I["CROSS_HEAL_PLAYBOOKS\nordered side heals"]
+```
+
 ## Agents
 
 | Agent | Type | Role |
@@ -12,16 +39,21 @@ Pairing of [NiFi](NIFI_MONITOR.md) and [Kafka](KAFKA_MONITOR.md) monitor OutputE
 
 ## Rules
 
-| Rule id | NiFi | Kafka | Level | Cross heal (lab) |
-|---------|------|-------|-------|------------------|
-| `pipeline_backpressure_lag` | BACKPRESSURE* | LAG_* / CONSUMER_STALLED | HIGH | NiFi queue relief (`stop` / `empty_connection_queue` / `start`) |
-| `dual_unreachable` | NIFI_UNREACHABLE | BROKER_UNREACHABLE | HIGH | — (infra) |
-| `nifi_stopped_kafka_lag` | STOPPED / DISABLED_SERVICE | LAG_* / stalled | HIGH | Start ConsumeKafka path (safe) |
-| `nifi_invalid_kafka_missing` | INVALID / BULLETIN_ERROR | TOPIC_MISSING | MEDIUM | `create_topic` + NiFi lab fix/start |
-| `kafka_topic_nifi_consumer` | STOPPED / INVALID / … | TOPIC_MISSING | HIGH | `create_topic` → `start_processor` ConsumeKafka |
-| `stack_degraded` | any degradation | any degradation | MEDIUM (fallback) | — |
+| Rule id | NiFi | Kafka | Data-plane | Level | Cross heal (lab) |
+|---------|------|-------|------------|-------|------------------|
+| `pipeline_backpressure_lag` | BACKPRESSURE* | LAG_* / CONSUMER_STALLED | — | HIGH | NiFi queue relief (`stop` / `empty_connection_queue` / `start`) |
+| `dual_unreachable` | NIFI_UNREACHABLE | BROKER_UNREACHABLE | — | HIGH | — (infra) |
+| `nifi_stopped_kafka_lag` | STOPPED / DISABLED_SERVICE | LAG_* / stalled | — | HIGH | Start ConsumeKafka path (safe) |
+| `nifi_invalid_kafka_missing` | INVALID / BULLETIN_ERROR | TOPIC_MISSING | — | MEDIUM | `create_topic` + NiFi lab fix/start |
+| `kafka_topic_nifi_consumer` | STOPPED / INVALID / … | TOPIC_MISSING | — | HIGH | `create_topic` → `start_processor` ConsumeKafka |
+| `schema_violation_spike` | — | — | SCHEMA_VIOLATIONS | MEDIUM | — (propose schema fix via approval bus) |
+| `route_config_drift` | — | — | ROUTE_DRIFT:* | MEDIUM | — (propose route patch via approval bus) |
+| `schema_violations_with_lag` | — | LAG_* | SCHEMA_VIOLATIONS | HIGH | — |
+| `stack_degraded` | any degradation | any degradation | — | MEDIUM (fallback) | — |
 
 Playbooks live in `ratatoskr/correlation/heal.py` (`CROSS_HEAL_PLAYBOOKS`). Each step narrows health and reuses side `apply_heal_policy`.
+
+When only one side is unhealthy, correlation emits **no** cross-signal incident; `classification.summary` looks like `nifi_only:NIFI_UNREACHABLE` and `cross_signal: false`.
 
 ## Env
 
@@ -40,6 +72,9 @@ Side gates (`NIFI_HEAL_*`, `KAFKA_HEAL_*`) still apply inside each playbook step
 ```bash
 # Correlate BACKPRESSURE + LAG_CRIT (no brokers)
 python examples/agents/run_workflow_signal_correlate_local.py --demo
+
+# Schema violations + route drift + lag fixtures
+python examples/agents/run_workflow_signal_correlate_local.py --demo-dataplane
 
 # Plan cross heals for topic-missing / backpressure-lag fixtures
 python examples/agents/run_workflow_cross_stack_heal_local.py --demo topic-missing
@@ -79,3 +114,5 @@ python3 scripts/demo_nifi_kafka_heal.py --dry-run --scenario cross-topic
 Single-stack heal examples on the same flow: [NIFI_MONITOR.md](NIFI_MONITOR.md#orchestrated-heal-examples) · [KAFKA_MONITOR.md](KAFKA_MONITOR.md#orchestrated-heal-examples-shared-base).
 
 Optional Kafka topics: `signals.correlate.output`, `signals.cross_heal.output`, `signals.incident.brief`.
+
+Tests: `python3 test/test_signal_correlate.py`.

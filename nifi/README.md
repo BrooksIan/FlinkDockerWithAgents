@@ -13,6 +13,7 @@ ratatoskr up --profile nifi
 # Wait for NiFi health, then load flows
 ./scripts/nifi_load_sample_flow.sh      # synthetic Generate→Log
 ./scripts/nifi_load_kafka_flow.sh       # ConsumeKafka ← nifi.kafka.demo
+./scripts/nifi_load_dataplane_flow.sh   # schema / route / replay spine (docs/SCHEMA_GATE.md)
 
 # Monitor only (Phase 1A — default)
 export NIFI_HEAL_PHASE=monitor
@@ -221,7 +222,7 @@ python3 scripts/demo_nifi_kafka_heal.py --scenario cross-lag
 | `delete-topic` … `lag-earliest` | Kafka create / partitions / lag heals |
 | `cross-topic` / `cross-lag` | Coordinated Kafka↔NiFi playbooks |
 
-See [docs/NIFI_MONITOR.md](../docs/NIFI_MONITOR.md#orchestrated-heal-examples) and [docs/SIGNAL_CORRELATE.md](../docs/SIGNAL_CORRELATE.md).
+See [docs/NIFI_MONITOR.md](../docs/NIFI_MONITOR.md#orchestrated-heal-examples), [docs/KAFKA_MONITOR.md](../docs/KAFKA_MONITOR.md), and [docs/SIGNAL_CORRELATE.md](../docs/SIGNAL_CORRELATE.md).
 
 ## Architecture
 

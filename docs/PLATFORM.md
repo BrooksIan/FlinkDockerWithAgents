@@ -163,6 +163,9 @@ ratatoskr api check              # probe /v1/health
 | `FLINK_REST_ADDRESS` | `localhost` | Flink JobManager host for API/CLI |
 | `FLINK_REST_PORT` | `8082` (minimal) / `8081` (full) | Host Flink REST / Web UI port |
 | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9094` | Studio Kafka (`ratatoskr kafka up`) |
+| `NIFI_HEAL_PHASE` / `KAFKA_HEAL_PHASE` | `monitor` | Monitor heal ladder (`monitor\|safe\|lab`) — see monitor guides |
+| `KAFKA_CATALOG` | `studio` | Kafka topic catalog scope (`studio` or `full`) |
+| `CROSS_HEAL_PHASE` | `monitor` | Cross-stack heal (`monitor` plan / `lab` execute) |
 | `RATATOSKR_API_FETCH_ENDPOINT_URL` | *(unset)* | Default HTTP URL for `workflow_api_fetch` |
 | `RATATOSKR_API_FETCH_HTTP_METHOD` | `GET` | HTTP method for API fetch agent |
 | `RATATOSKR_API_FETCH_API_KEY` | *(unset)* | Optional bearer/API key for API fetch agent |
@@ -190,7 +193,12 @@ Agents are declared in [`examples/agents/agent-manifest.yaml`](../examples/agent
 |-------|------|-------------|
 | `workflow_counter` | workflow | Deterministic `@action` + `@tool` — doubles integers |
 | `workflow_api_fetch` | workflow | Fetches JSON from HTTP endpoint (Settings → API fetch) |
+| `workflow_nifi_monitor` | workflow | NiFi health + phased heal ([NIFI_MONITOR.md](NIFI_MONITOR.md)) |
+| `workflow_kafka_monitor` | workflow | Kafka health + phased heal ([KAFKA_MONITOR.md](KAFKA_MONITOR.md)) |
+| `workflow_signal_correlate` | workflow | NiFi↔Kafka cross-signal incidents (observe-only) |
+| `workflow_cross_stack_heal` | workflow | Correlate + coordinated playbooks |
 | `react_echo` | react | Tool-chaining lab agent (no LLM) |
+| `react_incident_scribe` | react | Explain correlated incidents (never mutates) |
 | `react_double_value` | react | ReAct agent that doubles values via LLM (requires Settings LLM) |
 | `react_skills_demo` | react | Native Flink chat model + math-calculator skill (requires Settings LLM) |
 | `session_detect` | workflow | Classify closed sessions from dynamic Flink windows (Cowrie demo) |
@@ -229,14 +237,30 @@ To add an agent:
 |---------|------|----------|
 | `minimal` (default) | `deploy/docker-compose.yml` | JobManager + TaskManager |
 | `kafka` | `deploy/docker-compose.kafka.yml` | Studio Zookeeper + Kafka (`ratatoskr kafka up`) |
+| `nifi` | `deploy/` + `nifi/docker-compose.yml` | Minimal Flink + Apache NiFi lab |
 | `full` | `honeypot/docker-compose.yml` | Cowrie + Kafka + pipeline + dashboard |
 
 ```bash
 ratatoskr up                  # minimal (default)
 ratatoskr kafka up            # Studio Kafka (independent of honeypot)
+ratatoskr up --profile nifi   # Flink + NiFi monitoring lab
 ratatoskr up --profile full   # honeypot (optional)
 ratatoskr down
 ratatoskr status
+```
+
+### Monitoring / healing agents
+
+| Agent | Guide |
+|-------|-------|
+| `workflow_nifi_monitor` | [NIFI_MONITOR.md](NIFI_MONITOR.md) · [nifi/README.md](../nifi/README.md) |
+| `workflow_kafka_monitor` | [KAFKA_MONITOR.md](KAFKA_MONITOR.md) |
+| `workflow_signal_correlate` / `workflow_cross_stack_heal` / `react_incident_scribe` | [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md) |
+
+```bash
+ratatoskr monitor start              # continuous host polls
+ratatoskr monitor start --cluster    # Flink cluster monitors
+python3 scripts/demo_nifi_kafka_heal.py --list
 ```
 
 ### Studio cluster restart

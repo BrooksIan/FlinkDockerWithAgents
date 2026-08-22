@@ -61,17 +61,17 @@ Optional input fields: `path` / `path_suffix`, `query` (GET), `body` (POST). Out
 
 ```text
 examples/agents/
-├── agent-manifest.yaml       # Registry (name, entry, runners)
-├── agent-catalog.yaml        # Dashboard catalog (categories, I/O schemas)
-├── workflow_counter.py       # CounterAgent
-├── workflow_api_fetch.py     # ApiFetchAgent (HTTP JSON fetch)
-├── react_echo.py             # ReactEchoAgent
-├── run_workflow_local.py     # AgentsExecutionEnvironment local
-├── run_workflow_api_fetch_local.py
-├── run_workflow_cluster.py   # PyFlink + Agents operator
-├── run_react_local.py
-└── run_react_cluster.py
+├── agent-manifest.yaml
+├── agent-catalog.yaml
+├── workflow_counter.py / workflow_api_fetch.py
+├── workflow_nifi_monitor.py / workflow_kafka_monitor.py
+├── workflow_signal_correlate.py / workflow_cross_stack_heal.py
+├── react_echo.py / react_incident_scribe.py / react_double_value.py
+├── run_workflow_*_local.py / run_react_*_local.py
+└── … cluster runners where registered
 ```
+
+Guides: [docs/NIFI_MONITOR.md](../docs/NIFI_MONITOR.md) · [docs/KAFKA_MONITOR.md](../docs/KAFKA_MONITOR.md) · [docs/SIGNAL_CORRELATE.md](../docs/SIGNAL_CORRELATE.md).
 
 ### Add a new agent
 

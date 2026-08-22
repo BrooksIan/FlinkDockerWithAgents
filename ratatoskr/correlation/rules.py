@@ -82,6 +82,33 @@ CORRELATION_RULES: list[dict[str, Any]] = [
     },
 ]
 
+# Data-plane observe-only rules (schema gate / route enrich OutputEvents).
+DATAPLANE_CORRELATION_RULES: list[dict[str, Any]] = [
+    {
+        "id": "schema_violation_spike",
+        "schema_any": frozenset({"SCHEMA_VIOLATIONS"}),
+        "level": "MEDIUM",
+        "title": "Schema violations quarantined on schema.violations",
+        "hint": "Bad events are gated — inspect samples, tighten producers, or propose a schema fix via dataplane.propose.",
+    },
+    {
+        "id": "route_config_drift",
+        "route_any": frozenset({"ROUTE_DRIFT:EnrichUpdate", "ROUTE_DRIFT:RouteType"}),
+        "route_prefix": "ROUTE_DRIFT:",
+        "level": "MEDIUM",
+        "title": "Route/enrich desired-state drifts from live NiFi properties",
+        "hint": "Publish a route proposal and ack on dataplane.ack before applying property patches.",
+    },
+    {
+        "id": "schema_violations_with_lag",
+        "schema_any": frozenset({"SCHEMA_VIOLATIONS"}),
+        "kafka_any": frozenset({"LAG_WARN", "LAG_CRIT", "CONSUMER_STALLED"}),
+        "level": "HIGH",
+        "title": "Schema violations with Kafka consumer lag",
+        "hint": "Invalid traffic may be starving valid downstream consumers — check quarantine volume and consumer groups.",
+    },
+]
+
 _LEVEL_RANK = {"OK": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3}
 
 

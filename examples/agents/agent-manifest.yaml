@@ -34,6 +34,26 @@ agents:
     description: "Correlate NiFi+Kafka then run coordinated heal playbooks (CROSS_HEAL_PHASE=monitor|lab)"
     entry: examples.agents.workflow_cross_stack_heal:CrossStackHealAgent
     runner: examples/agents/run_workflow_cross_stack_heal_local.py
+  workflow_schema_gate:
+    type: workflow
+    description: "Schema/contract gate — monitor schema.violations; safe ensure topics/flow; lab schema text only (no heal)"
+    entry: examples.agents.workflow_schema_gate:SchemaGateAgent
+    runner: examples/agents/run_workflow_schema_gate_local.py
+  workflow_route_enrich:
+    type: workflow
+    description: "Propose routing/enrichment rules; NiFi applies allowlisted UpdateAttribute/RouteOnAttribute patches"
+    entry: examples.agents.workflow_route_enrich:RouteEnrichAgent
+    runner: examples/agents/run_workflow_route_enrich_local.py
+  workflow_replay:
+    type: workflow
+    description: "Lab-gated Kafka/NiFi replay job — reset dedicated group by timestamp, publish window to dest (not heal)"
+    entry: examples.agents.workflow_replay:ReplayAgent
+    runner: examples/agents/run_workflow_replay_local.py
+  workflow_dataplane_approval:
+    type: workflow
+    description: "Desired-state bus — propose/ack/apply schema|route|replay over dataplane.propose and dataplane.ack"
+    entry: examples.agents.workflow_dataplane_approval:DataplaneApprovalAgent
+    runner: examples/agents/run_workflow_dataplane_approval_local.py
   react_echo:
     type: react
     description: "Tool-chaining lab agent (no LLM) \u2014 classify and summarize text"

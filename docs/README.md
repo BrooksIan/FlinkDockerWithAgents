@@ -24,7 +24,12 @@ Guides for the **Ratatoskr** Flink Agents workspace. Honeypot-specific docs live
 | [FLINK_AGENTS.md](FLINK_AGENTS.md) | Workflow vs ReAct agents — concepts, comparison, diagrams |
 | [NIFI_MONITOR.md](NIFI_MONITOR.md) | NiFi flow monitoring / healing + orchestrated demo catalog |
 | [KAFKA_MONITOR.md](KAFKA_MONITOR.md) | Kafka cluster monitoring / healing + demo scenarios |
-| [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md) | Cross-signal correlation and cross-stack heal playbooks |
+| [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md) | NiFi↔Kafka correlation, incident scribe, cross-stack heal |
+| [SCHEMA_GATE.md](SCHEMA_GATE.md) | Data-plane schema/contract gate (`schema.violations`) |
+| [ROUTE_ENRICH.md](ROUTE_ENRICH.md) | Routing / enrichment rule apply (NiFi executes) |
+| [REPLAY.md](REPLAY.md) | Lab-gated Kafka↔NiFi replay job (not heal) |
+| [DATAPLANE_APPROVAL.md](DATAPLANE_APPROVAL.md) | Desired-state bus: propose → ack → apply |
+| [CUSTOMER_POC.md](CUSTOMER_POC.md) | 10–15 min scripted customer demo path |
 | [AGENT_DESIGNER_PLAN.md](AGENT_DESIGNER_PLAN.md) | Agent Designer — visual agent authoring, codegen, roadmap |
 | [../assets/branding/RATATOSKR.md](../assets/branding/RATATOSKR.md) | Name, mythology, icon and title banner assets |
 | [../dashboard/README.md](../dashboard/README.md) | Dashboard — pages, dev setup, project structure |
@@ -37,6 +42,16 @@ Guides for the **Ratatoskr** Flink Agents workspace. Honeypot-specific docs live
 | [NIFI_MONITOR.md](NIFI_MONITOR.md) | Workflow agent + MCP dual-path guide |
 | [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md) | Cross-stack heals on Kafka→NiFi demo |
 | [NiFi-MCP-Server](https://github.com/cloudera/NiFi-MCP-Server) | CDP Knox MCP upstream |
+
+## Optional Kafka monitoring
+
+Studio Kafka (`ratatoskr kafka up`) is independent of the honeypot broker.
+
+| Doc | Description |
+|-----|-------------|
+| [KAFKA_MONITOR.md](KAFKA_MONITOR.md) | Monitor / heal + Mermaid architecture |
+| [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md) | Cross-signal with NiFi |
+| [../deploy/docker-compose.kafka.yml](../deploy/docker-compose.kafka.yml) | Compose stack |
 
 ## Optional honeypot (`honeypot/docs/`)
 
@@ -58,6 +73,15 @@ Guides for the **Ratatoskr** Flink Agents workspace. Honeypot-specific docs live
 | [ReAct agents](FLINK_AGENTS.md#react-agents) | `assets/images/ReactAgentsDiagram.png` |
 | [ReAct loop](FLINK_AGENTS.md#execution-model-1) | `assets/images/react-agent-loop.mmd` |
 | [Hybrid hot path + enrichment](FLINK_AGENTS.md#recommended-hybrid-pattern) | `assets/images/workflow-vs-react-hybrid.mmd` |
+
+### NiFi / Kafka monitoring (Mermaid in guides)
+
+| Diagram | Doc |
+|---------|-----|
+| Stack + agent + heal cycle | [../nifi/README.md](../nifi/README.md#architecture) |
+| Severities / phases / demos | [NIFI_MONITOR.md](NIFI_MONITOR.md#architecture) |
+| Studio broker + catalog + heal | [KAFKA_MONITOR.md](KAFKA_MONITOR.md#architecture) |
+| Cross-signal correlate → scribe → heal | [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md#architecture) |
 
 ### Honeypot (optional)
 

@@ -69,8 +69,9 @@ def fallback_scribe(payload: dict[str, Any]) -> dict[str, Any]:
         ),
         "likely_cause": hints[0] if hints else "See matched rule hints in the correlation payload.",
         "suggested_next_steps": [
-            "Confirm evidence.nifi and evidence.kafka in the correlation event",
-            "Heal with NIFI_HEAL_PHASE / KAFKA_HEAL_PHASE=safe only after dry-run",
+            "Confirm evidence.nifi / evidence.kafka / evidence.schema in the correlation event",
+            "For schema/route drift: propose on dataplane.propose then ack before apply",
+            "Heal infra with NIFI_HEAL_PHASE / KAFKA_HEAL_PHASE=safe only after dry-run",
             "Re-poll monitors and re-correlate to verify resolution",
         ],
         "mode": "fallback",

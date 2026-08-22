@@ -560,6 +560,73 @@ class KafkaClient:
         finally:
             consumer.close()
 
+    def reset_offsets_by_timestamp(
+        self, group_id: str, topic: str, timestamp_ms: int
+    ) -> dict[str, Any]:
+        """Commit group offsets to the first message at/after ``timestamp_ms`` (epoch ms).
+
+        Partitions with no match fall back to the log end (skip empty history).
+        """
+        from kafka import KafkaConsumer, OffsetAndMetadata, TopicPartition
+
+        consumer = KafkaConsumer(
+            bootstrap_servers=self.bootstrap,
+            group_id=group_id,
+            enable_auto_commit=False,
+            consumer_timeout_ms=2000,
+            client_id=f"{self.client_id}-reset-ts",
+        )
+        try:
+            parts = consumer.partitions_for_topic(topic)
+            if not parts:
+                raise RuntimeError(f"topic {topic!r} not found or has no partitions")
+            tps = [TopicPartition(topic, p) for p in sorted(parts)]
+            consumer.assign(tps)
+            ts_map = {tp: int(timestamp_ms) for tp in tps}
+            found = consumer.offsets_for_times(ts_map)
+            end = consumer.end_offsets(tps)
+            to_commit: dict = {}
+            offsets_out: dict[str, int] = {}
+            for tp in tps:
+                meta = found.get(tp) if found else None
+                if meta is not None and getattr(meta, "offset", None) is not None:
+                    off = int(meta.offset)
+                else:
+                    off = int(end[tp])
+                to_commit[tp] = OffsetAndMetadata(off, "", -1)
+                offsets_out[f"{tp.topic}:{tp.partition}"] = off
+            consumer.commit(to_commit)
+            self.mutations.append(
+                {
+                    "op": "reset_offsets_by_timestamp",
+                    "target": group_id,
+                    "topic": topic,
+                    "timestamp_ms": int(timestamp_ms),
+                    "ok": True,
+                }
+            )
+            return {
+                "ok": True,
+                "group_id": group_id,
+                "topic": topic,
+                "timestamp_ms": int(timestamp_ms),
+                "offsets": offsets_out,
+            }
+        except Exception as exc:  # noqa: BLE001
+            self.mutations.append(
+                {
+                    "op": "reset_offsets_by_timestamp",
+                    "target": group_id,
+                    "topic": topic,
+                    "timestamp_ms": int(timestamp_ms),
+                    "ok": False,
+                    "error": str(exc),
+                }
+            )
+            raise
+        finally:
+            consumer.close()
+
     def increase_partitions(self, name: str, total_count: int) -> dict[str, Any]:
         """Raise partition count to ``total_count`` (can only increase)."""
         from kafka.admin import NewPartitions
