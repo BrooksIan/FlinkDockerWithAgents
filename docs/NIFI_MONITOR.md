@@ -42,6 +42,7 @@ Lab quickstart and extra diagrams: [nifi/README.md](../nifi/README.md#architectu
 | `ratatoskr.nifi.NiFiClient` | Local REST client (MCP-aligned tool names) |
 | `ratatoskr.nifi.policy` | Classify severities; apply heal by phase |
 | `workflow_nifi_monitor` | Flink Agents workflow agent |
+| `react_nifi_runbook` | ReAct explain-only runbook from monitor facts (Cloudera Inference or fallback) |
 | [NiFi-MCP-Server](https://github.com/cloudera/NiFi-MCP-Server) | CDP dual path via Knox (Designer / Claude) |
 
 ## Severities
@@ -72,6 +73,21 @@ ratatoskr up --profile nifi
 ./scripts/nifi_load_sample_flow.sh
 export NIFI_HEAL_PHASE=monitor
 ratatoskr agent run workflow_nifi_monitor --local
+```
+
+### Structured runbook (ReAct, never mutates)
+
+After a monitor poll (or from a fixture), `react_nifi_runbook` turns facts into diagnosis → remediation → verify. Mutations stay on `workflow_nifi_monitor` heal phases.
+
+```bash
+# Offline (fixture → fallback or LLM if Designer settings configured)
+python examples/agents/run_react_nifi_runbook_local.py
+python examples/agents/run_react_nifi_runbook_local.py --fixture invalid-log
+
+# Live: poll NiFi then build runbook
+export NIFI_HEAL_PHASE=monitor
+python examples/agents/run_react_nifi_runbook_local.py --live
+# or: ratatoskr agent run react_nifi_runbook --local
 ```
 
 Inject a stopped processor, then heal:

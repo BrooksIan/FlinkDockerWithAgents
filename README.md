@@ -50,13 +50,14 @@ ratatoskr dashboard
 
 ### 2. NiFi flow monitoring
 
-A deterministic workflow agent (`workflow_nifi_monitor`) polls NiFi health — stopped/invalid processors, queues, bulletins — and can auto-heal under gated phases (`monitor` → `safe` → `lab`). Local labs use NiFi REST; CDP uses the same tool semantics via [NiFi-MCP-Server](https://github.com/cloudera/NiFi-MCP-Server).
+A deterministic workflow agent (`workflow_nifi_monitor`) polls NiFi health — stopped/invalid processors, queues, bulletins — and can auto-heal under gated phases (`monitor` → `safe` → `lab`). Optional ReAct agent `react_nifi_runbook` turns those facts into a structured debug runbook (Cloudera Inference or fallback; never mutates). Local labs use NiFi REST; CDP uses the same tool semantics via [NiFi-MCP-Server](https://github.com/cloudera/NiFi-MCP-Server).
 
 ```bash
 ratatoskr up --profile nifi
 ./scripts/nifi_load_sample_flow.sh
 export NIFI_HEAL_PHASE=monitor   # or safe / lab
 ratatoskr agent run workflow_nifi_monitor --local
+python examples/agents/run_react_nifi_runbook_local.py   # fixture; add --live after a poll
 ```
 
 - NiFi UI: https://localhost:8443/nifi — login `admin` / `RatatoskrNiFi1!`

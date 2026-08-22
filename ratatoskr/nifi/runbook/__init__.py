@@ -1,4 +1,4 @@
-"""NiFi debugging runbook helpers (Phase 0: schema, fixtures, fallback)."""
+"""NiFi debugging runbook helpers (schema, fixtures, fallback; agent in examples)."""
 
 from ratatoskr.nifi.runbook.fallback import fallback_runbook
 from ratatoskr.nifi.runbook.fixtures import (

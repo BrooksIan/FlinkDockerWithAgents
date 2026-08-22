@@ -29,7 +29,41 @@ def _strip_json_fence(text: str) -> str:
     match = re.match(r"^```(?:json)?\s*([\s\S]*?)\s*```$", text, re.IGNORECASE)
     if match:
         return match.group(1).strip()
+    # Fence embedded in longer reasoning (e.g. Nemotron thinking traces)
+    match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text, re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
     return text
+
+
+def _extract_json_object(text: str) -> dict[str, Any]:
+    """Parse a JSON object from model output that may include reasoning prefixes."""
+    cleaned = _strip_json_fence(text)
+    # Prefer content after </think> when present (Nemotron / reasoning models)
+    if "</think>" in cleaned:
+        cleaned = cleaned.rsplit("</think>", 1)[-1].strip()
+    try:
+        payload = json.loads(cleaned)
+        if isinstance(payload, dict):
+            return payload
+    except json.JSONDecodeError:
+        pass
+
+    # Last complete {...} object in the text
+    decoder = json.JSONDecoder()
+    last: dict[str, Any] | None = None
+    for i, ch in enumerate(cleaned):
+        if ch != "{":
+            continue
+        try:
+            obj, _end = decoder.raw_decode(cleaned[i:])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(obj, dict):
+            last = obj
+    if last is not None:
+        return last
+    raise json.JSONDecodeError("No JSON object found in LLM response", cleaned, 0)
 
 
 def chat_completion_json(
@@ -60,7 +94,7 @@ def chat_completion_json(
     content = (response.choices[0].message.content or "").strip()
     if not content:
         raise RuntimeError("LLM returned an empty response")
-    payload = json.loads(_strip_json_fence(content))
+    payload = _extract_json_object(content)
     if not isinstance(payload, dict):
         raise RuntimeError("LLM response must be a JSON object")
     return payload

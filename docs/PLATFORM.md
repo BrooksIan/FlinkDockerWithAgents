@@ -199,6 +199,7 @@ Agents are declared in [`examples/agents/agent-manifest.yaml`](../examples/agent
 | `workflow_cross_stack_heal` | workflow | Correlate + coordinated playbooks |
 | `react_echo` | react | Tool-chaining lab agent (no LLM) |
 | `react_incident_scribe` | react | Explain correlated incidents (never mutates) |
+| `react_nifi_runbook` | react | Structured NiFi debug runbook from monitor facts (never mutates) |
 | `react_double_value` | react | ReAct agent that doubles values via LLM (requires Settings LLM) |
 | `react_skills_demo` | react | Native Flink chat model + math-calculator skill (requires Settings LLM) |
 | `session_detect` | workflow | Classify closed sessions from dynamic Flink windows (Cowrie demo) |
@@ -253,7 +254,7 @@ ratatoskr status
 
 | Agent | Guide |
 |-------|-------|
-| `workflow_nifi_monitor` | [NIFI_MONITOR.md](NIFI_MONITOR.md) · [nifi/README.md](../nifi/README.md) |
+| `workflow_nifi_monitor` / `react_nifi_runbook` | [NIFI_MONITOR.md](NIFI_MONITOR.md) · [nifi/README.md](../nifi/README.md) |
 | `workflow_kafka_monitor` | [KAFKA_MONITOR.md](KAFKA_MONITOR.md) |
 | `workflow_signal_correlate` / `workflow_cross_stack_heal` / `react_incident_scribe` | [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md) |
 

@@ -265,6 +265,48 @@ categories:
           message:
             type: string
             description: Text to classify and summarize
+  - id: ops
+    label: Ops (explain-only)
+    description: Operator briefs and runbooks from monitor facts — never mutate.
+    agents:
+    - id: react_nifi_runbook
+      manifest: react_nifi_runbook
+      display_name: NiFi Debug Runbook
+      description: Turns workflow_nifi_monitor OutputEvents into a structured diagnosis
+        → remediation → verify runbook. Uses Designer / Cloudera Inference when configured;
+        otherwise deterministic fallback. Never mutates NiFi.
+      tags:
+      - demo
+      - nifi
+      - react
+      - ops
+      - llm
+      input_schema:
+        type: object
+        properties:
+          classification:
+            type: object
+            description: Monitor classification (or pass full monitor OutputEvent)
+          health:
+            type: object
+          heal_plan:
+            type: array
+          monitor:
+            type: object
+            description: Optional wrapper containing the monitor event
+      output_schema:
+        type: object
+        properties:
+          agent:
+            type: string
+          mutations:
+            type: array
+          runbook:
+            type: object
+          source:
+            type: object
+          mode:
+            type: string
   - id: numeric
     label: Numeric (LLM)
     description: Extract and transform numbers using ReAct + LLM prompts.
