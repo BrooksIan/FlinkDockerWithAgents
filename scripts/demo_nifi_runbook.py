@@ -15,7 +15,8 @@ Usage:
   # Phase 4 HITL (interactive prompt before heal):
   python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal
   # Non-interactive approve / reject:
-  python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal --approve
+  # Clean slate + scoped heal (default). Skip with --no-clean / --no-scope.
+  python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal --approve --restore
   python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal --reject
   python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal --approve --dry-run-heal
   python3 scripts/demo_nifi_runbook.py --scenario stop-generate --publish-kafka --publish-hitl
@@ -130,10 +131,15 @@ def main() -> int:
     from ratatoskr.nifi.runbook.demo import (
         RUNBOOK_BRIEF_TOPIC,
         SCENARIOS,
+        filter_ops_by_scenario,
+        format_apply_status,
         list_scenarios,
         operator_talking_points,
         publish_runbook_brief,
         run_offline_scenario,
+        scenario_heal_regex,
+        scenario_watch_regex,
+        scoped_nifi_env,
         summarize_monitor,
         summarize_runbook,
     )
@@ -182,6 +188,16 @@ def main() -> int:
         help="With --heal, propose/apply as NIFI_HEAL_DRY_RUN=1 (ok=null)",
     )
     parser.add_argument(
+        "--no-clean",
+        action="store_true",
+        help="Skip pre-inject restore (default restores target flow first)",
+    )
+    parser.add_argument(
+        "--no-scope",
+        action="store_true",
+        help="Do not scope watch/heal to scenario names (full canvas)",
+    )
+    parser.add_argument(
         "--publish-kafka",
         action="store_true",
         help=f"Publish runbook JSON to {RUNBOOK_BRIEF_TOPIC}",
@@ -203,6 +219,8 @@ def main() -> int:
         help="Best-effort restore target flow after demo",
     )
     args = parser.parse_args()
+    do_clean = not args.no_clean
+    do_scope = not args.no_scope
 
     if args.approve and args.reject:
         print("Choose only one of --approve or --reject", file=sys.stderr)
@@ -232,11 +250,17 @@ def main() -> int:
 
         if args.heal:
             _configure_dry_run(dry_run_heal=args.dry_run_heal)
+            rem = (runbook.get("runbook") or {}).get("remediation") or {}
+            allow = filter_ops_by_scenario(
+                list(rem.get("safe_options") or []) + list(rem.get("lab_options") or []),
+                scenario,
+            ) if do_scope else None
             proposal = build_heal_proposal(
                 runbook,
                 heal_phase=str(scenario["heal_phase"]),
                 dry_run=args.dry_run_heal,
                 scenario=args.scenario,
+                allow_ops=allow,
             )
             _banner("4. HITL propose (offline — no live heal apply)")
             _pp("proposal", proposal)
@@ -269,6 +293,19 @@ def main() -> int:
 
     # --- live path ---
     _configure_dry_run(dry_run_heal=False)  # clear stale dry-run until heal step
+    watch_re = scenario_watch_regex(scenario) if do_scope else None
+    heal_re = scenario_heal_regex(scenario) if do_scope else None
+    if do_scope:
+        print(f"Scope: watch={watch_re!r} heal={heal_re!r}")
+
+    if do_clean:
+        _pause(args.pause, "about to restore target flow (clean slate)")
+        _banner("0. Clean (restore target flow)")
+        try:
+            _pp("clean", _restore(scenario))
+        except Exception as exc:  # noqa: BLE001
+            print(f"clean failed (continuing): {exc}")
+
     _pause(args.pause, "about to inject fault")
     _banner("1. Fault inject")
     injected = _inject(scenario)
@@ -278,14 +315,22 @@ def main() -> int:
     _pause(args.pause, "about to poll monitor (phase=monitor)")
     _banner("2. workflow_nifi_monitor (phase=monitor)")
     os.environ["NIFI_HEAL_PHASE"] = "monitor"
-    monitor = _monitor(phase="monitor", dry_run=False)
+    with scoped_nifi_env(watch_regex=watch_re):
+        monitor = _monitor(phase="monitor", dry_run=False)
     _pp("monitor", summarize_monitor(monitor))
 
     _pause(args.pause, "about to build runbook via Cloudera Inference / fallback")
     _banner("3. react_nifi_runbook (explain-only)")
     from examples.agents.react_nifi_runbook_logic import build_runbook
 
-    runbook = build_runbook(monitor)
+    with scoped_nifi_env(watch_regex=watch_re):
+        # Runbook uses the already-scoped monitor snapshot (not a new poll).
+        runbook = build_runbook(monitor)
+    if do_scope:
+        rem = (runbook.get("runbook") or {}).get("remediation") or {}
+        for key in ("safe_options", "lab_options"):
+            rem[key] = filter_ops_by_scenario(list(rem.get(key) or []), scenario)
+        runbook.setdefault("runbook", {})["remediation"] = rem
     _pp("runbook", summarize_runbook(runbook))
     print("\nTalking points:")
     for line in operator_talking_points(runbook, heal_phase=str(scenario["heal_phase"])):
@@ -298,11 +343,17 @@ def main() -> int:
 
     if args.heal:
         _configure_dry_run(dry_run_heal=args.dry_run_heal)
+        rem = (runbook.get("runbook") or {}).get("remediation") or {}
+        allow = filter_ops_by_scenario(
+            list(rem.get("safe_options") or []) + list(rem.get("lab_options") or []),
+            scenario,
+        ) if do_scope else None
         proposal = build_heal_proposal(
             runbook,
             heal_phase=str(scenario["heal_phase"]),
             dry_run=args.dry_run_heal,
             scenario=args.scenario,
+            allow_ops=allow,
         )
         _banner("4. HITL — Approve heal?")
         _pp(
@@ -312,6 +363,7 @@ def main() -> int:
                 "heal_phase": proposal["heal_phase"],
                 "dry_run": proposal["dry_run"],
                 "proposed_ops": proposal["proposed_ops"],
+                "scope": heal_re,
             },
         )
         if args.dry_run_heal:
@@ -339,7 +391,9 @@ def main() -> int:
                 f"5. Apply heal (phase={proposal['heal_phase']}, "
                 f"dry_run={proposal['dry_run']})"
             )
-            applied = apply_approved_heal(ack)
+            with scoped_nifi_env(watch_regex=watch_re, heal_regex=heal_re):
+                applied = apply_approved_heal(ack, heal_name_regex=heal_re)
+            print(format_apply_status(applied))
             audit = applied.get("audit") or {}
             _pp(
                 "apply",
@@ -349,6 +403,7 @@ def main() -> int:
                     "phase": applied.get("phase"),
                     "audit_dry_run": audit.get("dry_run"),
                     "executed_ok": applied.get("executed_ok"),
+                    "heal_name_regex": applied.get("heal_name_regex"),
                     "heal_actions": applied.get("heal_actions"),
                 },
             )
@@ -357,15 +412,21 @@ def main() -> int:
                 proposal,
                 status="applied" if applied.get("ok") else "approved",
                 approved=True,
-                note=f"executed_ok={applied.get('executed_ok')}",
+                note=format_apply_status(applied),
             )
 
             _banner("6. Verify (re-poll monitor + runbook)")
             os.environ["NIFI_HEAL_PHASE"] = "monitor"
             os.environ.pop("NIFI_HEAL_DRY_RUN", None)
-            verify = _monitor(phase="monitor", dry_run=False)
+            with scoped_nifi_env(watch_regex=watch_re):
+                verify = _monitor(phase="monitor", dry_run=False)
             _pp("verify monitor", summarize_monitor(verify))
             verify_rb = build_runbook(verify)
+            if do_scope:
+                vrem = (verify_rb.get("runbook") or {}).get("remediation") or {}
+                for key in ("safe_options", "lab_options"):
+                    vrem[key] = filter_ops_by_scenario(list(vrem.get(key) or []), scenario)
+                verify_rb.setdefault("runbook", {})["remediation"] = vrem
             _pp("verify runbook", summarize_runbook(verify_rb))
 
     if args.restore:

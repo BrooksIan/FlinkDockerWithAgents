@@ -96,18 +96,16 @@ python examples/agents/run_react_nifi_runbook_local.py --live
 
 **POC chain (Phase 3–4):** fault → monitor → runbook → **HITL approve** → gated heal:
 
+Defaults: **clean** target flow before inject, **scope** watch/heal to scenario names (e.g. `stop-generate` only touches `GenerateFlowFile`, ignoring Replay*/JsonTreeReader noise). Override with `--no-clean` / `--no-scope`.
+
 ```bash
 python3 scripts/demo_nifi_runbook.py --list
 python3 scripts/demo_nifi_runbook.py --offline --scenario stop-generate
-python3 scripts/demo_nifi_runbook.py --scenario stop-generate --pause
-# Phase 4 HITL (interactive y/N before mutate):
-python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal
-# Non-interactive:
-python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal --approve
+# Clean + scoped + HITL auto-approve:
+python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal --approve --restore
 python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal --approve --dry-run-heal
-python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal --reject
-# Optional sinks (requires ratatoskr kafka up):
-python3 scripts/demo_nifi_runbook.py --offline --scenario stop-generate --publish-kafka --publish-hitl --heal --approve
+# Full-canvas (old behavior):
+python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal --approve --no-clean --no-scope
 ```
 
 HITL topics: `nifi.runbook.propose` / `nifi.runbook.ack`. ReAct still never mutates; only an approved ack triggers `workflow_nifi_monitor`.

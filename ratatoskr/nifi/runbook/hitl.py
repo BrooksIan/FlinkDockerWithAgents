@@ -27,6 +27,7 @@ def build_heal_proposal(
     heal_phase: str = "safe",
     dry_run: bool = False,
     scenario: str | None = None,
+    allow_ops: list[str] | None = None,
 ) -> dict[str, Any]:
     """Build a heal proposal from runbook remediation (no mutations)."""
     rb = runbook_event.get("runbook") or {}
@@ -39,6 +40,11 @@ def build_heal_proposal(
         ops = list(safe)
     else:
         ops = list(safe) + list(lab)
+    if allow_ops is not None:
+        allow = set(allow_ops)
+        ops = [o for o in ops if o in allow]
+        safe = [o for o in safe if o in allow]
+        lab = [o for o in lab if o in allow]
 
     return {
         "kind": "nifi_runbook_heal_propose",
@@ -186,11 +192,13 @@ def apply_approved_heal(
     ack: dict[str, Any],
     *,
     process_group_id: str | None = None,
+    heal_name_regex: str | None = None,
 ) -> dict[str, Any]:
     """
     Execute heal via ``workflow_nifi_monitor`` only if ``ack.approved``.
 
     Sets env phase/dry_run for the cycle, then restores monitor phase afterward.
+    Optional ``heal_name_regex`` scopes mutations via ``NIFI_HEAL_ALLOW_NAME_REGEX``.
     """
     if not ack.get("approved"):
         return {
@@ -208,11 +216,14 @@ def apply_approved_heal(
     dry = bool(ack.get("dry_run"))
     prev_phase = os.environ.get("NIFI_HEAL_PHASE")
     prev_dry = os.environ.get("NIFI_HEAL_DRY_RUN")
+    prev_allow = os.environ.get("NIFI_HEAL_ALLOW_NAME_REGEX")
     os.environ["NIFI_HEAL_PHASE"] = phase
     if dry:
         os.environ["NIFI_HEAL_DRY_RUN"] = "1"
     else:
         os.environ.pop("NIFI_HEAL_DRY_RUN", None)
+    if heal_name_regex:
+        os.environ["NIFI_HEAL_ALLOW_NAME_REGEX"] = heal_name_regex
 
     pg = process_group_id or os.environ.get("NIFI_PROCESS_GROUP_ID", "root")
     try:
@@ -226,6 +237,11 @@ def apply_approved_heal(
             os.environ.pop("NIFI_HEAL_DRY_RUN", None)
         else:
             os.environ["NIFI_HEAL_DRY_RUN"] = prev_dry
+        if heal_name_regex is not None:
+            if prev_allow is None:
+                os.environ.pop("NIFI_HEAL_ALLOW_NAME_REGEX", None)
+            else:
+                os.environ["NIFI_HEAL_ALLOW_NAME_REGEX"] = prev_allow
 
     actions = list(result.get("heal_actions") or [])
     executed_ok = sum(1 for a in actions if a.get("ok") is True)
@@ -234,6 +250,7 @@ def apply_approved_heal(
         "proposal_id": ack.get("proposal_id"),
         "dry_run": dry,
         "phase": phase,
+        "heal_name_regex": heal_name_regex,
         "audit": result.get("audit"),
         "heal_actions": actions,
         "executed_ok": executed_ok,

@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+import os
+import re
+from contextlib import contextmanager
+from typing import Any, Iterator
 
 RUNBOOK_BRIEF_TOPIC = "nifi.runbook.brief"
 
-# Scenario id → (fixture_id, fault flag for nifi_fault_inject, heal phase, blurb)
+# Scenario id → fault + heal scope (names keep live POC focused on the injected story).
 SCENARIOS: dict[str, dict[str, Any]] = {
     "stop-generate": {
         "fixture": "stop-generate",
@@ -15,6 +18,8 @@ SCENARIOS: dict[str, dict[str, Any]] = {
         "target": "sample",
         "heal_phase": "safe",
         "title": "Stop GenerateFlowFile → safe start_processor",
+        "watch_names": ["GenerateFlowFile", "UpdateAttribute", "LogAttribute"],
+        "heal_names": ["GenerateFlowFile"],
     },
     "invalid-log": {
         "fixture": "invalid-log",
@@ -22,6 +27,8 @@ SCENARIOS: dict[str, dict[str, Any]] = {
         "target": "sample",
         "heal_phase": "lab",
         "title": "INVALID LogAttribute → lab fix_processor_config",
+        "watch_names": ["GenerateFlowFile", "UpdateAttribute", "LogAttribute"],
+        "heal_names": ["LogAttribute"],
     },
     "queue-backlog": {
         "fixture": "queue-backlog",
@@ -29,6 +36,9 @@ SCENARIOS: dict[str, dict[str, Any]] = {
         "target": "sample",
         "heal_phase": "lab",
         "title": "Queue backlog → lab empty/start (gated)",
+        "watch_names": ["GenerateFlowFile", "UpdateAttribute", "LogAttribute"],
+        "heal_names": ["GenerateFlowFile", "UpdateAttribute", "LogAttribute"],
+        "heal_name_regex": r"GenerateFlowFile|UpdateAttribute|LogAttribute",
     },
     "stop-consume": {
         "fixture": "stop-consume",
@@ -36,6 +46,8 @@ SCENARIOS: dict[str, dict[str, Any]] = {
         "target": "kafka",
         "heal_phase": "safe",
         "title": "Stop ConsumeKafka → safe start_processor",
+        "watch_names": ["ConsumeKafka", "UpdateAttribute", "LogAttribute"],
+        "heal_names": ["ConsumeKafka"],
     },
 }
 
@@ -47,9 +59,95 @@ def list_scenarios() -> list[dict[str, str]]:
             "title": str(meta["title"]),
             "heal_phase": str(meta["heal_phase"]),
             "fixture": str(meta["fixture"]),
+            "heal_names": ",".join(meta.get("heal_names") or []),
         }
         for sid, meta in SCENARIOS.items()
     ]
+
+
+def names_to_regex(names: list[str]) -> str:
+    """Exact-name alternation suitable for NIFI_WATCH_* / NIFI_HEAL_ALLOW_NAME_REGEX."""
+    parts = [re.escape(n) for n in names if n]
+    if not parts:
+        return ""
+    return r"^(?:%s)$" % "|".join(parts)
+
+
+def scenario_watch_regex(scenario: dict[str, Any]) -> str | None:
+    if scenario.get("watch_name_regex"):
+        return str(scenario["watch_name_regex"])
+    names = list(scenario.get("watch_names") or [])
+    return names_to_regex(names) or None
+
+
+def scenario_heal_regex(scenario: dict[str, Any]) -> str | None:
+    if scenario.get("heal_name_regex"):
+        return str(scenario["heal_name_regex"])
+    names = list(scenario.get("heal_names") or [])
+    return names_to_regex(names) or None
+
+
+def filter_ops_by_scenario(ops: list[str], scenario: dict[str, Any]) -> list[str]:
+    """Keep remediation refs whose component name matches scenario heal scope."""
+    pattern = scenario_heal_regex(scenario)
+    if not pattern:
+        return list(ops)
+    cre = re.compile(pattern)
+    out: list[str] = []
+    for ref in ops:
+        name = ref.split(":", 1)[-1] if ":" in ref else ref
+        if cre.search(name):
+            out.append(ref)
+    return out
+
+
+@contextmanager
+def scoped_nifi_env(
+    *,
+    watch_regex: str | None = None,
+    heal_regex: str | None = None,
+) -> Iterator[None]:
+    """Temporarily set watch / heal allowlist env for a focused POC poll."""
+    keys = ("NIFI_WATCH_NAME_REGEX", "NIFI_HEAL_ALLOW_NAME_REGEX")
+    prev = {k: os.environ.get(k) for k in keys}
+    try:
+        if watch_regex:
+            os.environ["NIFI_WATCH_NAME_REGEX"] = watch_regex
+        if heal_regex:
+            os.environ["NIFI_HEAL_ALLOW_NAME_REGEX"] = heal_regex
+        yield
+    finally:
+        for k, v in prev.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
+def format_apply_status(applied: dict[str, Any]) -> str:
+    """One-line heal outcome for demos."""
+    audit = applied.get("audit") or {}
+    dry = applied.get("dry_run")
+    if dry is None:
+        dry = audit.get("dry_run")
+    actions = list(applied.get("heal_actions") or [])
+    ok_t = sum(1 for a in actions if a.get("ok") is True)
+    ok_f = sum(1 for a in actions if a.get("ok") is False)
+    ok_n = sum(1 for a in actions if a.get("ok") is None)
+    skipped = [a.get("skipped") for a in actions if a.get("skipped")]
+    parts = [
+        f"dry_run={bool(dry)}",
+        f"phase={applied.get('phase') or audit.get('phase')}",
+        f"actions={len(actions)}",
+        f"executed_ok={applied.get('executed_ok', ok_t)}",
+        f"failed={ok_f}",
+        f"planned_only={ok_n}",
+    ]
+    if skipped:
+        parts.append(f"skipped={skipped[:3]}")
+    if applied.get("skipped"):
+        parts.append(f"gate={applied['skipped']}")
+    return "heal status: " + " ".join(parts)
 
 
 def summarize_monitor(event: dict[str, Any]) -> dict[str, Any]:
@@ -105,7 +203,8 @@ def operator_talking_points(runbook_event: dict[str, Any], *, heal_phase: str) -
         "Read diagnostic_steps, then remediation.safe_options / lab_options.",
         "Phase 4 HITL: approve before heal "
         f"(demo: --heal prompts, or --heal --approve / --heal --reject).",
-        f"Approved heals use NIFI_HEAL_PHASE={heal_phase} via workflow_nifi_monitor.",
+        f"Approved heals use NIFI_HEAL_PHASE={heal_phase} via workflow_nifi_monitor "
+        "(scoped to scenario heal_names).",
         f"Suggested safe ops: {rem.get('safe_options') or []}",
         f"Suggested lab ops: {rem.get('lab_options') or []}",
     ]
