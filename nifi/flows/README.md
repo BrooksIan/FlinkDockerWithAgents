@@ -52,9 +52,10 @@
 #     python3 scripts/demo_nifi_kafka_heal.py --scenario cross-lag
 #     python3 scripts/demo_nifi_kafka_heal.py --all
 #
-#   Cross runbook (explain-only):
-#     python3 scripts/demo_cross_runbook.py
+#   Cross runbook (+ optional HITL → cross-stack heal):
 #     python3 scripts/demo_cross_runbook.py --scenario topic-missing
+#     python3 scripts/demo_cross_runbook.py --scenario topic-missing --heal --approve
+#     python3 scripts/demo_cross_runbook.py --live --inject --heal --approve
 #
 #   Fault inject (kafka target):
 #     python3 scripts/nifi_fault_inject.py --target kafka --stop-consume
@@ -80,7 +81,7 @@
 #     docs/NIFI_MONITOR.md — NiFi + orchestrated catalog
 #     docs/NIFI_RUNBOOK.md — react_nifi_runbook + HITL
 #     docs/KAFKA_MONITOR.md — Kafka heals
-#     docs/SIGNAL_CORRELATE.md — cross-topic / cross-lag / cross runbook
+#     docs/SIGNAL_CORRELATE.md — cross-topic / cross-lag / cross runbook HITL
 #
 # Fault injection (sample flow):
 #   python3 scripts/nifi_fault_inject.py --stop-generate

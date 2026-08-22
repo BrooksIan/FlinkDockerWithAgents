@@ -236,6 +236,7 @@ python3 scripts/demo_nifi_kafka_heal.py --scenario cross-lag     # NiFi queue re
 | `lag-group` | lab | `delete_group` and/or `reset_offsets` |
 | `lag-earliest` | lab | `reset_offsets` with `KAFKA_HEAL_OFFSET_STRATEGY=earliest` |
 | `cross-topic` / `cross-lag` | lab | Coordinated playbooks — [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md) |
+| Cross runbook HITL | lab after ack | `python3 scripts/demo_cross_runbook.py --live --inject --heal --approve` |
 
 Full NiFi-side scenarios: [NIFI_MONITOR.md](NIFI_MONITOR.md#orchestrated-heal-examples).
 
@@ -250,4 +251,4 @@ ratatoskr agent run workflow_kafka_monitor --cluster
 
 Topics: `kafka.monitor.poll` / `kafka.monitor.output` (Studio kafka-init + `kafka_sources`).
 
-Studio compose: [`deploy/docker-compose.kafka.yml`](../deploy/docker-compose.kafka.yml). Cross-signal with NiFi: [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md).
+Studio compose: [`deploy/docker-compose.kafka.yml`](../deploy/docker-compose.kafka.yml). Cross-signal + runbook HITL: [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md).

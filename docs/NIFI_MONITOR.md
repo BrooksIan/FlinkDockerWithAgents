@@ -79,7 +79,8 @@ ratatoskr agent run workflow_nifi_monitor --local
 
 After a monitor poll (or from a fixture), `react_nifi_runbook` turns facts into diagnosis → remediation → verify. Mutations stay on `workflow_nifi_monitor` heal phases (optionally after HITL ack).
 
-**Full runbook guide (HITL topics, scenarios, cross runbook):** [NIFI_RUNBOOK.md](NIFI_RUNBOOK.md).
+**Full runbook guide (HITL topics, scenarios):** [NIFI_RUNBOOK.md](NIFI_RUNBOOK.md).  
+**Cross-stack runbook + HITL:** [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md) · `python3 scripts/demo_cross_runbook.py --live --inject --heal --approve`.
 
 ```bash
 # Offline fixture
@@ -95,7 +96,7 @@ python3 scripts/demo_nifi_runbook.py --list
 python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal --approve --restore
 ```
 
-HITL topics: `nifi.runbook.propose` / `nifi.runbook.ack`. Talking point: *Inference didn’t touch the canvas; the operator approved; the workflow healed.*
+HITL topics (NiFi only): `nifi.runbook.propose` / `nifi.runbook.ack`. Cross-stack uses `signals.cross_runbook.*`. Talking point: *Inference didn’t touch the canvas; the operator approved; the workflow healed.*
 
 Direct heal without runbook (sample flow):
 

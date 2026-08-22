@@ -11,12 +11,15 @@ flowchart LR
   C --> I["incidents[]\nmatched_rules"]
   I --> S["react_incident_scribe\nbrief only"]
   I --> R["react_cross_runbook\nchecklist"]
-  I --> H["workflow_cross_stack_heal\nCROSS_HEAL_PHASE"]
+  R --> P["signals.cross_runbook.propose"]
+  P --> A["signals.cross_runbook.ack\nHITL"]
+  A -->|approved| H["workflow_cross_stack_heal\nCROSS_HEAL_PHASE=lab"]
+  I --> H
   H -->|"lab playbooks"| NifiMut["NiFi apply_heal_policy"]
   H -->|"lab playbooks"| KafkaMut["Kafka apply_heal_policy"]
 ```
 
-### Correlate → brief → optional heal
+### Correlate → brief / runbook → optional heal
 
 ```mermaid
 flowchart TB
@@ -26,7 +29,9 @@ flowchart TB
   C -->|yes| E["incidents + evidence"]
   E --> F["react_incident_scribe\nLLM or fallback"]
   E --> R["react_cross_runbook\nstructured checklist"]
-  E --> G{"CROSS_HEAL_PHASE"}
+  R --> HITL{"HITL ack?"}
+  HITL -->|approved| G{"CROSS_HEAL_PHASE"}
+  E --> G
   G -->|monitor| H["heal_plan only"]
   G -->|lab| I["CROSS_HEAL_PLAYBOOKS\nordered side heals"]
 ```
@@ -38,7 +43,7 @@ flowchart TB
 | `workflow_signal_correlate` | workflow | Match rules across NiFi + Kafka severities → `incidents[]` (observe-only) |
 | `workflow_cross_stack_heal` | workflow | Correlate, then run playbooks when `CROSS_HEAL_PHASE=lab` |
 | `react_incident_scribe` | react | Explain incidents (Designer LLM or deterministic fallback). **Never mutates.** |
-| `react_cross_runbook` | react | Structured diagnosis → remediation → verify checklist from correlation (same shape as NiFi runbook). **Never mutates.** See [NIFI_RUNBOOK.md](NIFI_RUNBOOK.md). |
+| `react_cross_runbook` | react | Structured diagnosis → remediation → verify checklist from correlation (same shape as NiFi runbook). **Never mutates.** Optional HITL → `workflow_cross_stack_heal`. See [NIFI_RUNBOOK.md](NIFI_RUNBOOK.md). |
 
 ## Rules
 
@@ -125,6 +130,8 @@ python3 scripts/demo_cross_runbook.py --live --inject --heal
 ```
 
 Talking point: *Inference didn’t touch NiFi or Kafka; the operator approved; the cross-stack workflow healed.*
+
+Package: [`ratatoskr/correlation/runbook/`](../ratatoskr/correlation/runbook/) (`hitl.py`, `fallback.py`, context).
 
 ## Live heal examples
 

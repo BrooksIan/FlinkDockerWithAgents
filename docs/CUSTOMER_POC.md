@@ -63,10 +63,11 @@ python3 scripts/demo_customer_poc.py --dry-run-apply
 - NiFi Registry promote/revert  
 - Mandatory IdP / ServiceNow productization  
 
-Optional separate demos:
+Optional separate demos (do not mix HITL topic namespaces):
 
 - Infra heal catalog: `python3 scripts/demo_nifi_kafka_heal.py --list`
-- NiFi runbook + HITL (different Kafka topics — `nifi.runbook.*`): [NIFI_RUNBOOK.md](NIFI_RUNBOOK.md) · `python3 scripts/demo_nifi_runbook.py --heal --approve`
+- NiFi runbook + HITL (`nifi.runbook.*`): [NIFI_RUNBOOK.md](NIFI_RUNBOOK.md) · `python3 scripts/demo_nifi_runbook.py --heal --approve`
+- Cross-stack runbook + HITL (`signals.cross_runbook.*`): [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md) · `python3 scripts/demo_cross_runbook.py --scenario topic-missing --heal --approve` · live: `--live --inject --heal --approve`
 
 ## Docs
 

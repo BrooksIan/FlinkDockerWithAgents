@@ -31,7 +31,7 @@ Catalog: [`agents/agent-catalog.yaml`](agents/agent-catalog.yaml) — categories
 | `workflow_cross_stack_heal` | workflow | `run_workflow_cross_stack_heal_local.py` | Correlate + coordinated heals (`CROSS_HEAL_PHASE`) |
 | `react_echo` | react | `run_react_local.py` | Tool-chaining lab (no LLM) |
 | `react_incident_scribe` | react | `run_react_incident_scribe_local.py` | Explain correlated incidents (never mutates) |
-| `react_cross_runbook` | react | `run_react_cross_runbook_local.py` | Cross-signal NiFi↔Kafka runbook (never mutates) |
+| `react_cross_runbook` | react | `run_react_cross_runbook_local.py` | Cross-signal NiFi↔Kafka runbook (never mutates; HITL via `demo_cross_runbook.py`) |
 | `react_nifi_runbook` | react | `run_react_nifi_runbook_local.py` | Structured NiFi debug runbook (never mutates) |
 | `react_double_value` | react | `run_react_double_local.py` | LLM doubles numeric input (Designer settings) |
 | `react_skills_demo` | react | `run_react_skills_demo_local.py` | Native `@chat_model_setup` + math-calculator skill |

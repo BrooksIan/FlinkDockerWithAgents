@@ -63,7 +63,9 @@ flowchart LR
   K["kafka monitor"] --> C
   C --> CR["react_cross_runbook"]
   C --> Scribe["react_incident_scribe"]
-  C --> XHeal["workflow_cross_stack_heal\noptional lab"]
+  CR --> PropX["signals.cross_runbook.propose"]
+  PropX --> AckX["signals.cross_runbook.ack\nHITL"]
+  AckX -->|"approved"| XHeal["workflow_cross_stack_heal\nCROSS_HEAL_PHASE=lab"]
 ```
 
 ## NiFi runbook POC
@@ -158,7 +160,7 @@ Cloudera Inference aliases: `CLOUDERA_*` (same settings surface as other ReAct d
 ## Related
 
 - [NIFI_MONITOR.md](NIFI_MONITOR.md) — monitor / heal matrix  
-- [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md) — cross rules + `react_cross_runbook`  
+- [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md) — cross rules + `react_cross_runbook` HITL (`signals.cross_runbook.*`)  
 - [CUSTOMER_POC.md](CUSTOMER_POC.md) — data-plane propose/ack/apply (not heal)  
 - [DATAPLANE_APPROVAL.md](DATAPLANE_APPROVAL.md) — `dataplane.propose` / `dataplane.ack`  
 - [nifi/README.md](../nifi/README.md) — lab quickstart  

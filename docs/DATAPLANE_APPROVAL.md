@@ -37,3 +37,4 @@ Agent: `workflow_dataplane_approval` · module [`ratatoskr/dataplane/bus.py`](..
 ## Related
 
 - [SCHEMA_GATE.md](SCHEMA_GATE.md) · [ROUTE_ENRICH.md](ROUTE_ENRICH.md) · [REPLAY.md](REPLAY.md)
+- Do not mix with heal HITL: NiFi `nifi.runbook.*` · cross-stack `signals.cross_runbook.*` — [NIFI_RUNBOOK.md](NIFI_RUNBOOK.md) · [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md)

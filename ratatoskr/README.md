@@ -101,7 +101,7 @@ ratatoskr/
 
 `configure_runtime_sys_path()` loads honeypot modules only for the `full` profile.
 
-Monitor guides: [docs/NIFI_MONITOR.md](../docs/NIFI_MONITOR.md) · [docs/KAFKA_MONITOR.md](../docs/KAFKA_MONITOR.md) · [docs/SIGNAL_CORRELATE.md](../docs/SIGNAL_CORRELATE.md).
+Monitor guides: [docs/NIFI_MONITOR.md](../docs/NIFI_MONITOR.md) · [docs/KAFKA_MONITOR.md](../docs/KAFKA_MONITOR.md) · [docs/SIGNAL_CORRELATE.md](../docs/SIGNAL_CORRELATE.md) (cross runbook HITL) · [docs/NIFI_RUNBOOK.md](../docs/NIFI_RUNBOOK.md).
 
 ## Environment
 

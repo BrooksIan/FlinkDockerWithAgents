@@ -200,7 +200,7 @@ Agents are declared in [`examples/agents/agent-manifest.yaml`](../examples/agent
 | `react_echo` | react | Tool-chaining lab agent (no LLM) |
 | `react_incident_scribe` | react | Explain correlated incidents (never mutates) |
 | `react_nifi_runbook` | react | Structured NiFi debug runbook from monitor facts (never mutates) — [NIFI_RUNBOOK.md](NIFI_RUNBOOK.md) |
-| `react_cross_runbook` | react | Structured NiFi↔Kafka runbook from correlation (never mutates) — [NIFI_RUNBOOK.md](NIFI_RUNBOOK.md) |
+| `react_cross_runbook` | react | Structured NiFi↔Kafka runbook from correlation (never mutates; optional HITL) — [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md) |
 | `react_double_value` | react | ReAct agent that doubles values via LLM (requires Settings LLM) |
 | `react_skills_demo` | react | Native Flink chat model + math-calculator skill (requires Settings LLM) |
 | `session_detect` | workflow | Classify closed sessions from dynamic Flink windows (Cowrie demo) |
@@ -263,6 +263,8 @@ ratatoskr status
 ratatoskr monitor start              # continuous host polls
 ratatoskr monitor start --cluster    # Flink cluster monitors
 python3 scripts/demo_nifi_kafka_heal.py --list
+python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal --approve
+python3 scripts/demo_cross_runbook.py --scenario topic-missing --heal --approve
 ```
 
 ### Studio cluster restart
