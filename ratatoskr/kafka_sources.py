@@ -35,6 +35,7 @@ _STATIC_TOPICS: dict[str, str] = {
     "signals.correlate.output": "NiFi↔Kafka correlation incidents (workflow_signal_correlate)",
     "signals.cross_heal.output": "Cross-stack heal results (workflow_cross_stack_heal)",
     "signals.incident.brief": "Incident scribe briefs (react_incident_scribe)",
+    "nifi.runbook.brief": "NiFi debug runbooks (react_nifi_runbook)",
 }
 
 # Topics created by deploy/docker-compose.kafka.yml kafka-init (+ monitor topics).
@@ -50,6 +51,7 @@ STUDIO_CATALOG_TOPICS: frozenset[str] = frozenset(
         "kafka.monitor.poll",
         "kafka.monitor.output",
         "nifi.kafka.demo",
+        "nifi.runbook.brief",
     }
 )
 

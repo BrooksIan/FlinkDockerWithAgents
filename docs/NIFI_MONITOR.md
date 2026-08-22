@@ -81,6 +81,8 @@ After a monitor poll (or from a fixture), `react_nifi_runbook` turns facts into 
 
 Phase 2: prompt includes queue depths, bulletin fingerprints, severity guidance, and an **allowed remediation catalog**. Even when `heal_plan` is empty (`NIFI_HEAL_PHASE=monitor`), the runbook proposes the same safe/lab ops `build_heal_plan(..., phase=lab)` would — then **constrains** LLM output to those exact `op:name` strings (enable before start).
 
+**Cloudera Inference:** configure Designer Settings (or `RATATOSKR_LLM_ENDPOINT_URL` / `RATATOSKR_LLM_MODEL_ID` / `RATATOSKR_LLM_API_KEY`, aliases `CLOUDERA_*`). Without a complete config the agent uses deterministic fallback (`mode: fallback`).
+
 ```bash
 # Offline (fixture → fallback or LLM if Designer settings configured)
 python examples/agents/run_react_nifi_runbook_local.py
@@ -91,6 +93,20 @@ export NIFI_HEAL_PHASE=monitor
 python examples/agents/run_react_nifi_runbook_local.py --live
 # or: ratatoskr agent run react_nifi_runbook --local
 ```
+
+**POC chain (Phase 3):** fault → monitor → runbook → read remediation → gated heal:
+
+```bash
+python3 scripts/demo_nifi_runbook.py --list
+python3 scripts/demo_nifi_runbook.py --offline --scenario stop-generate
+python3 scripts/demo_nifi_runbook.py --scenario stop-generate --pause
+python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal --dry-run-heal
+python3 scripts/demo_nifi_runbook.py --scenario invalid-log --heal   # lab phase
+# Optional sink (requires ratatoskr kafka up):
+python3 scripts/demo_nifi_runbook.py --offline --scenario stop-generate --publish-kafka
+```
+
+Talking point: *Inference didn’t touch the canvas; it told us how to debug and which gated heal to use.* Then set `NIFI_HEAL_PHASE=safe|lab` (or use `--heal`).
 
 Inject a stopped processor, then heal:
 

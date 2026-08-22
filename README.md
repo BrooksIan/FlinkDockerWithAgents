@@ -62,6 +62,7 @@ python examples/agents/run_react_nifi_runbook_local.py   # fixture; add --live a
 
 - NiFi UI: https://localhost:8443/nifi — login `admin` / `RatatoskrNiFi1!`
 - Heal demos: [docs/NIFI_MONITOR.md](docs/NIFI_MONITOR.md#orchestrated-heal-examples) · `python3 scripts/demo_nifi_kafka_heal.py --list`
+- Runbook POC: `python3 scripts/demo_nifi_runbook.py --offline --scenario stop-generate` · [docs/NIFI_MONITOR.md](docs/NIFI_MONITOR.md#structured-runbook-react-never-mutates)
 - Continuous: `ratatoskr monitor start` · [docs/NIFI_MONITOR.md](docs/NIFI_MONITOR.md#continuous-and-cluster)
 - Details: [nifi/README.md](nifi/README.md) · [docs/NIFI_MONITOR.md](docs/NIFI_MONITOR.md)
 

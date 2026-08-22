@@ -74,6 +74,8 @@ examples/agents/
 
 Guides: [docs/NIFI_MONITOR.md](../docs/NIFI_MONITOR.md) · [docs/KAFKA_MONITOR.md](../docs/KAFKA_MONITOR.md) · [docs/SIGNAL_CORRELATE.md](../docs/SIGNAL_CORRELATE.md).
 
+NiFi runbook POC: `python3 scripts/demo_nifi_runbook.py --list` · `--offline --scenario stop-generate`.
+
 ### Add a new agent
 
 1. Create `examples/agents/my_agent.py` — subclass `flink_agents` `Agent` with `@action` / `@tool`.
