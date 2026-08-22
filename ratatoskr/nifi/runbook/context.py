@@ -141,12 +141,11 @@ def constrain_remediation(
     """
     Keep only remediation lines that match allowed heal refs.
 
-    If the LLM invents ops/names, drop them. If filtering leaves safe/lab empty
-    while allowed lists are non-empty, fill from allowed (ordered).
+    Hallucinated ops/names are dropped. If a bucket is empty after filtering,
+    fill from the allowed catalog so the runbook still cites exact heal_plan ops.
     """
     allowed_safe_set = set(allowed_safe)
     allowed_lab_set = set(allowed_lab)
-    allowed_all = allowed_safe_set | allowed_lab_set
 
     def _filter(raw: Any, bucket: set[str]) -> list[str]:
         if isinstance(raw, str):
@@ -156,10 +155,7 @@ def constrain_remediation(
         out: list[str] = []
         for item in raw:
             ref = str(item).strip()
-            if not ref:
-                continue
-            # Exact match preferred; also accept op:id if plan used names (and vice versa) — exact only for Phase 2.
-            if ref in bucket or (not bucket and ref in allowed_all):
+            if ref and ref in bucket:
                 out.append(ref)
         return order_refs(out)
 
@@ -168,16 +164,8 @@ def constrain_remediation(
 
     if not safe and allowed_safe:
         safe = list(allowed_safe)
-    if not lab and allowed_lab and not remediation.get("lab_options"):
-        # Only auto-fill lab when LLM omitted lab entirely; if LLM listed lab but all
-        # hallucinated, leave empty rather than surprising the operator with lab ops.
-        pass
-    if not lab and allowed_lab and not _filter(remediation.get("lab_options"), allowed_lab_set):
-        # LLM had no valid lab refs — if severity implies lab (allowed_lab non-empty) and
-        # LLM put nothing usable, fill from allowed lab catalog.
-        raw_lab = remediation.get("lab_options")
-        if not raw_lab:
-            lab = list(allowed_lab)
+    if not lab and allowed_lab:
+        lab = list(allowed_lab)
 
     do_not = remediation.get("do_not") or []
     if isinstance(do_not, str):

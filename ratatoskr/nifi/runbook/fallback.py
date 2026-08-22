@@ -1,9 +1,16 @@
-"""Deterministic NiFi runbook when Cloudera Inference is unavailable (Phase 0)."""
+"""Deterministic NiFi runbook when Cloudera Inference is unavailable (Phase 0/2)."""
 
 from __future__ import annotations
 
 from typing import Any
 
+from ratatoskr.nifi.runbook.context import (
+    allowed_remediation,
+    order_refs,
+    proposed_heal_plan,
+    ref_key,
+    severity_guidance,
+)
 from ratatoskr.nifi.runbook.schema import empty_runbook, wrap_runbook_event
 
 
@@ -27,50 +34,12 @@ def _names(items: list[dict[str, Any]] | None, *, limit: int = 5) -> list[str]:
     return out
 
 
-def _heal_refs(plan: list[dict[str, Any]] | None, *, phase_hint: str) -> list[str]:
-    """Format heal_plan entries as remediation option strings (ids from plan only)."""
-    refs: list[str] = []
-    for a in plan or []:
-        op = a.get("op")
-        name = a.get("name") or a.get("id")
-        if not op or not name:
-            continue
-        refs.append(f"{op}:{name}")
-    return refs
-
-
-def _split_heal_by_phase(plan: list[dict[str, Any]] | None) -> tuple[list[str], list[str]]:
-    """Best-effort split: start/enable → safe; terminate/stop/empty/fix → lab."""
-    safe_ops = {"start_processor", "enable_controller_service"}
-    lab_ops = {
-        "terminate_processor",
-        "stop_processor",
-        "empty_connection_queue",
-        "fix_processor_config",
-        "restart_processor",
-    }
-    safe: list[str] = []
-    lab: list[str] = []
-    for a in plan or []:
-        op = str(a.get("op") or "")
-        name = a.get("name") or a.get("id")
-        if not op or not name:
-            continue
-        ref = f"{op}:{name}"
-        if op in safe_ops:
-            safe.append(ref)
-        elif op in lab_ops:
-            lab.append(ref)
-        else:
-            lab.append(ref)
-    return safe, lab
-
-
 def fallback_runbook(monitor_event: dict[str, Any]) -> dict[str, Any]:
     """
     Build a valid runbook from a ``workflow_nifi_monitor`` OutputEvent.
 
     Never mutates NiFi — explanation + checklist only.
+    Remediation cites proposed heal_plan (or lab proposal when event plan is empty).
     """
     event = monitor_event
     if isinstance(monitor_event.get("value"), dict):
@@ -78,7 +47,6 @@ def fallback_runbook(monitor_event: dict[str, Any]) -> dict[str, Any]:
 
     classification = event.get("classification") or {}
     health = event.get("health") or {}
-    heal_plan = list(event.get("heal_plan") or [])
     sevs = _severities(event)
     level = classification.get("level") or ("OK" if not sevs else "MEDIUM")
     score = classification.get("score")
@@ -88,7 +56,11 @@ def fallback_runbook(monitor_event: dict[str, Any]) -> dict[str, Any]:
     invalid = _names(health.get("invalid_processors"))
     queued = _names(health.get("queued_connections"))
     disabled = _names(health.get("disabled_controller_services"))
-    safe_opts, lab_opts = _split_heal_by_phase(heal_plan)
+
+    allowed = allowed_remediation(event)
+    safe_opts = list(allowed["safe_options"])
+    lab_opts = list(allowed["lab_options"])
+    plan = proposed_heal_plan(event)
 
     rb = empty_runbook(mode="fallback")
 
@@ -123,12 +95,15 @@ def fallback_runbook(monitor_event: dict[str, Any]) -> dict[str, Any]:
                 "severities": sevs,
                 "level": level,
                 "score": score,
+                "heal_plan_ops": [],
+                "heal_plan_source": "event" if (event.get("heal_plan") or []) else "proposed_lab",
             },
         )
 
-    # Headline from primary severity
     primary = sevs[0] if sevs else "UNHEALTHY"
-    rb["headline"] = f"NiFi runbook: {primary}" + (f" (+{len(sevs) - 1} more)" if len(sevs) > 1 else "")
+    rb["headline"] = f"NiFi runbook: {primary}" + (
+        f" (+{len(sevs) - 1} more)" if len(sevs) > 1 else ""
+    )
     rb["situation"] = (
         f"Monitor level={level}, score={score}, severities={', '.join(sevs)}. "
         f"Stopped={stopped or '[]'}; invalid={invalid or '[]'}; "
@@ -206,6 +181,8 @@ def fallback_runbook(monitor_event: dict[str, Any]) -> dict[str, Any]:
             "expect": "Same severities until remediated",
         },
     ]
+    for hint in severity_guidance(sevs):
+        diag.append({"step": hint, "where": "CLI", "expect": "Follow guidance before heal"})
     if invalid:
         diag.append(
             {
@@ -233,21 +210,24 @@ def fallback_runbook(monitor_event: dict[str, Any]) -> dict[str, Any]:
         )
     rb["diagnostic_steps"] = diag
 
-    # Remediation: prefer heal_plan refs; else severity templates without inventing ids
+    # Templates only when proposed plan is empty (e.g. unreachable)
     if not safe_opts and "STOPPED" in sevs and stopped:
         safe_opts = [f"start_processor:{n}" for n in stopped]
     if not safe_opts and "DISABLED_SERVICE" in sevs and disabled:
         safe_opts = [f"enable_controller_service:{n}" for n in disabled]
+    if "DISABLED_SERVICE" in sevs and disabled:
+        enables = [f"enable_controller_service:{n}" for n in disabled]
+        safe_opts = order_refs(enables + safe_opts)
     if not lab_opts and "INVALID" in sevs and invalid:
-        lab_opts = [f"fix_processor_config:{n}" for n in invalid] + [
-            f"terminate_processor:{n}" for n in invalid
-        ]
+        lab_opts = [
+            f"fix_processor_config:{n}" for n in invalid
+        ] + [f"terminate_processor:{n}" for n in invalid]
     if not lab_opts and any(s.startswith("BACKPRESSURE") for s in sevs) and queued:
         lab_opts = [f"empty_connection_queue:{n}" for n in queued]
 
     rb["remediation"] = {
-        "safe_options": safe_opts,
-        "lab_options": lab_opts,
+        "safe_options": order_refs(safe_opts),
+        "lab_options": order_refs(lab_opts),
         "do_not": [
             "Do not empty queues without NIFI_HEAL_ALLOW_EMPTY_QUEUE=1",
             "Do not run lab heals without reviewing diagnostic_steps",
@@ -269,6 +249,14 @@ def fallback_runbook(monitor_event: dict[str, Any]) -> dict[str, Any]:
             "severities": sevs,
             "level": level,
             "score": score,
-            "heal_plan_ops": _heal_refs(heal_plan, phase_hint="any"),
+            "heal_plan_ops": [
+                ref_key(
+                    str(a.get("op") or ""),
+                    str(a["name"]) if a.get("name") else None,
+                    str(a["id"]) if a.get("id") else None,
+                )
+                for a in plan
+            ],
+            "heal_plan_source": "event" if (event.get("heal_plan") or []) else "proposed_lab",
         },
     )

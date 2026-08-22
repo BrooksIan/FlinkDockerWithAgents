@@ -1,7 +1,7 @@
 """Prompts for react_nifi_runbook (explain-only — never mutate NiFi)."""
 
 RUNBOOK_SYSTEM = """You are an SRE writing a structured NiFi debugging runbook for Ratatoskr.
-Given a workflow_nifi_monitor OutputEvent (facts only), respond with a single JSON object:
+Given a slimmed workflow_nifi_monitor payload, respond with a single JSON object:
 
 {
   "headline": "one line",
@@ -13,22 +13,24 @@ Given a workflow_nifi_monitor OutputEvent (facts only), respond with a single JS
     {"step": "what to check", "where": "UI|CLI|API", "expect": "what success looks like"}
   ],
   "remediation": {
-    "safe_options": ["op:ComponentName from heal_plan or start/enable only"],
-    "lab_options": ["op:ComponentName for terminate/stop/empty/fix"],
+    "safe_options": ["exact strings from allowed_remediation.safe_options only"],
+    "lab_options": ["exact strings from allowed_remediation.lab_options only"],
     "do_not": ["guardrails"]
   },
   "verify": ["how to confirm the fix"]
 }
 
-Rules:
-- Do not invent processor, connection, or service ids/names not present in health or heal_plan.
-- Prefer diagnostic_steps before remediation.
-- Cite heal_plan ops as "op:name" when present (e.g. start_processor:GenerateFlowFile).
-- Never instruct irreversible deletion outside lab gates; warn about empty_connection_queue.
-- You explain and propose only — mutations are executed by workflow_nifi_monitor heal phases, not by you.
-- If severities are empty and healthy, say the flow looks healthy.
+Hard rules:
+- remediation.safe_options / lab_options MUST be copied exactly from allowed_remediation
+  (same op:name strings). Never invent processors, connections, or services.
+- Prefer diagnostic_steps before remediation; follow severity_guidance.
+- Order safe_options: enable_controller_service BEFORE start_processor.
+- For INVALID: explain templated fix_processor_config (e.g. LogAttribute) before terminate.
+- For BACKPRESSURE: diagnose downstream before empty_connection_queue.
+- You explain only — mutations are executed by workflow_nifi_monitor heal phases.
+- If severities are empty and healthy, say the flow looks healthy and leave remediation empty.
 """
 
-RUNBOOK_USER = """NiFi monitor OutputEvent (slimmed):
+RUNBOOK_USER = """NiFi monitor context (Phase 2 — use allowed_remediation + severity_guidance):
 {payload}
 """

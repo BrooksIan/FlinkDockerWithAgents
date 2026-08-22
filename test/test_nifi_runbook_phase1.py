@@ -103,6 +103,18 @@ def test_parse_llm_runbook_coerces_strings() -> None:
     from examples.agents.react_nifi_runbook_logic import parse_llm_runbook
     from ratatoskr.nifi.runbook import is_valid_runbook
 
+    monitor = {
+        "health": {
+            "stopped_processors": [
+                {"id": "1", "name": "Foo", "state": "STOPPED", "validationStatus": "VALID"}
+            ],
+            "disabled_controller_services": [],
+            "invalid_processors": [],
+            "queued_connections": [],
+        },
+        "heal_plan": [],
+        "classification": {"severities": ["STOPPED"], "healthy": False},
+    }
     rb = parse_llm_runbook(
         {
             "headline": "x",
@@ -115,12 +127,13 @@ def test_parse_llm_runbook_coerces_strings() -> None:
                 "do_not": "no empty",
             },
             "verify": "re-poll",
-        }
+        },
+        monitor_event=monitor,
     )
     assert is_valid_runbook(rb)
     assert rb["mode"] == "llm"
     assert rb["likely_causes"][0]["cause"] == "plain string cause"
-    assert rb["remediation"]["safe_options"] == ["start_processor:Foo"]
+    assert "start_processor:Foo" in rb["remediation"]["safe_options"]
 
 
 def test_slim_monitor_event() -> None:

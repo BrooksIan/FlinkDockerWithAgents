@@ -79,6 +79,8 @@ ratatoskr agent run workflow_nifi_monitor --local
 
 After a monitor poll (or from a fixture), `react_nifi_runbook` turns facts into diagnosis → remediation → verify. Mutations stay on `workflow_nifi_monitor` heal phases.
 
+Phase 2: prompt includes queue depths, bulletin fingerprints, severity guidance, and an **allowed remediation catalog**. Even when `heal_plan` is empty (`NIFI_HEAL_PHASE=monitor`), the runbook proposes the same safe/lab ops `build_heal_plan(..., phase=lab)` would — then **constrains** LLM output to those exact `op:name` strings (enable before start).
+
 ```bash
 # Offline (fixture → fallback or LLM if Designer settings configured)
 python examples/agents/run_react_nifi_runbook_local.py

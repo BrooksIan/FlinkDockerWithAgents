@@ -5,6 +5,11 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from ratatoskr.nifi.runbook.context import (
+    allowed_remediation,
+    constrain_remediation,
+    enrich_monitor_context,
+)
 from ratatoskr.nifi.runbook.fallback import fallback_runbook
 from ratatoskr.nifi.runbook.schema import (
     ALLOWED_CONFIDENCE,
@@ -28,58 +33,15 @@ def _normalize_monitor_event(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def slim_monitor_event(event: dict[str, Any]) -> dict[str, Any]:
-    """Keep prompt small — drop bulky nested lists beyond names/ids."""
-    classification = event.get("classification") or {}
-    health = event.get("health") or {}
-
-    def _brief(items: list[Any] | None, *, limit: int = 8) -> list[dict[str, Any]]:
-        out: list[dict[str, Any]] = []
-        for it in items or []:
-            if not isinstance(it, dict):
-                continue
-            out.append(
-                {
-                    k: it.get(k)
-                    for k in ("id", "name", "state", "validationStatus", "queuedCount", "runStatus")
-                    if it.get(k) is not None
-                }
-            )
-            if len(out) >= limit:
-                break
-        return out
-
-    heal_plan = []
-    for a in event.get("heal_plan") or []:
-        if not isinstance(a, dict):
-            continue
-        heal_plan.append(
-            {k: a.get(k) for k in ("op", "id", "name", "reason") if a.get(k) is not None}
-        )
-
-    return {
-        "poll_id": event.get("poll_id"),
-        "phase": event.get("phase"),
-        "classification": {
-            "healthy": classification.get("healthy"),
-            "level": classification.get("level"),
-            "score": classification.get("score"),
-            "severities": classification.get("severities") or [],
-            "summary": classification.get("summary"),
-        },
-        "health": {
-            "severities": health.get("severities") or [],
-            "stopped_processors": _brief(health.get("stopped_processors")),
-            "invalid_processors": _brief(health.get("invalid_processors")),
-            "disabled_controller_services": _brief(health.get("disabled_controller_services")),
-            "queued_connections": _brief(health.get("queued_connections")),
-            "bulletins": _brief(health.get("bulletins"), limit=5),
-            "probe": health.get("probe"),
-        },
-        "heal_plan": heal_plan,
-    }
+    """Phase 2 prompt payload (queues, bulletins, proposed heal refs, guidance)."""
+    return enrich_monitor_context(event)
 
 
-def parse_llm_runbook(content: str | dict[str, Any]) -> dict[str, Any]:
+def parse_llm_runbook(
+    content: str | dict[str, Any],
+    *,
+    monitor_event: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Coerce LLM JSON into a schema-valid runbook body (mode=llm)."""
     if isinstance(content, dict):
         payload = content
@@ -141,23 +103,12 @@ def parse_llm_runbook(content: str | dict[str, Any]) -> dict[str, Any]:
     rb["diagnostic_steps"] = [s for s in steps if s["step"]]
 
     rem_in = payload.get("remediation") if isinstance(payload.get("remediation"), dict) else {}
-    def _str_list(key: str) -> list[str]:
-        raw = rem_in.get(key) or []
-        if isinstance(raw, str):
-            return [raw]
-        if not isinstance(raw, list):
-            return []
-        return [str(x) for x in raw]
-
-    rb["remediation"] = {
-        "safe_options": _str_list("safe_options"),
-        "lab_options": _str_list("lab_options"),
-        "do_not": _str_list("do_not")
-        or [
-            "Do not empty queues without NIFI_HEAL_ALLOW_EMPTY_QUEUE=1",
-            "ReAct runbook must not mutate NiFi — use workflow_nifi_monitor heal phases",
-        ],
-    }
+    allowed = allowed_remediation(monitor_event or {})
+    rb["remediation"] = constrain_remediation(
+        rem_in,
+        allowed_safe=allowed["safe_options"],
+        allowed_lab=allowed["lab_options"],
+    )
 
     verify = payload.get("verify") or []
     if isinstance(verify, str):
@@ -179,8 +130,9 @@ def llm_runbook(monitor_event: dict[str, Any]) -> dict[str, Any]:
         system=RUNBOOK_SYSTEM,
         user=RUNBOOK_USER.format(payload=json.dumps(slim, default=str)),
     )
-    body = parse_llm_runbook(raw)
+    body = parse_llm_runbook(raw, monitor_event=monitor_event)
     body["mode"] = "llm"
+    allowed = slim.get("allowed_remediation") or {}
     return wrap_runbook_event(
         body,
         source={
@@ -189,6 +141,9 @@ def llm_runbook(monitor_event: dict[str, Any]) -> dict[str, Any]:
             "severities": list((monitor_event.get("classification") or {}).get("severities") or []),
             "level": (monitor_event.get("classification") or {}).get("level"),
             "score": (monitor_event.get("classification") or {}).get("score"),
+            "heal_plan_source": slim.get("heal_plan_source"),
+            "heal_plan_ops": list(allowed.get("safe_options") or [])
+            + list(allowed.get("lab_options") or []),
         },
     )
 
