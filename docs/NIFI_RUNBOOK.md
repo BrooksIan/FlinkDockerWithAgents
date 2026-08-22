@@ -9,10 +9,10 @@ Talking point: *The LLM never touches the canvas. The operator (or approval bus)
 | Customer story | Script | Guide |
 |----------------|--------|-------|
 | **Infra heal + HITL** — stopped processor → runbook → approve → start | `scripts/demo_nifi_runbook.py` | this page |
-| **Cross-stack checklist** — correlate → structured runbook (no mutate) | `scripts/demo_cross_runbook.py` | [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md) |
+| **Cross-stack checklist** — correlate → structured runbook → optional HITL heal | `scripts/demo_cross_runbook.py` | [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md) |
 | **Data-plane desired state** — schema/route drift → propose → ack → apply | `scripts/demo_customer_poc.py` | [CUSTOMER_POC.md](CUSTOMER_POC.md) |
 
-Do not mix HITL topics: heal runbooks use `nifi.runbook.*`; data-plane uses `dataplane.propose` / `dataplane.ack`.
+Do not mix HITL topics: NiFi heal runbooks use `nifi.runbook.*`; cross-stack uses `signals.cross_runbook.*`; data-plane uses `dataplane.propose` / `dataplane.ack`.
 
 ## Agents
 
@@ -131,12 +131,13 @@ Package: [`ratatoskr/nifi/runbook/`](../ratatoskr/nifi/runbook/) (`hitl.py`, `fa
 ```bash
 python3 scripts/demo_cross_runbook.py
 python3 scripts/demo_cross_runbook.py --scenario topic-missing
-python3 scripts/demo_cross_runbook.py --live
+python3 scripts/demo_cross_runbook.py --scenario topic-missing --heal --approve
+python3 scripts/demo_cross_runbook.py --live --inject --heal --approve
 
 python examples/agents/run_react_cross_runbook_local.py
 ```
 
-Same checklist contract; remediation may reference both NiFi and Kafka ops. Mutations stay on `workflow_cross_stack_heal` / side monitors — see [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md).
+Same checklist contract; remediation may reference both NiFi and Kafka ops. HITL topics: `signals.cross_runbook.propose` / `.ack`. Mutations stay on `workflow_cross_stack_heal` after approval — see [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md).
 
 ## LLM vs fallback
 

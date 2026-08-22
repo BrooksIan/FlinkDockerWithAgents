@@ -87,7 +87,8 @@ Deterministic correlation of NiFi + Kafka monitor OutputEvents (`workflow_signal
 ```bash
 python examples/agents/run_workflow_signal_correlate_local.py --demo
 python examples/agents/run_react_incident_scribe_local.py
-python3 scripts/demo_cross_runbook.py
+python3 scripts/demo_cross_runbook.py --scenario topic-missing --heal --approve
+# Live: python3 scripts/demo_cross_runbook.py --live --inject --heal --approve
 python3 scripts/demo_nifi_kafka_heal.py --scenario cross-topic
 ```
 

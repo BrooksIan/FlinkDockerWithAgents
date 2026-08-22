@@ -158,7 +158,7 @@ python examples/agents/run_react_nifi_runbook_local.py --fixture stop-generate
 python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal --approve --restore
 ```
 
-Cross-stack checklist: `python3 scripts/demo_cross_runbook.py` · [docs/SIGNAL_CORRELATE.md](../docs/SIGNAL_CORRELATE.md).  
+Cross-stack checklist + HITL: `python3 scripts/demo_cross_runbook.py --scenario topic-missing --heal --approve` · [docs/SIGNAL_CORRELATE.md](../docs/SIGNAL_CORRELATE.md).  
 Data-plane customer path (not heal): [docs/CUSTOMER_POC.md](../docs/CUSTOMER_POC.md).
 
 ## Sample flow

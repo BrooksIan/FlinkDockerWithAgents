@@ -86,11 +86,45 @@ python examples/agents/run_workflow_cross_stack_heal_local.py --demo backpressur
 # Incident brief (never mutates)
 python examples/agents/run_react_incident_scribe_local.py
 
-# Cross-signal structured runbook (never mutates)
+# Cross-signal runbook (explain-only)
 python examples/agents/run_react_cross_runbook_local.py
 python3 scripts/demo_cross_runbook.py
 python3 scripts/demo_cross_runbook.py --scenario topic-missing
+
+# HITL propose → approve (offline records ack only)
+python3 scripts/demo_cross_runbook.py --scenario topic-missing --heal --approve
+python3 scripts/demo_cross_runbook.py --scenario topic-missing --heal --reject
 ```
+
+## HITL → cross-stack heal
+
+Mirror of NiFi runbook Phase 4: ReAct never mutates; operator ack gates `workflow_cross_stack_heal`.
+
+```mermaid
+flowchart LR
+  C["correlate_signals"] --> R["react_cross_runbook"]
+  R --> P["signals.cross_runbook.propose"]
+  P --> A["signals.cross_runbook.ack"]
+  A -->|approved| H["apply_cross_heal_policy\nCROSS_HEAL_PHASE=lab"]
+```
+
+| Topic | Role |
+|-------|------|
+| `signals.cross_runbook.propose` | Heal proposal awaiting approval |
+| `signals.cross_runbook.ack` | Operator approve / reject |
+
+```bash
+# Live inject (cross-topic) + HITL + heal
+python3 scripts/demo_cross_runbook.py --live --inject --heal --approve
+
+# Dry-run heal after ack
+python3 scripts/demo_cross_runbook.py --live --inject --heal --approve --dry-run-heal
+
+# Interactive approve prompt
+python3 scripts/demo_cross_runbook.py --live --inject --heal
+```
+
+Talking point: *Inference didn’t touch NiFi or Kafka; the operator approved; the cross-stack workflow healed.*
 
 ## Live heal examples
 
@@ -121,8 +155,8 @@ python3 scripts/demo_nifi_kafka_heal.py --dry-run --scenario cross-topic
 
 Single-stack heal examples on the same flow: [NIFI_MONITOR.md](NIFI_MONITOR.md#orchestrated-heal-examples) · [KAFKA_MONITOR.md](KAFKA_MONITOR.md#orchestrated-heal-examples-shared-base).
 
-Runbook checklist shape + HITL: [NIFI_RUNBOOK.md](NIFI_RUNBOOK.md).
+Runbook checklist shape + NiFi HITL: [NIFI_RUNBOOK.md](NIFI_RUNBOOK.md).
 
-Optional Kafka topics: `signals.correlate.output`, `signals.cross_heal.output`, `signals.incident.brief`.
+Optional Kafka topics: `signals.correlate.output`, `signals.cross_heal.output`, `signals.incident.brief`, `signals.cross_runbook.propose`, `signals.cross_runbook.ack`.
 
-Tests: `python3 test/test_signal_correlate.py`.
+Tests: `python3 test/test_signal_correlate.py` · `python3 test/test_cross_runbook.py`.

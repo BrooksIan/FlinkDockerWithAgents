@@ -38,6 +38,8 @@ _STATIC_TOPICS: dict[str, str] = {
     "nifi.runbook.brief": "NiFi debug runbooks (react_nifi_runbook)",
     "nifi.runbook.propose": "NiFi runbook heal proposals (HITL)",
     "nifi.runbook.ack": "NiFi runbook heal acks (HITL)",
+    "signals.cross_runbook.propose": "Cross-signal runbook heal proposals (HITL)",
+    "signals.cross_runbook.ack": "Cross-signal runbook heal acks (HITL)",
 }
 
 # Topics created by deploy/docker-compose.kafka.yml kafka-init (+ monitor topics).
@@ -56,6 +58,8 @@ STUDIO_CATALOG_TOPICS: frozenset[str] = frozenset(
         "nifi.runbook.brief",
         "nifi.runbook.propose",
         "nifi.runbook.ack",
+        "signals.cross_runbook.propose",
+        "signals.cross_runbook.ack",
     }
 )
 

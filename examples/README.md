@@ -76,7 +76,7 @@ examples/agents/
 Guides: [docs/NIFI_MONITOR.md](../docs/NIFI_MONITOR.md) · [docs/KAFKA_MONITOR.md](../docs/KAFKA_MONITOR.md) · [docs/SIGNAL_CORRELATE.md](../docs/SIGNAL_CORRELATE.md).
 
 NiFi runbook POC: `python3 scripts/demo_nifi_runbook.py --list` · `--heal --approve`.
-Cross-signal runbook: `python3 scripts/demo_cross_runbook.py` · `--scenario topic-missing`.
+Cross-signal runbook + HITL: `python3 scripts/demo_cross_runbook.py --scenario topic-missing --heal --approve` · live: `--live --inject --heal --approve`.
 
 ### Add a new agent
 

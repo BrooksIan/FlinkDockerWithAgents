@@ -161,6 +161,116 @@ def test_demo_script() -> None:
     assert "mutations" in proc.stdout
 
 
+def test_hitl_proposal_and_reject() -> None:
+    from ratatoskr.correlation import fallback_cross_runbook
+    from ratatoskr.correlation.runbook.hitl import (
+        ACK_TOPIC,
+        PROPOSE_TOPIC,
+        apply_approved_cross_heal,
+        attach_cross_hitl,
+        build_cross_heal_proposal,
+        decide_cross_approval,
+        format_cross_apply_status,
+    )
+
+    assert PROPOSE_TOPIC == "signals.cross_runbook.propose"
+    assert ACK_TOPIC == "signals.cross_runbook.ack"
+
+    runbook = fallback_cross_runbook(_corr_topic_missing())
+    proposal = build_cross_heal_proposal(
+        runbook, dry_run=True, scenario="topic-missing"
+    )
+    assert proposal["kind"] == "cross_runbook_heal_propose"
+    assert proposal["heal_phase"] == "lab"
+    assert proposal["dry_run"] is True
+    assert proposal["mutations"] == []
+    assert "kafka:create_topic" in (proposal.get("proposed_ops") or [])
+
+    ack = decide_cross_approval(proposal, auto_approve=False)
+    assert ack["approved"] is False
+    assert ack["mutations"] == []
+
+    skipped = apply_approved_cross_heal(ack, _corr_topic_missing())
+    assert skipped.get("skipped") == "not_approved"
+    assert skipped.get("heal_actions") == []
+
+    attached = attach_cross_hitl(
+        runbook, proposal, status="rejected", approved=False
+    )
+    assert attached["mutations"] == []
+    assert attached["hitl"]["status"] == "rejected"
+
+
+def test_hitl_status_line_and_approve_gate() -> None:
+    from ratatoskr.correlation.runbook.hitl import (
+        build_cross_heal_proposal,
+        decide_cross_approval,
+        format_cross_apply_status,
+    )
+    from ratatoskr.correlation import fallback_cross_runbook
+    from unittest.mock import patch
+
+    runbook = fallback_cross_runbook(_corr_topic_missing())
+    proposal = build_cross_heal_proposal(runbook, dry_run=False)
+    ack = decide_cross_approval(proposal, auto_approve=True)
+    assert ack["approved"] is True
+
+    fake = {
+        "ok": True,
+        "dry_run": False,
+        "phase": "lab",
+        "cross_heal_plan": [{"id": "s1"}],
+        "heal_actions": [{"ok": True}, {"ok": True}],
+        "executed_ok": 2,
+    }
+    line = format_cross_apply_status(fake)
+    assert line.startswith("cross heal status:")
+    assert "executed_ok=2" in line
+    assert "dry_run=False" in line
+
+    with patch(
+        "ratatoskr.correlation.heal.apply_cross_heal_policy",
+        return_value={
+            "cross_heal_phase": "lab",
+            "cross_heal_dry_run": False,
+            "cross_heal_plan": [{"id": "s1"}],
+            "heal_actions": [{"ok": True, "op": "create_topic"}],
+            "step_results": [],
+        },
+    ) as mock_apply:
+        from ratatoskr.correlation.runbook.hitl import apply_approved_cross_heal
+
+        applied = apply_approved_cross_heal(ack, _corr_topic_missing())
+    assert applied["ok"] is True
+    assert applied["executed_ok"] == 1
+    assert applied["mutations"]
+    mock_apply.assert_called_once()
+    assert mock_apply.call_args.kwargs.get("phase") == "lab"
+
+
+def test_demo_hitl_offline() -> None:
+    import subprocess
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "demo_cross_runbook.py"),
+            "--scenario",
+            "topic-missing",
+            "--heal",
+            "--approve",
+        ],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    assert "HITL" in proc.stdout
+    assert "approval recorded only" in proc.stdout
+    assert "cross_runbook_heal_propose" in proc.stdout or "proposal_id" in proc.stdout
+
+
 def main() -> int:
     tests = [
         test_fallback_backpressure_lag,
@@ -170,6 +280,9 @@ def main() -> int:
         test_llm_path_constrained,
         test_agent_registered,
         test_demo_script,
+        test_hitl_proposal_and_reject,
+        test_hitl_status_line_and_approve_gate,
+        test_demo_hitl_offline,
     ]
     failed = 0
     for fn in tests:
