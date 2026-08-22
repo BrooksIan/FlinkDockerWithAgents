@@ -1,4 +1,4 @@
-"""NiFi debugging runbook helpers (schema, fixtures, fallback, Phase 2 context, Phase 3 demo)."""
+"""NiFi debugging runbook helpers (schema → HITL)."""
 
 from ratatoskr.nifi.runbook.context import (
     allowed_remediation,
@@ -24,6 +24,17 @@ from ratatoskr.nifi.runbook.fixtures import (
     list_fixture_ids,
     load_fixture,
 )
+from ratatoskr.nifi.runbook.hitl import (
+    ACK_TOPIC,
+    PROPOSE_TOPIC,
+    apply_approved_heal,
+    attach_hitl,
+    build_heal_proposal,
+    decide_approval,
+    prompt_approve,
+    publish_ack,
+    publish_proposal,
+)
 from ratatoskr.nifi.runbook.schema import (
     RUNBOOK_SCHEMA_VERSION,
     empty_runbook,
@@ -35,12 +46,18 @@ from ratatoskr.nifi.runbook.schema import (
 )
 
 __all__ = [
+    "ACK_TOPIC",
     "FIXTURE_PACKS",
+    "PROPOSE_TOPIC",
     "RUNBOOK_BRIEF_TOPIC",
     "RUNBOOK_SCHEMA_VERSION",
     "SCENARIOS",
     "allowed_remediation",
+    "apply_approved_heal",
+    "attach_hitl",
+    "build_heal_proposal",
     "constrain_remediation",
+    "decide_approval",
     "empty_runbook",
     "enrich_monitor_context",
     "fallback_runbook",
@@ -51,7 +68,10 @@ __all__ = [
     "load_fixture",
     "operator_talking_points",
     "order_refs",
+    "prompt_approve",
     "proposed_heal_plan",
+    "publish_ack",
+    "publish_proposal",
     "publish_runbook_brief",
     "run_offline_scenario",
     "severity_guidance",

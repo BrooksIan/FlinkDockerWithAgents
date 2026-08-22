@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""POC demo: fault → NiFi monitor → react_nifi_runbook → (optional) heal / Kafka sink.
+"""POC demo: fault → NiFi monitor → react_nifi_runbook → HITL approve → heal.
 
-Talking point: Inference builds the runbook; workflow_nifi_monitor still owns mutations.
+Talking point: Inference builds the runbook; humans approve; workflow_nifi_monitor mutates.
 
 Prereqs (live):
   ratatoskr up --profile nifi
@@ -12,9 +12,13 @@ Usage:
   python3 scripts/demo_nifi_runbook.py --list
   python3 scripts/demo_nifi_runbook.py --offline --scenario stop-generate
   python3 scripts/demo_nifi_runbook.py --scenario stop-generate
-  python3 scripts/demo_nifi_runbook.py --scenario invalid-log --heal
-  python3 scripts/demo_nifi_runbook.py --scenario stop-generate --publish-kafka
-  python3 scripts/demo_nifi_runbook.py --scenario stop-generate --pause
+  # Phase 4 HITL (interactive prompt before heal):
+  python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal
+  # Non-interactive approve / reject:
+  python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal --approve
+  python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal --reject
+  python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal --approve --dry-run-heal
+  python3 scripts/demo_nifi_runbook.py --scenario stop-generate --publish-kafka --publish-hitl
 """
 
 from __future__ import annotations
@@ -77,7 +81,9 @@ def _inject(scenario: dict[str, Any]) -> dict[str, Any]:
     if flag == "--stop-generate":
         gen = procs.get("GenerateFlowFile")
         if not gen:
-            raise RuntimeError("GenerateFlowFile not found — run ./scripts/nifi_load_sample_flow.sh")
+            raise RuntimeError(
+                "GenerateFlowFile not found — run ./scripts/nifi_load_sample_flow.sh"
+            )
         return fault._stop(client, gen, "GenerateFlowFile")
     if flag == "--invalid-log":
         return fault.inject_invalid_log(client, pg_id)
@@ -88,12 +94,12 @@ def _inject(scenario: dict[str, Any]) -> dict[str, Any]:
     raise RuntimeError(f"unsupported fault flag: {flag}")
 
 
-def _monitor(*, phase: str) -> dict[str, Any]:
+def _monitor(*, phase: str, dry_run: bool | None = None) -> dict[str, Any]:
     from ratatoskr.nifi.client import NiFiClient
     from ratatoskr.nifi.policy import run_monitor_cycle
 
     pg = os.environ.get("NIFI_PROCESS_GROUP_ID", "root")
-    return run_monitor_cycle(NiFiClient(), pg, phase=phase)
+    return run_monitor_cycle(NiFiClient(), pg, phase=phase, dry_run=dry_run)
 
 
 def _restore(scenario: dict[str, Any]) -> dict[str, Any]:
@@ -111,6 +117,14 @@ def _restore(scenario: dict[str, Any]) -> dict[str, Any]:
     return flow.repair_sample_flow(client, pg_id)
 
 
+def _configure_dry_run(*, dry_run_heal: bool) -> None:
+    """Ensure dry-run is explicit — clear stale shell env unless requested."""
+    if dry_run_heal:
+        os.environ["NIFI_HEAL_DRY_RUN"] = "1"
+    else:
+        os.environ.pop("NIFI_HEAL_DRY_RUN", None)
+
+
 def main() -> int:
     _bootstrap()
     from ratatoskr.nifi.runbook.demo import (
@@ -122,6 +136,16 @@ def main() -> int:
         run_offline_scenario,
         summarize_monitor,
         summarize_runbook,
+    )
+    from ratatoskr.nifi.runbook.hitl import (
+        ACK_TOPIC,
+        PROPOSE_TOPIC,
+        apply_approved_heal,
+        attach_hitl,
+        build_heal_proposal,
+        decide_approval,
+        publish_ack,
+        publish_proposal,
     )
 
     parser = argparse.ArgumentParser(description=__doc__)
@@ -140,12 +164,22 @@ def main() -> int:
     parser.add_argument(
         "--heal",
         action="store_true",
-        help="After runbook, re-poll with scenario heal phase (mutates if not dry-run)",
+        help="After runbook, run Phase 4 HITL then heal if approved",
+    )
+    parser.add_argument(
+        "--approve",
+        action="store_true",
+        help="With --heal, auto-approve (non-interactive)",
+    )
+    parser.add_argument(
+        "--reject",
+        action="store_true",
+        help="With --heal, auto-reject (non-interactive)",
     )
     parser.add_argument(
         "--dry-run-heal",
         action="store_true",
-        help="With --heal, set NIFI_HEAL_DRY_RUN=1",
+        help="With --heal, propose/apply as NIFI_HEAL_DRY_RUN=1 (ok=null)",
     )
     parser.add_argument(
         "--publish-kafka",
@@ -153,9 +187,14 @@ def main() -> int:
         help=f"Publish runbook JSON to {RUNBOOK_BRIEF_TOPIC}",
     )
     parser.add_argument(
+        "--publish-hitl",
+        action="store_true",
+        help=f"Publish propose/ack to {PROPOSE_TOPIC} / {ACK_TOPIC}",
+    )
+    parser.add_argument(
         "--kafka-topic",
         default=RUNBOOK_BRIEF_TOPIC,
-        help=f"Override Kafka sink topic (default: {RUNBOOK_BRIEF_TOPIC})",
+        help=f"Override runbook brief topic (default: {RUNBOOK_BRIEF_TOPIC})",
     )
     parser.add_argument("--pause", action="store_true", help="Pause between steps")
     parser.add_argument(
@@ -165,6 +204,10 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    if args.approve and args.reject:
+        print("Choose only one of --approve or --reject", file=sys.stderr)
+        return 2
+
     if args.list:
         print(json.dumps(list_scenarios(), indent=2))
         return 0
@@ -173,23 +216,59 @@ def main() -> int:
     _banner(f"NiFi runbook demo: {args.scenario}")
     print(scenario["title"])
     print(
-        "Principle: react_nifi_runbook explains; workflow_nifi_monitor heals under NIFI_HEAL_PHASE."
+        "Principle: react_nifi_runbook explains; HITL approves; "
+        "workflow_nifi_monitor heals under NIFI_HEAL_PHASE."
     )
 
     if args.offline:
         _pause(args.pause, "about to build offline fixture runbook")
         result = run_offline_scenario(args.scenario)
         _pp("monitor (fixture)", result["monitor_summary"])
+        runbook = result["runbook"]
         _pp("runbook", result["runbook_summary"])
         print("\nTalking points:")
         for line in result["talking_points"]:
             print(f"  • {line}")
+
+        if args.heal:
+            _configure_dry_run(dry_run_heal=args.dry_run_heal)
+            proposal = build_heal_proposal(
+                runbook,
+                heal_phase=str(scenario["heal_phase"]),
+                dry_run=args.dry_run_heal,
+                scenario=args.scenario,
+            )
+            _banner("4. HITL propose (offline — no live heal apply)")
+            _pp("proposal", proposal)
+            auto = True if args.approve else (False if args.reject else None)
+            interactive = auto is None
+            ack = decide_approval(
+                proposal, auto_approve=auto, interactive=interactive
+            )
+            runbook = attach_hitl(
+                runbook,
+                proposal,
+                status="approved" if ack.get("approved") else "rejected",
+                approved=bool(ack.get("approved")),
+            )
+            _pp("ack", ack)
+            _pp("runbook+hitl", summarize_runbook(runbook))
+            if ack.get("approved"):
+                print(
+                    "\nOffline mode: approval recorded only. "
+                    "Re-run without --offline to apply via workflow_nifi_monitor."
+                )
+            if args.publish_hitl:
+                _pp("propose publish", publish_proposal(proposal))
+                _pp("ack publish", publish_ack(ack))
+
         if args.publish_kafka:
-            pub = publish_runbook_brief(result["runbook"], topic=args.kafka_topic)
+            pub = publish_runbook_brief(runbook, topic=args.kafka_topic)
             _pp("kafka publish", pub)
         return 0
 
     # --- live path ---
+    _configure_dry_run(dry_run_heal=False)  # clear stale dry-run until heal step
     _pause(args.pause, "about to inject fault")
     _banner("1. Fault inject")
     injected = _inject(scenario)
@@ -199,7 +278,7 @@ def main() -> int:
     _pause(args.pause, "about to poll monitor (phase=monitor)")
     _banner("2. workflow_nifi_monitor (phase=monitor)")
     os.environ["NIFI_HEAL_PHASE"] = "monitor"
-    monitor = _monitor(phase="monitor")
+    monitor = _monitor(phase="monitor", dry_run=False)
     _pp("monitor", summarize_monitor(monitor))
 
     _pause(args.pause, "about to build runbook via Cloudera Inference / fallback")
@@ -218,21 +297,76 @@ def main() -> int:
         _pp("kafka publish", pub)
 
     if args.heal:
-        _pause(args.pause, f"about to heal with phase={scenario['heal_phase']}")
-        _banner(f"4. Heal (NIFI_HEAL_PHASE={scenario['heal_phase']})")
+        _configure_dry_run(dry_run_heal=args.dry_run_heal)
+        proposal = build_heal_proposal(
+            runbook,
+            heal_phase=str(scenario["heal_phase"]),
+            dry_run=args.dry_run_heal,
+            scenario=args.scenario,
+        )
+        _banner("4. HITL — Approve heal?")
+        _pp(
+            "proposal",
+            {
+                "proposal_id": proposal["proposal_id"],
+                "heal_phase": proposal["heal_phase"],
+                "dry_run": proposal["dry_run"],
+                "proposed_ops": proposal["proposed_ops"],
+            },
+        )
         if args.dry_run_heal:
-            os.environ["NIFI_HEAL_DRY_RUN"] = "1"
-        os.environ["NIFI_HEAL_PHASE"] = str(scenario["heal_phase"])
-        healed = _monitor(phase=str(scenario["heal_phase"]))
-        _pp("heal monitor", summarize_monitor(healed))
-        _pp("heal_actions", healed.get("heal_actions") or [])
+            print("NOTE: dry_run=true — heal will plan only (heal_actions ok=null).")
 
-        _banner("5. Verify runbook (re-poll monitor)")
-        os.environ["NIFI_HEAL_PHASE"] = "monitor"
-        verify = _monitor(phase="monitor")
-        _pp("verify monitor", summarize_monitor(verify))
-        verify_rb = build_runbook(verify)
-        _pp("verify runbook", summarize_runbook(verify_rb))
+        auto = True if args.approve else (False if args.reject else None)
+        interactive = auto is None
+        ack = decide_approval(proposal, auto_approve=auto, interactive=interactive)
+        runbook = attach_hitl(
+            runbook,
+            proposal,
+            status="approved" if ack.get("approved") else "rejected",
+            approved=bool(ack.get("approved")),
+        )
+        _pp("ack", ack)
+
+        if args.publish_hitl:
+            _pp("propose publish", publish_proposal(proposal))
+            _pp("ack publish", publish_ack(ack))
+
+        if not ack.get("approved"):
+            print("\nHeal skipped (not approved). Runbook mutations remain [].")
+        else:
+            _banner(
+                f"5. Apply heal (phase={proposal['heal_phase']}, "
+                f"dry_run={proposal['dry_run']})"
+            )
+            applied = apply_approved_heal(ack)
+            audit = applied.get("audit") or {}
+            _pp(
+                "apply",
+                {
+                    "ok": applied.get("ok"),
+                    "dry_run": applied.get("dry_run"),
+                    "phase": applied.get("phase"),
+                    "audit_dry_run": audit.get("dry_run"),
+                    "executed_ok": applied.get("executed_ok"),
+                    "heal_actions": applied.get("heal_actions"),
+                },
+            )
+            runbook = attach_hitl(
+                runbook,
+                proposal,
+                status="applied" if applied.get("ok") else "approved",
+                approved=True,
+                note=f"executed_ok={applied.get('executed_ok')}",
+            )
+
+            _banner("6. Verify (re-poll monitor + runbook)")
+            os.environ["NIFI_HEAL_PHASE"] = "monitor"
+            os.environ.pop("NIFI_HEAL_DRY_RUN", None)
+            verify = _monitor(phase="monitor", dry_run=False)
+            _pp("verify monitor", summarize_monitor(verify))
+            verify_rb = build_runbook(verify)
+            _pp("verify runbook", summarize_runbook(verify_rb))
 
     if args.restore:
         _banner("Restore")
@@ -243,7 +377,7 @@ def main() -> int:
             print(f"restore failed: {exc}")
 
     print()
-    print("Done. Inference did not touch the canvas; gated heal (if used) did.")
+    print("Done. Inference never mutated; heal ran only after HITL approval (if any).")
     return 0
 
 

@@ -78,7 +78,7 @@ def summarize_monitor(event: dict[str, Any]) -> dict[str, Any]:
 def summarize_runbook(event: dict[str, Any]) -> dict[str, Any]:
     rb = event.get("runbook") or {}
     rem = rb.get("remediation") or {}
-    return {
+    out = {
         "mode": rb.get("mode"),
         "headline": rb.get("headline"),
         "situation": rb.get("situation"),
@@ -89,6 +89,9 @@ def summarize_runbook(event: dict[str, Any]) -> dict[str, Any]:
         "heal_plan_source": (event.get("source") or {}).get("heal_plan_source"),
         "mutations": event.get("mutations"),
     }
+    if event.get("hitl"):
+        out["hitl"] = event["hitl"]
+    return out
 
 
 def operator_talking_points(runbook_event: dict[str, Any], *, heal_phase: str) -> list[str]:
@@ -100,8 +103,9 @@ def operator_talking_points(runbook_event: dict[str, Any], *, heal_phase: str) -
         f"Inference mode={mode} — ReAct explained; it did not mutate NiFi "
         f"(mutations={runbook_event.get('mutations')}).",
         "Read diagnostic_steps, then remediation.safe_options / lab_options.",
-        f"To apply gated heals: export NIFI_HEAL_PHASE={heal_phase} and re-run "
-        "workflow_nifi_monitor (or pass --heal to this demo).",
+        "Phase 4 HITL: approve before heal "
+        f"(demo: --heal prompts, or --heal --approve / --heal --reject).",
+        f"Approved heals use NIFI_HEAL_PHASE={heal_phase} via workflow_nifi_monitor.",
         f"Suggested safe ops: {rem.get('safe_options') or []}",
         f"Suggested lab ops: {rem.get('lab_options') or []}",
     ]

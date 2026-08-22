@@ -94,19 +94,25 @@ python examples/agents/run_react_nifi_runbook_local.py --live
 # or: ratatoskr agent run react_nifi_runbook --local
 ```
 
-**POC chain (Phase 3):** fault → monitor → runbook → read remediation → gated heal:
+**POC chain (Phase 3–4):** fault → monitor → runbook → **HITL approve** → gated heal:
 
 ```bash
 python3 scripts/demo_nifi_runbook.py --list
 python3 scripts/demo_nifi_runbook.py --offline --scenario stop-generate
 python3 scripts/demo_nifi_runbook.py --scenario stop-generate --pause
-python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal --dry-run-heal
-python3 scripts/demo_nifi_runbook.py --scenario invalid-log --heal   # lab phase
-# Optional sink (requires ratatoskr kafka up):
-python3 scripts/demo_nifi_runbook.py --offline --scenario stop-generate --publish-kafka
+# Phase 4 HITL (interactive y/N before mutate):
+python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal
+# Non-interactive:
+python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal --approve
+python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal --approve --dry-run-heal
+python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal --reject
+# Optional sinks (requires ratatoskr kafka up):
+python3 scripts/demo_nifi_runbook.py --offline --scenario stop-generate --publish-kafka --publish-hitl --heal --approve
 ```
 
-Talking point: *Inference didn’t touch the canvas; it told us how to debug and which gated heal to use.* Then set `NIFI_HEAL_PHASE=safe|lab` (or use `--heal`).
+HITL topics: `nifi.runbook.propose` / `nifi.runbook.ack`. ReAct still never mutates; only an approved ack triggers `workflow_nifi_monitor`.
+
+Talking point: *Inference didn’t touch the canvas; the operator approved; the workflow healed.*
 
 Inject a stopped processor, then heal:
 
