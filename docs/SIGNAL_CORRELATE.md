@@ -1,6 +1,6 @@
 # Cross-signal correlation & cross-stack heal
 
-Pairing of [NiFi](NIFI_MONITOR.md) and [Kafka](KAFKA_MONITOR.md) monitor OutputEvents into incidents, optional ReAct brief, and gated coordinated heals on the shared Kafka→NiFi demo flow.
+Pairing of [NiFi](NIFI_MONITOR.md), [Kafka](KAFKA_MONITOR.md), and optional [Cloudera Manager](FLINK_AGENTS_CDF_FLOWS.md) monitor OutputEvents into incidents, optional ReAct brief, and gated coordinated heals on the shared Kafka→NiFi demo flow.
 
 ## Architecture
 
@@ -8,6 +8,7 @@ Pairing of [NiFi](NIFI_MONITOR.md) and [Kafka](KAFKA_MONITOR.md) monitor OutputE
 flowchart LR
   N["workflow_nifi_monitor\nOutputEvent"] --> C["workflow_signal_correlate"]
   K["workflow_kafka_monitor\nOutputEvent"] --> C
+  CM["workflow_cm_monitor\nOutputEvent"] --> C
   C --> I["incidents[]\nmatched_rules"]
   I --> S["react_incident_scribe\nbrief only"]
   I --> R["react_cross_runbook\nchecklist"]
@@ -40,7 +41,7 @@ flowchart TB
 
 | Agent | Type | Role |
 |-------|------|------|
-| `workflow_signal_correlate` | workflow | Match rules across NiFi + Kafka severities → `incidents[]` (observe-only) |
+| `workflow_signal_correlate` | workflow | Match rules across NiFi + Kafka (+ optional CM) severities → `incidents[]` (observe-only) |
 | `workflow_cross_stack_heal` | workflow | Correlate, then run playbooks when `CROSS_HEAL_PHASE=lab` |
 | `react_incident_scribe` | react | Explain incidents (Designer LLM or deterministic fallback). **Never mutates.** |
 | `react_cross_runbook` | react | Structured diagnosis → remediation → verify checklist from correlation (same shape as NiFi runbook). **Never mutates.** Optional HITL → `workflow_cross_stack_heal`. See [NIFI_RUNBOOK.md](NIFI_RUNBOOK.md). |
@@ -58,10 +59,23 @@ flowchart TB
 | `route_config_drift` | — | — | ROUTE_DRIFT:* | MEDIUM | — (propose route patch via approval bus) |
 | `schema_violations_with_lag` | — | LAG_* | SCHEMA_VIOLATIONS | HIGH | — |
 | `stack_degraded` | any degradation | any degradation | — | MEDIUM (fallback) | — |
+| `cm_hdfs_capacity_backpressure` | BACKPRESSURE* | — | HDFS_CAPACITY_HIGH | HIGH | — |
+| `cm_kafka_broker_down_lag` | — | LAG_* / UNDER_REPLICATED | ROLE_DOWN / SERVICE_DOWN | HIGH | — |
+| `cm_impala_event_kafka_lag` | — | LAG_CRIT / stalled | EVENT_CRITICAL | HIGH | — |
+| `cm_stack_degraded` | degradation | degradation | CM degradation | MEDIUM (fallback) | — |
 
-Playbooks live in `ratatoskr/correlation/heal.py` (`CROSS_HEAL_PLAYBOOKS`). Each step narrows health and reuses side `apply_heal_policy`.
+### CM timeseries metrics
 
-When only one side is unhealthy, correlation emits **no** cross-signal incident; `classification.summary` looks like `nifi_only:NIFI_UNREACHABLE` and `cross_signal: false`.
+`workflow_cm_monitor` polls CM timeseries for HDFS capacity and Kafka under-replication (when those services exist). Thresholds come from `CM_METRIC_THRESHOLDS` (default `hdfs_capacity_pct: 85`, `kafka_under_replicated_min: 1`). Breaches emit severities like `HDFS_CAPACITY_HIGH` and appear in `health.metrics` / `health.metric_breaches`.
+
+Live correlate polls CM automatically when `CM_API_BASE`, `KNOX_TOKEN`, or `CM_CLUSTER` is set. Use `--no-cm` on the local runner to skip.
+
+```bash
+python examples/agents/run_workflow_signal_correlate_local.py --demo-cm
+python examples/agents/run_workflow_signal_correlate_local.py --no-cm   # NiFi+Kafka only
+```
+
+When only one side is unhealthy, correlation emits **no** cross-signal incident; `classification.summary` looks like `nifi_only:NIFI_UNREACHABLE`, `cm_only:CM_SLOW`, or `kafka_only:LAG_CRIT` and `cross_signal: false`.
 
 ## Env
 

@@ -23,6 +23,7 @@ Guides for the **Ratatoskr** Flink Agents workspace. Honeypot-specific docs live
 | [Blog.md](Blog.md) | Narrative overview and design rationale |
 | [FLINK_AGENTS.md](FLINK_AGENTS.md) | Workflow vs ReAct agents — concepts, comparison, diagrams |
 | [NIFI_MONITOR.md](NIFI_MONITOR.md) | NiFi flow monitoring / healing + orchestrated demo catalog |
+| [FLINK_AGENTS_CDF_FLOWS.md](FLINK_AGENTS_CDF_FLOWS.md) | Brief: Flink Agents with CDF flows vs NiFi retry |
 | [NIFI_RUNBOOK.md](NIFI_RUNBOOK.md) | ReAct NiFi runbooks + HITL (`nifi.runbook.*`) |
 | [KAFKA_MONITOR.md](KAFKA_MONITOR.md) | Kafka cluster monitoring / healing + demo scenarios |
 | [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md) | NiFi↔Kafka correlation, cross runbook HITL, cross-stack heal |

@@ -27,7 +27,7 @@ REQUIRED_REMEDIATION_KEYS = frozenset({"safe_options", "lab_options", "do_not"})
 
 ALLOWED_MODES = frozenset({"llm", "fallback"})
 ALLOWED_CONFIDENCE = frozenset({"high", "medium", "low"})
-ALLOWED_RUNBOOK_AGENTS = frozenset({"react_nifi_runbook", "react_cross_runbook"})
+ALLOWED_RUNBOOK_AGENTS = frozenset({"react_nifi_runbook", "react_cross_runbook", "react_cm_runbook"})
 
 
 def empty_runbook(*, mode: str = "fallback") -> dict[str, Any]:

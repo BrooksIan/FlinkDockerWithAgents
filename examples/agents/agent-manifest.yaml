@@ -24,6 +24,11 @@ agents:
     entry: examples.agents.workflow_kafka_monitor:KafkaMonitorAgent
     runner: examples/agents/run_workflow_kafka_monitor_local.py
     cluster_script: examples/agents/run_workflow_kafka_monitor_cluster.py
+  workflow_cm_monitor:
+    type: workflow
+    description: "Monitor Cloudera Manager cluster health and emit fix recommendations (read-only, no heal)"
+    entry: examples.agents.workflow_cm_monitor:CMMonitorAgent
+    runner: examples/agents/run_workflow_cm_monitor_local.py
   workflow_signal_correlate:
     type: workflow
     description: "Correlate NiFi and Kafka monitor signals into cross-stack incidents (observe-only)"
@@ -75,6 +80,11 @@ agents:
     description: "Structured NiFi debugging runbook from monitor facts (LLM when configured; never mutates)"
     entry: examples.agents.react_nifi_runbook:NiFiRunbookAgent
     runner: examples/agents/run_react_nifi_runbook_local.py
+  react_cm_runbook:
+    type: react
+    description: "Structured Cloudera Manager debugging runbook from monitor facts (never mutates)"
+    entry: examples.agents.react_cm_runbook:CMRunbookAgent
+    runner: examples/agents/run_react_cm_runbook_local.py
   react_double_value:
     type: react
     description: "ReAct agent \u2014 LLM prompt doubles numeric input from a message"

@@ -21,6 +21,15 @@ def _bootstrap() -> None:
         sys.path.insert(0, str(repo))
 
 
+def _load_env() -> None:
+    try:
+        from dotenv import load_dotenv
+
+        load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+    except ImportError:
+        pass
+
+
 def _demo_events() -> tuple[dict, dict]:
     nifi = {
         "agent": "workflow_nifi_monitor",
@@ -96,8 +105,44 @@ def _demo_dataplane_events() -> tuple[dict, dict, dict, dict]:
     return nifi, kafka, schema, route
 
 
+def _demo_cm_events() -> tuple[dict, dict, dict]:
+    nifi, kafka = _demo_events()
+    cm = {
+        "agent": "workflow_cm_monitor",
+        "poll_id": "demo-cm",
+        "classification": {
+            "healthy": False,
+            "level": "HIGH",
+            "score": 75,
+            "severities": ["EVENT_CRITICAL", "HDFS_CAPACITY_HIGH"],
+            "summary": "EVENT_CRITICAL, HDFS_CAPACITY_HIGH",
+        },
+        "health": {
+            "cluster": "worldwidebank",
+            "severities": ["EVENT_CRITICAL", "HDFS_CAPACITY_HIGH"],
+            "critical_events": [
+                {
+                    "event_kind": "impala_state_fetcher",
+                    "count": 2,
+                }
+            ],
+            "metric_breaches": [
+                {
+                    "id": "hdfs_capacity_ratio",
+                    "severity": "HDFS_CAPACITY_HIGH",
+                    "scaled_value": 91.0,
+                    "threshold": 85.0,
+                }
+            ],
+            "suppressed_events": 5,
+        },
+    }
+    return nifi, kafka, cm
+
+
 def main() -> int:
     _bootstrap()
+    _load_env()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--demo",
@@ -110,15 +155,23 @@ def main() -> int:
         help="Fixtures for schema_violation_spike + route_config_drift (+ lag).",
     )
     parser.add_argument(
-        "--live",
+        "--demo-cm",
         action="store_true",
-        help="Poll live NiFi + Kafka + schema + route (default when not --demo*).",
+        help="Fixtures for CM + NiFi backpressure + Kafka lag correlation.",
+    )
+    parser.add_argument(
+        "--no-cm",
+        action="store_true",
+        help="Skip CM live poll when using --live.",
     )
     args = parser.parse_args()
 
     from ratatoskr.correlation import run_correlate_cycle
 
-    if args.demo_dataplane:
+    if args.demo_cm:
+        nifi, kafka, cm = _demo_cm_events()
+        result = run_correlate_cycle(nifi_event=nifi, kafka_event=kafka, cm_event=cm)
+    elif args.demo_dataplane:
         nifi, kafka, schema, route = _demo_dataplane_events()
         result = run_correlate_cycle(
             nifi_event=nifi,
@@ -130,7 +183,7 @@ def main() -> int:
         nifi, kafka = _demo_events()
         result = run_correlate_cycle(nifi_event=nifi, kafka_event=kafka)
     else:
-        result = run_correlate_cycle(poll_live=True)
+        result = run_correlate_cycle(poll_live=True, poll_cm=not args.no_cm)
 
     print("Signal correlate results:")
     print(json.dumps(result, indent=2, default=str))

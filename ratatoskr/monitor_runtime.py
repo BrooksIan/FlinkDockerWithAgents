@@ -25,14 +25,63 @@ AGENT_RUNNERS = {
         "runner": "examples/agents/run_workflow_nifi_monitor_local.py",
         "log": "nifi.log",
         "phase_env": "NIFI_HEAL_PHASE",
+        "cluster_supported": True,
     },
     "kafka": {
         "agent": "workflow_kafka_monitor",
         "runner": "examples/agents/run_workflow_kafka_monitor_local.py",
         "log": "kafka.log",
         "phase_env": "KAFKA_HEAL_PHASE",
+        "cluster_supported": True,
+    },
+    "cm": {
+        "agent": "workflow_cm_monitor",
+        "runner": "examples/agents/run_workflow_cm_monitor_local.py",
+        "log": "cm.log",
+        "phase_env": "",
+        "cluster_supported": False,
     },
 }
+
+
+def resolve_monitor_keys(
+    *,
+    agents: list[str] | None = None,
+    nifi: bool = True,
+    kafka: bool = True,
+    cm: bool = False,
+) -> list[str]:
+    """
+    Resolve which monitor agents to start.
+
+    ``--agent`` (repeatable) overrides boolean flags when provided.
+  """
+    if agents:
+        keys: list[str] = []
+        for raw in agents:
+            for part in str(raw).split(","):
+                key = part.strip().lower()
+                if not key:
+                    continue
+                if key not in AGENT_RUNNERS:
+                    valid = ", ".join(sorted(AGENT_RUNNERS))
+                    raise ValueError(f"Unknown monitor agent {key!r} (expected one of: {valid})")
+                if key not in keys:
+                    keys.append(key)
+        if not keys:
+            raise ValueError("Select at least one monitor via --agent")
+        return keys
+
+    keys = []
+    if nifi:
+        keys.append("nifi")
+    if kafka:
+        keys.append("kafka")
+    if cm:
+        keys.append("cm")
+    if not keys:
+        raise ValueError("Select at least one monitor via --agent or --nifi/--kafka/--cm")
+    return keys
 
 
 @dataclass
@@ -197,8 +246,10 @@ def _match_monitor_job(jobs: list[dict[str, Any]], *, agent: str) -> str | None:
 
 def start_cluster_monitors(
     *,
+    keys: list[str] | None = None,
     nifi: bool = True,
     kafka: bool = True,
+    cm: bool = False,
     interval: float | None = None,
     phase: str = "monitor",
     profile: str = "nifi",
@@ -217,13 +268,18 @@ def start_cluster_monitors(
             f"(mode={existing.mode}). Use `ratatoskr monitor stop` first."
         )
 
-    keys: list[str] = []
-    if nifi:
-        keys.append("nifi")
-    if kafka:
-        keys.append("kafka")
-    if not keys:
-        raise ValueError("Select at least one of --nifi / --kafka")
+    selected = resolve_monitor_keys(agents=keys, nifi=nifi, kafka=kafka, cm=cm)
+    unsupported = [
+        key for key in selected if not AGENT_RUNNERS[key].get("cluster_supported", True)
+    ]
+    if unsupported:
+        names = ", ".join(AGENT_RUNNERS[k]["agent"] for k in unsupported)
+        raise ValueError(
+            f"Cluster mode is not supported for: {names}. "
+            "Use `ratatoskr monitor start --agent cm --local` instead."
+        )
+    if not selected:
+        raise ValueError("Select at least one monitor agent")
 
     interval_sec = float(interval) if interval is not None else monitor_interval_sec()
     if interval_sec <= 0:
@@ -241,7 +297,7 @@ def start_cluster_monitors(
 
     now = datetime.now(timezone.utc).isoformat()
     procs: list[MonitorProc] = []
-    for key in keys:
+    for key in selected:
         meta = AGENT_RUNNERS[key]
         agent = meta["agent"]
         result = submit_agent_cluster(
@@ -295,8 +351,10 @@ def start_cluster_monitors(
 
 def start_monitors(
     *,
+    keys: list[str] | None = None,
     nifi: bool = True,
     kafka: bool = True,
+    cm: bool = False,
     interval: float | None = None,
     phase: str = "monitor",
     root: Path | None = None,
@@ -306,8 +364,7 @@ def start_monitors(
     Start continuous local runners.
 
     Background (default): detach processes, write state file.
-    Foreground: run a single combined loop in-process (nifi then kafka each tick)
-    when both selected; otherwise one agent until Ctrl-C.
+    Foreground: run a single combined loop in-process until Ctrl-C.
     """
     repo = root or project_root()
     existing = refresh_state(root=repo)
@@ -317,20 +374,14 @@ def start_monitors(
             "Use `ratatoskr monitor status` or `ratatoskr monitor stop` first."
         )
 
-    keys = []
-    if nifi:
-        keys.append("nifi")
-    if kafka:
-        keys.append("kafka")
-    if not keys:
-        raise ValueError("Select at least one of --nifi / --kafka")
+    selected = resolve_monitor_keys(agents=keys, nifi=nifi, kafka=kafka, cm=cm)
 
     interval_sec = float(interval) if interval is not None else monitor_interval_sec()
     if interval_sec <= 0:
         interval_sec = DEFAULT_MONITOR_INTERVAL_SEC
 
     if foreground:
-        return _run_foreground(keys, interval_sec=interval_sec, phase=phase, root=repo)
+        return _run_foreground(selected, interval_sec=interval_sec, phase=phase, root=repo)
 
     state_dir = monitor_state_dir(root=repo)
     state_dir.mkdir(parents=True, exist_ok=True)
@@ -343,7 +394,7 @@ def start_monitors(
     env["NIFI_HEAL_PHASE"] = phase
     env["KAFKA_HEAL_PHASE"] = phase
 
-    for key in keys:
+    for key in selected:
         meta = AGENT_RUNNERS[key]
         runner = repo / meta["runner"]
         if not runner.is_file():
@@ -429,6 +480,16 @@ def _run_foreground(
                 kafka_print(
                     kafka_cycle(),
                     label=f"Kafka continuous poll #{n} (interval={interval_sec}s)",
+                )
+            if "cm" in keys:
+                from examples.agents.run_workflow_cm_monitor_local import (
+                    _one_cycle as cm_cycle,
+                    _print_result as cm_print,
+                )
+
+                cm_print(
+                    cm_cycle(),
+                    label=f"CM continuous poll #{n} (interval={interval_sec}s)",
                 )
             time.sleep(interval_sec)
     except KeyboardInterrupt:

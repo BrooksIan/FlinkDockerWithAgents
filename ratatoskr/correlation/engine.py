@@ -7,7 +7,12 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from ratatoskr.correlation.rules import CORRELATION_RULES, DATAPLANE_CORRELATION_RULES, level_max
+from ratatoskr.correlation.rules import (
+    CM_CORRELATION_RULES,
+    CORRELATION_RULES,
+    DATAPLANE_CORRELATION_RULES,
+    level_max,
+)
 
 
 def _classification(event: dict[str, Any] | None) -> dict[str, Any]:
@@ -44,9 +49,14 @@ def _fingerprint(rule_id: str, nifi_sevs: set[str], kafka_sevs: set[str]) -> str
     return hashlib.sha256(raw.encode()).hexdigest()[:16]
 
 
-def _evidence(nifi: dict[str, Any] | None, kafka: dict[str, Any] | None) -> dict[str, Any]:
+def _evidence(
+    nifi: dict[str, Any] | None,
+    kafka: dict[str, Any] | None,
+    cm: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     n_health = (nifi or {}).get("health") if isinstance((nifi or {}).get("health"), dict) else {}
     k_health = (kafka or {}).get("health") if isinstance((kafka or {}).get("health"), dict) else {}
+    c_health = (cm or {}).get("health") if isinstance((cm or {}).get("health"), dict) else {}
     return {
         "nifi": {
             "poll_id": (nifi or {}).get("poll_id"),
@@ -73,19 +83,32 @@ def _evidence(nifi: dict[str, Any] | None, kafka: dict[str, Any] | None) -> dict
                 if g.get("group_id")
             ],
         },
+        "cm": {
+            "poll_id": (cm or {}).get("poll_id"),
+            "level": _classification(cm).get("level"),
+            "score": _score(cm),
+            "severities": sorted(_severities(cm)),
+            "cluster": c_health.get("cluster"),
+            "critical_events": len(c_health.get("critical_events") or []),
+            "metric_breaches": len(c_health.get("metric_breaches") or []),
+            "suppressed_events": c_health.get("suppressed_events"),
+        },
     }
 
 
 def _solo_summary(
     nifi_event: dict[str, Any] | None,
     kafka_event: dict[str, Any] | None,
+    cm_event: dict[str, Any] | None = None,
 ) -> str:
     """Human summary when no cross-signal rule matched."""
     n_c = _classification(nifi_event)
     k_c = _classification(kafka_event)
+    c_c = _classification(cm_event)
     n_ok = bool(n_c.get("healthy"))
     k_ok = bool(k_c.get("healthy"))
-    if n_ok and k_ok:
+    c_ok = bool(c_c.get("healthy"))
+    if n_ok and k_ok and c_ok:
         return "healthy"
     parts: list[str] = []
     if not n_ok:
@@ -94,6 +117,9 @@ def _solo_summary(
     if not k_ok:
         sevs = ",".join(k_c.get("severities") or []) or "unhealthy"
         parts.append(f"kafka_only:{sevs}")
+    if not c_ok:
+        sevs = ",".join(c_c.get("severities") or []) or "unhealthy"
+        parts.append(f"cm_only:{sevs}")
     return "+".join(parts) if parts else "uncorrelated_degradation"
 
 
@@ -115,19 +141,21 @@ def correlate_signals(
     nifi_event: dict[str, Any] | None,
     kafka_event: dict[str, Any] | None,
     *,
+    cm_event: dict[str, Any] | None = None,
     schema_event: dict[str, Any] | None = None,
     route_event: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
-    Match CORRELATION_RULES (+ optional data-plane rules) against monitor OutputEvents.
+    Match correlation rules against monitor OutputEvents.
 
-    Does not mutate NiFi or Kafka — observe-only.
+    Does not mutate NiFi, Kafka, or CM — observe-only.
     """
     nifi_sevs = _severities(nifi_event)
     kafka_sevs = _severities(kafka_event)
+    cm_sevs = _severities(cm_event)
     schema_sevs = _severities(schema_event)
     route_sevs = _severities(route_event)
-    evidence = _evidence(nifi_event, kafka_event)
+    evidence = _evidence(nifi_event, kafka_event, cm_event)
     evidence["schema"] = {
         "poll_id": (schema_event or {}).get("poll_id"),
         "level": _classification(schema_event).get("level"),
@@ -146,6 +174,7 @@ def correlate_signals(
     incidents: list[dict[str, Any]] = []
     matched_ids: list[str] = []
     specific_hit = False
+    cm_specific_hit = False
 
     for rule in CORRELATION_RULES:
         if rule.get("fallback") and specific_hit:
@@ -171,6 +200,43 @@ def correlate_signals(
                 "hint": rule.get("hint"),
                 "nifi_matched": sorted(nifi_sevs & nifi_need),
                 "kafka_matched": sorted(kafka_sevs & kafka_need),
+                "evidence": evidence,
+            }
+        )
+
+    for rule in CM_CORRELATION_RULES:
+        if rule.get("fallback") and (specific_hit or cm_specific_hit):
+            continue
+        cm_need = set(rule.get("cm_any") or ())
+        nifi_need = set(rule.get("nifi_any") or ())
+        kafka_need = set(rule.get("kafka_any") or ())
+        cm_matched = cm_sevs & cm_need
+        if not cm_matched:
+            continue
+        nifi_matched = nifi_sevs & nifi_need if nifi_need else set()
+        kafka_matched = kafka_sevs & kafka_need if kafka_need else set()
+        if nifi_need and not nifi_matched:
+            continue
+        if kafka_need and not kafka_matched:
+            continue
+        if not nifi_matched and not kafka_matched:
+            continue
+        if not rule.get("fallback"):
+            cm_specific_hit = True
+        rid = str(rule["id"])
+        matched_ids.append(rid)
+        fp = _fingerprint_multi(rid, cm_matched, nifi_matched, kafka_matched)
+        incidents.append(
+            {
+                "id": str(uuid.uuid4()),
+                "fingerprint": fp,
+                "rule": rid,
+                "level": rule["level"],
+                "title": rule["title"],
+                "hint": rule.get("hint"),
+                "cm_matched": sorted(cm_matched),
+                "nifi_matched": sorted(nifi_matched),
+                "kafka_matched": sorted(kafka_matched),
                 "evidence": evidence,
             }
         )
@@ -214,6 +280,7 @@ def correlate_signals(
     combined_level = level_max(
         str(_classification(nifi_event).get("level") or "OK"),
         str(_classification(kafka_event).get("level") or "OK"),
+        str(_classification(cm_event).get("level") or "OK"),
         str(_classification(schema_event).get("level") or "OK"),
         str(_classification(route_event).get("level") or "OK"),
         *[str(i["level"]) for i in incidents],
@@ -221,6 +288,7 @@ def correlate_signals(
     base_score = min(
         _score(nifi_event),
         _score(kafka_event),
+        _score(cm_event) if cm_event else 100,
         _score(schema_event) if schema_event else 100,
         _score(route_event) if route_event else 100,
     )
@@ -228,13 +296,14 @@ def correlate_signals(
     summary = (
         ", ".join(matched_ids)
         if matched_ids
-        else _solo_summary(nifi_event, kafka_event)
+        else _solo_summary(nifi_event, kafka_event, cm_event)
     )
 
     healthy = (
         not incidents
         and _classification(nifi_event).get("healthy", True)
         and _classification(kafka_event).get("healthy", True)
+        and _classification(cm_event).get("healthy", True)
         and _classification(schema_event).get("healthy", True)
         and _classification(route_event).get("healthy", True)
     )
@@ -248,6 +317,7 @@ def correlate_signals(
             "level": combined_level if incidents else level_max(
                 str(_classification(nifi_event).get("level") or "OK"),
                 str(_classification(kafka_event).get("level") or "OK"),
+                str(_classification(cm_event).get("level") or "OK"),
                 str(_classification(schema_event).get("level") or "OK"),
                 str(_classification(route_event).get("level") or "OK"),
             ),
@@ -269,6 +339,11 @@ def correlate_signals(
                 "poll_id": (kafka_event or {}).get("poll_id"),
                 "classification": _classification(kafka_event),
             },
+            "cm": {
+                "agent": (cm_event or {}).get("agent"),
+                "poll_id": (cm_event or {}).get("poll_id"),
+                "classification": _classification(cm_event),
+            },
             "schema": {
                 "agent": (schema_event or {}).get("agent"),
                 "poll_id": (schema_event or {}).get("poll_id"),
@@ -284,14 +359,26 @@ def correlate_signals(
     }
 
 
+def _should_poll_cm() -> bool:
+    import os
+
+    from ratatoskr.cm.env import cm_cluster, knox_token
+
+    if knox_token() or cm_cluster():
+        return True
+    return bool((os.environ.get("CM_API_BASE") or "").strip())
+
+
 def run_correlate_cycle(
     *,
     nifi_event: dict[str, Any] | None = None,
     kafka_event: dict[str, Any] | None = None,
+    cm_event: dict[str, Any] | None = None,
     schema_event: dict[str, Any] | None = None,
     route_event: dict[str, Any] | None = None,
     poll_live: bool = False,
     poll_dataplane: bool = False,
+    poll_cm: bool | None = None,
 ) -> dict[str, Any]:
     """Correlate provided events, or optionally live-poll monitors (+ data-plane)."""
     if poll_live:
@@ -335,6 +422,26 @@ def run_correlate_cycle(
             finally:
                 client.close()
 
+        effective_poll_cm = poll_cm if poll_cm is not None else _should_poll_cm()
+        if cm_event is None and effective_poll_cm:
+            from ratatoskr.cm import CMClient, run_monitor_cycle as cm_cycle
+
+            client = CMClient()
+            try:
+                cm_event = cm_cycle(client)
+            except Exception as exc:  # noqa: BLE001
+                cm_event = {
+                    "agent": "workflow_cm_monitor",
+                    "classification": {
+                        "healthy": False,
+                        "level": "HIGH",
+                        "score": 0,
+                        "severities": ["CM_UNREACHABLE"],
+                        "summary": str(exc),
+                    },
+                    "health": {"severities": ["CM_UNREACHABLE"]},
+                }
+
     if poll_live or poll_dataplane:
         if schema_event is None:
             try:
@@ -372,6 +479,7 @@ def run_correlate_cycle(
     return correlate_signals(
         nifi_event,
         kafka_event,
+        cm_event=cm_event,
         schema_event=schema_event,
         route_event=route_event,
     )

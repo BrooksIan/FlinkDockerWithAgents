@@ -125,6 +125,67 @@ categories:
             type: array
           agent:
             type: string
+    - id: cm_monitor
+      manifest: workflow_cm_monitor
+      display_name: Cloudera Manager Monitor
+      description: Poll Cloudera Manager cluster, service, role, and host health via
+        the CM REST API. Emits structured fix recommendations only — no mutations.
+      tags:
+      - demo
+      - cloudera
+      - monitoring
+      - ops
+      input_schema:
+        type: object
+        properties:
+          cluster:
+            type: string
+            description: CM cluster name (default CM_CLUSTER env)
+      output_schema:
+        type: object
+        properties:
+          agent:
+            type: string
+          classification:
+            type: object
+          health:
+            type: object
+          recommendations:
+            type: array
+          audit:
+            type: object
+    - id: react_cm_runbook
+      manifest: react_cm_runbook
+      display_name: CM Debug Runbook
+      description: Turns workflow_cm_monitor OutputEvents into a structured diagnosis
+        → remediation → verify runbook. Deterministic fallback; never mutates Cloudera Manager.
+      tags:
+      - demo
+      - cloudera
+      - react
+      - ops
+      input_schema:
+        type: object
+        properties:
+          classification:
+            type: object
+          health:
+            type: object
+          recommendations:
+            type: array
+          monitor:
+            type: object
+      output_schema:
+        type: object
+        properties:
+          agent:
+            type: string
+          mutations:
+            type: array
+          runbook:
+            type: object
+          source:
+            type: object
     - id: nifi_monitor
       manifest: workflow_nifi_monitor
       display_name: NiFi Flow Monitor

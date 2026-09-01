@@ -179,6 +179,97 @@ def test_cross_stack_monitor_plans_only() -> None:
     assert any(s["id"] == "nifi_queue_relief" for s in out["cross_heal_plan"])
 
 
+def test_correlate_cm_hdfs_backpressure() -> None:
+    from ratatoskr.correlation import correlate_signals
+
+    nifi = _nifi()
+    kafka = _kafka(
+        classification={
+            "healthy": True,
+            "level": "OK",
+            "score": 100,
+            "severities": [],
+            "summary": "healthy",
+        },
+        health={"severities": [], "lag_crit_groups": [], "missing_topics": []},
+    )
+    cm = {
+        "agent": "workflow_cm_monitor",
+        "poll_id": "c1",
+        "classification": {
+            "healthy": False,
+            "level": "HIGH",
+            "score": 70,
+            "severities": ["HDFS_CAPACITY_HIGH"],
+            "summary": "HDFS_CAPACITY_HIGH",
+        },
+        "health": {
+            "severities": ["HDFS_CAPACITY_HIGH"],
+            "metric_breaches": [{"severity": "HDFS_CAPACITY_HIGH"}],
+        },
+    }
+    result = correlate_signals(nifi, kafka, cm_event=cm)
+    assert "cm_hdfs_capacity_backpressure" in result["matched_rules"]
+    assert result["signals"]["cm"]["classification"]["severities"] == ["HDFS_CAPACITY_HIGH"]
+
+
+def test_correlate_cm_kafka_broker_lag() -> None:
+    from ratatoskr.correlation import correlate_signals
+
+    cm = {
+        "agent": "workflow_cm_monitor",
+        "classification": {
+            "healthy": False,
+            "level": "HIGH",
+            "score": 60,
+            "severities": ["ROLE_DOWN"],
+        },
+        "health": {"severities": ["ROLE_DOWN"], "stopped_roles": [{"service": "kafka"}]},
+    }
+    result = correlate_signals(
+        _nifi(
+            classification={
+                "healthy": True,
+                "level": "OK",
+                "score": 100,
+                "severities": [],
+            },
+            health={"severities": [], "queued_connections": [], "stopped_processors": []},
+        ),
+        _kafka(),
+        cm_event=cm,
+    )
+    assert "cm_kafka_broker_down_lag" in result["matched_rules"]
+
+
+def test_solo_cm_only_summary() -> None:
+    from ratatoskr.correlation import correlate_signals
+
+    cm = {
+        "agent": "workflow_cm_monitor",
+        "classification": {
+            "healthy": False,
+            "level": "MEDIUM",
+            "score": 95,
+            "severities": ["CM_SLOW"],
+        },
+        "health": {"severities": ["CM_SLOW"]},
+    }
+    result = correlate_signals(
+        _nifi(
+            classification={"healthy": True, "level": "OK", "score": 100, "severities": []},
+            health={"severities": [], "queued_connections": [], "stopped_processors": []},
+        ),
+        _kafka(
+            classification={"healthy": True, "level": "OK", "score": 100, "severities": []},
+            health={"severities": [], "lag_crit_groups": [], "missing_topics": []},
+        ),
+        cm_event=cm,
+    )
+    assert result["incidents"] == []
+    assert result["classification"]["summary"] == "cm_only:CM_SLOW"
+
+
 def test_agents_registered() -> None:
     from ratatoskr.agents.registry import load_agent_registry
 

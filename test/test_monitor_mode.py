@@ -98,6 +98,38 @@ def test_monitor_state_roundtrip(tmp_path: Path | None = None) -> None:
         clear_state(root=root)
 
 
+def test_resolve_monitor_keys_agent_flag() -> None:
+    from ratatoskr.monitor_runtime import resolve_monitor_keys
+
+    assert resolve_monitor_keys(agents=["cm"]) == ["cm"]
+    assert resolve_monitor_keys(agents=["nifi", "cm"]) == ["nifi", "cm"]
+    assert resolve_monitor_keys(agents=["nifi,kafka"]) == ["nifi", "kafka"]
+    assert resolve_monitor_keys(nifi=False, kafka=False, cm=True) == ["cm"]
+
+
+def test_resolve_monitor_keys_rejects_unknown() -> None:
+    from ratatoskr.monitor_runtime import resolve_monitor_keys
+
+    try:
+        resolve_monitor_keys(agents=["unknown"])
+        raised = False
+    except ValueError:
+        raised = True
+    assert raised
+
+
+def test_cluster_mode_rejects_cm() -> None:
+    from ratatoskr.monitor_runtime import start_cluster_monitors
+
+    try:
+        start_cluster_monitors(keys=["cm"])
+        raised = False
+    except ValueError as exc:
+        raised = True
+        assert "Cluster mode is not supported" in str(exc)
+    assert raised
+
+
 def test_cli_has_monitor() -> None:
     from ratatoskr.cli import app
 
@@ -119,6 +151,9 @@ def main() -> int:
         test_monitor_mode_defaults,
         test_monitor_mode_continuous_env,
         test_monitor_polls_zero_is_continuous,
+        test_resolve_monitor_keys_agent_flag,
+        test_resolve_monitor_keys_rejects_unknown,
+        test_cluster_mode_rejects_cm,
         test_cli_has_monitor,
     ]
     failed = 0

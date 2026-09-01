@@ -36,6 +36,7 @@ def slim_correlation(event: dict[str, Any]) -> dict[str, Any]:
                     "hint",
                     "nifi_matched",
                     "kafka_matched",
+                    "cm_matched",
                     "schema_matched",
                     "route_matched",
                     "fingerprint",
@@ -73,6 +74,7 @@ def slim_correlation(event: dict[str, Any]) -> dict[str, Any]:
         "signals": {
             "nifi": _side_brief("nifi"),
             "kafka": _side_brief("kafka"),
+            "cm": _side_brief("cm"),
         },
         "cross_heal_plan": [
             {

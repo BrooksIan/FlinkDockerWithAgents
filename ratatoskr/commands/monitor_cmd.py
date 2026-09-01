@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import Optional
 
 import typer
 
@@ -16,15 +17,22 @@ from ratatoskr.monitor_runtime import (
 )
 
 app = typer.Typer(
-    help="Turn NiFi/Kafka monitoring (and healing) agents on as continuous queries.",
+    help="Turn NiFi/Kafka/CM monitoring (and healing) agents on as continuous queries.",
     no_args_is_help=True,
 )
 
 
 @app.command("start")
 def monitor_start(
+    agent: Optional[list[str]] = typer.Option(
+        None,
+        "--agent",
+        help="Monitor agent(s): nifi, kafka, cm (repeatable or comma-separated). "
+        "Overrides --nifi/--kafka/--cm when set.",
+    ),
     nifi: bool = typer.Option(True, "--nifi/--no-nifi", help="Start workflow_nifi_monitor"),
     kafka: bool = typer.Option(True, "--kafka/--no-kafka", help="Start workflow_kafka_monitor"),
+    cm: bool = typer.Option(False, "--cm/--no-cm", help="Start workflow_cm_monitor (recommend-only)"),
     interval: float = typer.Option(
         DEFAULT_MONITOR_INTERVAL_SEC,
         "--interval",
@@ -34,7 +42,7 @@ def monitor_start(
     phase: str = typer.Option(
         "monitor",
         "--phase",
-        help="Heal phase for both agents (monitor|safe|lab) — same agent, gated mutations",
+        help="Heal phase for NiFi/Kafka (monitor|safe|lab) — CM is always recommend-only",
     ),
     cluster: bool = typer.Option(
         False,
@@ -62,16 +70,20 @@ def monitor_start(
     try:
         if cluster:
             state = start_cluster_monitors(
+                keys=agent,
                 nifi=nifi,
                 kafka=kafka,
+                cm=cm,
                 interval=interval,
                 phase=phase,
                 profile=profile,
             )
         else:
             state = start_monitors(
+                keys=agent,
                 nifi=nifi,
                 kafka=kafka,
+                cm=cm,
                 interval=interval,
                 phase=phase,
                 foreground=foreground,

@@ -6,7 +6,7 @@ from ratatoskr.correlation.engine import (
     run_cross_stack_cycle,
 )
 from ratatoskr.correlation.heal import CROSS_HEAL_PLAYBOOKS, plan_cross_heals
-from ratatoskr.correlation.rules import CORRELATION_RULES, DATAPLANE_CORRELATION_RULES
+from ratatoskr.correlation.rules import CORRELATION_RULES, CM_CORRELATION_RULES, DATAPLANE_CORRELATION_RULES
 from ratatoskr.correlation.runbook import (
     allowed_cross_remediation,
     fallback_cross_runbook,
@@ -14,6 +14,7 @@ from ratatoskr.correlation.runbook import (
 )
 
 __all__ = [
+    "CM_CORRELATION_RULES",
     "CORRELATION_RULES",
     "CROSS_HEAL_PLAYBOOKS",
     "DATAPLANE_CORRELATION_RULES",
