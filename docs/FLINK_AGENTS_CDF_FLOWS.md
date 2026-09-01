@@ -119,6 +119,10 @@ Inference explains; the workflow agent heals.
 
 Many CDF flows source or sink Kafka. A NiFi-only retry cannot see **missing topics**, **consumer lag**, or **empty consumer groups**. This repo pairs `workflow_kafka_monitor` with `workflow_nifi_monitor` and `workflow_signal_correlate` to match rules like “NiFi backpressure + Kafka lag” or “topic missing + stopped ConsumeKafka” before applying ordered cross-stack heals. See [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md).
 
+### Cloudera Manager (platform layer)
+
+On CDP, **Cloudera Manager** sees cluster-wide health that NiFi/Kafka monitors miss: stopped roles, parcel errors, Impala metrics auth (SPNEGO), HDFS capacity, and grouped CM events. `workflow_cm_monitor` polls CM via Knox (`cdp-proxy-token/cm-api`), suppresses noisy events, and emits **recommend-only** fixes. `react_cm_runbook` turns those facts into an operator checklist; `workflow_signal_correlate` can match CM severities with NiFi/Kafka (e.g. HDFS capacity + NiFi backpressure). See [CM_MONITOR.md](CM_MONITOR.md).
+
 ### Deployment options
 
 | Mode | Fit |
@@ -144,4 +148,4 @@ Emptying queues drops flowfiles permanently — keep that in **lab** only with e
 
 **Flink Agents + CDF** = an external, policy-driven **SRE layer** for NiFi flows: continuous health observation, severity classification, gated remediation, and auditable events — complementary to per-processor retry, not a replacement for normal NiFi error handling.
 
-For hands-on steps in this repo: [nifi/README.md](../nifi/README.md) · [NIFI_MONITOR.md](NIFI_MONITOR.md) · [NiFi-MCP-Server](https://github.com/cloudera/NiFi-MCP-Server).
+For hands-on steps in this repo: [nifi/README.md](../nifi/README.md) · [NIFI_MONITOR.md](NIFI_MONITOR.md) · [CM_MONITOR.md](CM_MONITOR.md) · [NiFi-MCP-Server](https://github.com/cloudera/NiFi-MCP-Server).

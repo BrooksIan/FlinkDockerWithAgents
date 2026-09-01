@@ -24,9 +24,9 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-  A["Poll / fixture\nNiFi + Kafka events"] --> B["correlate_signals\nCORRELATION_RULES"]
+  A["Poll / fixture\nNiFi + Kafka + CM events"] --> B["correlate_signals\nCORRELATION_RULES + CM_CORRELATION_RULES"]
   B --> C{"incidents?"}
-  C -->|no| D["summary: nifi_only:* / kafka_only:*\ncross_signal: false"]
+  C -->|no| D["summary: nifi_only:* / kafka_only:* / cm_only:*\ncross_signal: false"]
   C -->|yes| E["incidents + evidence"]
   E --> F["react_incident_scribe\nLLM or fallback"]
   E --> R["react_cross_runbook\nstructured checklist"]
@@ -45,8 +45,12 @@ flowchart TB
 | `workflow_cross_stack_heal` | workflow | Correlate, then run playbooks when `CROSS_HEAL_PHASE=lab` |
 | `react_incident_scribe` | react | Explain incidents (Designer LLM or deterministic fallback). **Never mutates.** |
 | `react_cross_runbook` | react | Structured diagnosis → remediation → verify checklist from correlation (same shape as NiFi runbook). **Never mutates.** Optional HITL → `workflow_cross_stack_heal`. See [NIFI_RUNBOOK.md](NIFI_RUNBOOK.md). |
+| `workflow_cm_monitor` | workflow | CM health poll (recommend-only). Input to correlate. See [CM_MONITOR.md](CM_MONITOR.md). |
+| `react_cm_runbook` | react | CM debug runbook from monitor facts. **Never mutates CM.** |
 
 ## Rules
+
+### NiFi ↔ Kafka
 
 | Rule id | NiFi | Kafka | Data-plane | Level | Cross heal (lab) |
 |---------|------|-------|------------|-------|------------------|
@@ -59,18 +63,30 @@ flowchart TB
 | `route_config_drift` | — | — | ROUTE_DRIFT:* | MEDIUM | — (propose route patch via approval bus) |
 | `schema_violations_with_lag` | — | LAG_* | SCHEMA_VIOLATIONS | HIGH | — |
 | `stack_degraded` | any degradation | any degradation | — | MEDIUM (fallback) | — |
-| `cm_hdfs_capacity_backpressure` | BACKPRESSURE* | — | HDFS_CAPACITY_HIGH | HIGH | — |
-| `cm_kafka_broker_down_lag` | — | LAG_* / UNDER_REPLICATED | ROLE_DOWN / SERVICE_DOWN | HIGH | — |
-| `cm_impala_event_kafka_lag` | — | LAG_CRIT / stalled | EVENT_CRITICAL | HIGH | — |
-| `cm_stack_degraded` | degradation | degradation | CM degradation | MEDIUM (fallback) | — |
+
+### CM ↔ NiFi / Kafka
+
+Requires **both** CM severities and matching NiFi or Kafka severities. Solo CM faults (e.g. `cm_only:EVENT_CRITICAL`) do **not** create incidents.
+
+| Rule id | CM | NiFi | Kafka | Level |
+|---------|-----|------|-------|-------|
+| `cm_hdfs_capacity_backpressure` | HDFS_CAPACITY_HIGH / METRIC_BREACH | BACKPRESSURE* | — | HIGH |
+| `cm_kafka_broker_down_lag` | ROLE_DOWN / SERVICE_DOWN / KAFKA_UNDER_REPLICATED | — | LAG_* / UNDER_REPLICATED | HIGH |
+| `cm_nifi_stopped_backpressure` | ROLE_DOWN / SERVICE_DOWN / SERVICE_BAD | STOPPED / BACKPRESSURE* | — | HIGH |
+| `cm_event_impala_nifi_slow` | EVENT_CRITICAL / EVENT_WARN | NIFI_SLOW / BULLETIN_ERROR | — | MEDIUM |
+| `cm_impala_event_kafka_lag` | EVENT_CRITICAL | — | LAG_CRIT / stalled | HIGH |
+| `cm_unreachable_dual` | CM_UNREACHABLE | NIFI_UNREACHABLE | BROKER_UNREACHABLE | HIGH |
+| `cm_stack_degraded` | CM degradation | degradation | degradation | MEDIUM (fallback) |
 
 ### CM timeseries metrics
 
 `workflow_cm_monitor` polls CM timeseries for HDFS capacity and Kafka under-replication (when those services exist). Thresholds come from `CM_METRIC_THRESHOLDS` (default `hdfs_capacity_pct: 85`, `kafka_under_replicated_min: 1`). Breaches emit severities like `HDFS_CAPACITY_HIGH` and appear in `health.metrics` / `health.metric_breaches`.
 
-Live correlate polls CM automatically when `CM_API_BASE`, `KNOX_TOKEN`, or `CM_CLUSTER` is set. Use `--no-cm` on the local runner to skip.
+Live correlate polls CM automatically when `CM_API_BASE`, `KNOX_TOKEN`, or `CM_CLUSTER` is set. The local runner loads `.env` (for `CM_API_BASE` / `CM_CLUSTER`); **`KNOX_TOKEN` must still be exported** in your shell. Use `--no-cm` to skip CM on live runs.
 
 ```bash
+export KNOX_TOKEN='<jwt>'
+python examples/agents/run_workflow_signal_correlate_local.py          # live: NiFi + Kafka + CM
 python examples/agents/run_workflow_signal_correlate_local.py --demo-cm
 python examples/agents/run_workflow_signal_correlate_local.py --no-cm   # NiFi+Kafka only
 ```
@@ -97,6 +113,9 @@ python examples/agents/run_workflow_signal_correlate_local.py --demo
 
 # Schema violations + route drift + lag fixtures
 python examples/agents/run_workflow_signal_correlate_local.py --demo-dataplane
+
+# CM + NiFi backpressure + Kafka lag (offline)
+python examples/agents/run_workflow_signal_correlate_local.py --demo-cm
 
 # Plan cross heals for topic-missing / backpressure-lag fixtures
 python examples/agents/run_workflow_cross_stack_heal_local.py --demo topic-missing
@@ -180,4 +199,6 @@ Runbook checklist shape + NiFi HITL: [NIFI_RUNBOOK.md](NIFI_RUNBOOK.md).
 
 Optional Kafka topics: `signals.correlate.output`, `signals.cross_heal.output`, `signals.incident.brief`, `signals.cross_runbook.propose`, `signals.cross_runbook.ack`.
 
-Tests: `python3 test/test_signal_correlate.py` · `python3 test/test_cross_runbook.py`.
+Tests: `python3 test/test_signal_correlate.py` · `python3 test/test_cross_runbook.py` · `python3 test/test_cm_metrics.py`.
+
+CM monitor guide: [CM_MONITOR.md](CM_MONITOR.md).

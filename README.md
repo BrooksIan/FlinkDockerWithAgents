@@ -80,12 +80,28 @@ ratatoskr agent run workflow_kafka_monitor --local
 - Cross-stack: [docs/SIGNAL_CORRELATE.md](docs/SIGNAL_CORRELATE.md)
 - Details: [docs/KAFKA_MONITOR.md](docs/KAFKA_MONITOR.md)
 
-### 4. Cross-signal correlation
+### 4. Cloudera Manager monitoring (CDP)
 
-Deterministic correlation of NiFi + Kafka monitor OutputEvents (`workflow_signal_correlate`), optional ReAct brief (`react_incident_scribe`) or structured cross runbook (`react_cross_runbook`, never mutates), and gated coordinated heals (`workflow_cross_stack_heal`).
+Read-only CM health polling (`workflow_cm_monitor`): services, roles, grouped events (Impala SPNEGO, state fetcher, …), timeseries thresholds (HDFS capacity, Kafka under-replication), and structured recommendations. Knox via `CM_API_BASE` + `KNOX_TOKEN`. `react_cm_runbook` explains findings; never mutates CM.
+
+```bash
+export KNOX_TOKEN='<jwt>'   # .env has CM_API_BASE / CM_CLUSTER
+.venv/bin/python scripts/cm_monitor_live_probe.py
+.venv/bin/python examples/agents/run_react_cm_runbook_local.py --live
+ratatoskr monitor start --agent cm --no-nifi --no-kafka --interval 60
+```
+
+- Details: [docs/CM_MONITOR.md](docs/CM_MONITOR.md)
+
+### 5. Cross-signal correlation
+
+Deterministic correlation of NiFi + Kafka + CM monitor OutputEvents (`workflow_signal_correlate`), optional ReAct brief (`react_incident_scribe`) or structured cross runbook (`react_cross_runbook`, never mutates), and gated coordinated heals (`workflow_cross_stack_heal`).
 
 ```bash
 python examples/agents/run_workflow_signal_correlate_local.py --demo
+python examples/agents/run_workflow_signal_correlate_local.py --demo-cm
+export KNOX_TOKEN='<jwt>'
+python examples/agents/run_workflow_signal_correlate_local.py   # live + CM when configured
 python examples/agents/run_react_incident_scribe_local.py
 python3 scripts/demo_cross_runbook.py --scenario topic-missing --heal --approve
 # Live: python3 scripts/demo_cross_runbook.py --live --inject --heal --approve

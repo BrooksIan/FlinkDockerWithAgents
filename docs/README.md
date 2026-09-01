@@ -26,7 +26,8 @@ Guides for the **Ratatoskr** Flink Agents workspace. Honeypot-specific docs live
 | [FLINK_AGENTS_CDF_FLOWS.md](FLINK_AGENTS_CDF_FLOWS.md) | Brief: Flink Agents with CDF flows vs NiFi retry |
 | [NIFI_RUNBOOK.md](NIFI_RUNBOOK.md) | ReAct NiFi runbooks + HITL (`nifi.runbook.*`) |
 | [KAFKA_MONITOR.md](KAFKA_MONITOR.md) | Kafka cluster monitoring / healing + demo scenarios |
-| [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md) | NiFi↔Kafka correlation, cross runbook HITL, cross-stack heal |
+| [CM_MONITOR.md](CM_MONITOR.md) | Cloudera Manager monitoring (recommend-only) + CDP/Knox + runbook |
+| [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md) | NiFi↔Kafka↔CM correlation, cross runbook HITL, cross-stack heal |
 | [SCHEMA_GATE.md](SCHEMA_GATE.md) | Data-plane schema/contract gate (`schema.violations`) |
 | [ROUTE_ENRICH.md](ROUTE_ENRICH.md) | Routing / enrichment rule apply (NiFi executes) |
 | [REPLAY.md](REPLAY.md) | Lab-gated Kafka↔NiFi replay job (not heal) |
@@ -54,6 +55,7 @@ Studio Kafka (`ratatoskr kafka up`) is independent of the honeypot broker.
 | Doc | Description |
 |-----|-------------|
 | [KAFKA_MONITOR.md](KAFKA_MONITOR.md) | Monitor / heal + Mermaid architecture |
+| [CM_MONITOR.md](CM_MONITOR.md) | CM monitor (recommend-only) + Knox + timeseries |
 | [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md) | Cross-signal + cross runbook HITL |
 | [../deploy/docker-compose.kafka.yml](../deploy/docker-compose.kafka.yml) | Compose stack |
 

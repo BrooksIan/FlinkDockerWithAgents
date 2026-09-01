@@ -195,11 +195,13 @@ Agents are declared in [`examples/agents/agent-manifest.yaml`](../examples/agent
 | `workflow_api_fetch` | workflow | Fetches JSON from HTTP endpoint (Settings → API fetch) |
 | `workflow_nifi_monitor` | workflow | NiFi health + phased heal ([NIFI_MONITOR.md](NIFI_MONITOR.md)) |
 | `workflow_kafka_monitor` | workflow | Kafka health + phased heal ([KAFKA_MONITOR.md](KAFKA_MONITOR.md)) |
-| `workflow_signal_correlate` | workflow | NiFi↔Kafka cross-signal incidents (observe-only) |
+| `workflow_cm_monitor` | workflow | CM health + recommendations only ([CM_MONITOR.md](CM_MONITOR.md)) |
+| `workflow_signal_correlate` | workflow | NiFi↔Kafka↔CM cross-signal incidents (observe-only) |
 | `workflow_cross_stack_heal` | workflow | Correlate + coordinated playbooks |
 | `react_echo` | react | Tool-chaining lab agent (no LLM) |
 | `react_incident_scribe` | react | Explain correlated incidents (never mutates) |
 | `react_nifi_runbook` | react | Structured NiFi debug runbook from monitor facts (never mutates) — [NIFI_RUNBOOK.md](NIFI_RUNBOOK.md) |
+| `react_cm_runbook` | react | Structured CM debug runbook from monitor facts (never mutates) — [CM_MONITOR.md](CM_MONITOR.md) |
 | `react_cross_runbook` | react | Structured NiFi↔Kafka runbook from correlation (never mutates; optional HITL) — [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md) |
 | `react_double_value` | react | ReAct agent that doubles values via LLM (requires Settings LLM) |
 | `react_skills_demo` | react | Native Flink chat model + math-calculator skill (requires Settings LLM) |
@@ -257,10 +259,12 @@ ratatoskr status
 |-------|-------|
 | `workflow_nifi_monitor` / `react_nifi_runbook` | [NIFI_MONITOR.md](NIFI_MONITOR.md) · [NIFI_RUNBOOK.md](NIFI_RUNBOOK.md) · [nifi/README.md](../nifi/README.md) |
 | `workflow_kafka_monitor` | [KAFKA_MONITOR.md](KAFKA_MONITOR.md) |
+| `workflow_cm_monitor` / `react_cm_runbook` | [CM_MONITOR.md](CM_MONITOR.md) |
 | `workflow_signal_correlate` / `workflow_cross_stack_heal` / `react_incident_scribe` / `react_cross_runbook` | [SIGNAL_CORRELATE.md](SIGNAL_CORRELATE.md) |
 
 ```bash
-ratatoskr monitor start              # continuous host polls
+ratatoskr monitor start              # continuous host polls (NiFi + Kafka)
+ratatoskr monitor start --agent cm --no-nifi --no-kafka   # CM only (Knox)
 ratatoskr monitor start --cluster    # Flink cluster monitors
 python3 scripts/demo_nifi_kafka_heal.py --list
 python3 scripts/demo_nifi_runbook.py --scenario stop-generate --heal --approve
