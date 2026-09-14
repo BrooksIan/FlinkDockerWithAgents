@@ -1,12 +1,18 @@
 :root {
-  --bg: #0f1419;
-  --surface: #1a2332;
-  --border: #2d3a4f;
-  --text: #e8eef7;
-  --muted: #8b9cb3;
-  --accent: #3b82f6;
+  /* Cloudera-tailored: purple field + bright orange accent */
+  --brand-purple: #120046;
+  --brand-orange: #ff550d;
+  --bg: #120046;
+  --surface: #1c0a5c;
+  --surface-2: #2a1470;
+  --panel: #1c0a5c;
+  --border: #3d2a7a;
+  --text: #f4f0ff;
+  --muted: #b0a3d4;
+  --accent: #ff550d;
+  --accent-hover: #ff7a3d;
   --ok: #22c55e;
-  --warn: #eab308;
+  --warn: #f5a524;
   --bad: #ef4444;
   font-family: "Segoe UI", system-ui, sans-serif;
   line-height: 1.5;
@@ -38,7 +44,7 @@ a:hover {
 }
 
 .nav {
-  background: var(--surface);
+  background: color-mix(in srgb, var(--brand-purple) 72%, #000 28%);
   border-right: 1px solid var(--border);
   padding: 1.5rem 1rem;
 }
@@ -71,11 +77,18 @@ a:hover {
   border-radius: 6px;
   color: var(--text);
   margin-bottom: 0.25rem;
+  border: 1px solid transparent;
 }
 
 .nav a.active {
-  background: var(--border);
-  color: white;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  color: #fff;
+}
+
+.nav a:hover:not(.active) {
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  text-decoration: none;
 }
 
 .main {
@@ -190,7 +203,7 @@ h2 {
 }
 
 .cluster-hint {
-  background: var(--surface-2, #f8fafc);
+  background: var(--surface-2, color-mix(in srgb, var(--brand-purple) 85%, #fff 15%));
   border-radius: 8px;
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
@@ -249,6 +262,11 @@ button,
   font-size: 0.9rem;
 }
 
+button:hover:not(:disabled),
+.btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
 button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -273,7 +291,7 @@ button.secondary {
 }
 
 pre.yaml {
-  background: #0a0e14;
+  background: color-mix(in srgb, var(--brand-purple) 88%, #000 12%);
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 1rem;
@@ -321,6 +339,7 @@ pre.yaml {
 .studio-tab.active {
   background: var(--accent);
   border-color: var(--accent);
+  /* primary CTA */
   color: #fff;
 }
 
@@ -409,7 +428,7 @@ pre.yaml {
   padding: 0.5rem 0.65rem;
   border: 1px dashed var(--border);
   border-radius: 6px;
-  background: #0a0e14;
+  background: color-mix(in srgb, var(--brand-purple) 88%, #000 12%);
   cursor: grab;
   user-select: none;
   transition: border-color 0.15s, background 0.15s;
@@ -531,7 +550,7 @@ pre.yaml {
 }
 
 .studio-node.source {
-  border-color: #2563eb;
+  border-color: var(--brand-orange);
 }
 
 .studio-node.agent {
@@ -539,11 +558,11 @@ pre.yaml {
 }
 
 .studio-node.window {
-  border-color: #d97706;
+  border-color: #f5a524;
 }
 
 .studio-node.sink {
-  border-color: #7c3aed;
+  border-color: #6b4cff;
 }
 
 .studio-node-title {
@@ -585,7 +604,7 @@ pre.yaml {
   width: 100%;
   font-family: ui-monospace, monospace;
   font-size: 0.8rem;
-  background: #0a0e14;
+  background: color-mix(in srgb, var(--brand-purple) 88%, #000 12%);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -597,7 +616,7 @@ pre.yaml {
 .studio-select {
   width: 100%;
   font-size: 0.85rem;
-  background: #0a0e14;
+  background: color-mix(in srgb, var(--brand-purple) 88%, #000 12%);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -1091,8 +1110,8 @@ pre.yaml {
   margin: 0.5rem 0 0;
   padding: 0.55rem 0.7rem;
   border-radius: 6px;
-  border-left: 3px solid var(--accent, #3b82f6);
-  background: color-mix(in srgb, var(--accent, #3b82f6) 8%, transparent);
+  border-left: 3px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 .designer-prompt-recipes {

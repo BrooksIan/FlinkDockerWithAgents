@@ -10,7 +10,7 @@ export function Layout() {
           <img className="nav-logo" src="/ratatoskr-icon.svg" alt="" width={40} height={40} />
           <div>
             <h1>Ratatoskr</h1>
-            <p className="sub">Flink Agents</p>
+            <p className="sub">Flink Agents · CDP</p>
           </div>
         </div>
         <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : "")}>

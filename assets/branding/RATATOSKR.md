@@ -69,7 +69,7 @@ Visual elements:
 1. **Ash trunk** — vertical stem with three root lines (Yggdrasil’s three roots).
 2. **Squirrel** — amber/rust body on the trunk; curved tail (recognizable at 16–32 px).
 3. **Event dots** — gold and blue beads on the trunk (messages in flight; aligns with dashboard `--warn` / `--accent`).
-4. **Palette** — Norway flag colors: red squirrel `#BA0C2F`, blue accents `#00205B`, white fimbriation `#FFFFFF` on trunk and event dots; dark dashboard background retained for contrast.
+4. **Palette** — Cloudera-tailored: bright orange `#ff550d`, deep purple `#120046`, white fimbriation `#FFFFFF` on trunk and event dots.
 
 ## Usage
 
