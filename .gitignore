@@ -1,3 +1,36 @@
 # Local run registry (SQLite)
 .ratatoskr/
 ratatoskr/pipelines/generated/*/
+
+# Secrets / local env (keep .env.example)
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Logs / temp
+*.log
+tmp/
+temp/

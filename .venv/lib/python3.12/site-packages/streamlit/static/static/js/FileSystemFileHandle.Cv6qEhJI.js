@@ -1,1 +1,0 @@
-import{FileSystemFileHandle as e}from"./es6.D2BY6jI1.js";export{e as FileSystemFileHandle,e as default};

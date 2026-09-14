@@ -1,2 +1,0 @@
-[console_scripts]
-spark-parser-coverage = spark_parser.bin.parser_coverage:run
