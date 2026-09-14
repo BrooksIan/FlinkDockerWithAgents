@@ -8,16 +8,62 @@ Named for the Norse squirrel that carries messages up and down **Yggdrasil** —
 
 ## Overview
 
-Ratatoskr is a developer workspace for building, running, and verifying [Apache Flink Agents](https://github.com/apache/flink-agents) on Docker. It ships a Typer CLI, FastAPI Control API, React dashboard (Agent Designer + Agentic Studio), and registered workflow/ReAct agents — with a single-command path from clone to working Flink jobs.
+Ratatoskr is a developer workspace for building, running, and verifying [Apache Flink Agents](https://github.com/apache/flink-agents) — primarily on **Docker Compose** for labs, with documented paths to **CDP Private Cloud Base** and **Knox VIP** gateways. It ships a Typer CLI, FastAPI Control API, React dashboard (Agent Designer + Agentic Studio), and registered workflow/ReAct agents — with a single-command path from clone to working Flink jobs.
 
-**Primary use cases**
+### What is Apache Flink (and why it matters here)
+
+[Apache Flink](https://flink.apache.org/) is an open-source engine for **stateful stream processing**: continuous jobs that read unbounded event streams (often from Kafka), keep keyed state, and emit results with low latency. Cloudera customers already meet Flink in streaming and analytics workloads.
+
+**Flink Agents** sits on top of Flink. Instead of only writing DataStream SQL/operators, you define agents with `@action` / `@tool` graphs that can:
+
+- run **locally** for fast iteration, or
+- submit as **Flink cluster jobs** for always-on monitoring and pipelines.
+
+So Flink’s value here is the **scalable, stateful runtime** for agentic ops — not a replacement for NiFi or Kafka. Primer: [docs/FLINK_AGENTS.md](docs/FLINK_AGENTS.md#what-is-apache-flink).
+
+### How Flink Agents connect to NiFi, Kafka, and Cloudera Manager
+
+```mermaid
+flowchart LR
+  subgraph DataPlane["Data / messaging plane"]
+    K["Apache Kafka\ntopics & lag"]
+    N["Apache NiFi / CDF\nflows & queues"]
+  end
+  subgraph Control["Flink Agents control plane"]
+    FA["workflow_*_monitor\nclassify → recommend / heal"]
+    RB["react_*_runbook\nexplain-only"]
+    CX["signal_correlate\ncross-stack incidents"]
+  end
+  subgraph Platform["Platform ops"]
+    CM["Cloudera Manager\ncluster / roles / metrics"]
+  end
+  N --> FA
+  K --> FA
+  CM --> FA
+  FA --> RB
+  FA --> CX
+```
+
+| Product | Role | What Ratatoskr agents do |
+|---------|------|---------------------------|
+| **Kafka** | Event bus and consumer groups | Probe brokers/topics/lag; optional phased heal (`create_topic`, restart consumers) |
+| **NiFi** | Integration flows (processors, queues, controller services) | Poll flow health; phased heal (`start_processor`, enable CS, lab fixes) |
+| **Cloudera Manager** | Cluster service/role health | Recommend-only monitoring + runbooks (no CM mutations yet) |
+| **Flink / Flink Agents** | Stream runtime + agent model | Host continuous monitors, Studio pipelines, and correlation |
+
+**Primary use case:** continuous **monitoring**, structured **recommendations / runbooks**, and **optional gated self-healing** for NiFi and Kafka (and recommend-only visibility into CM). Agents observe those systems from the outside; they do not replace NiFi processors or Kafka brokers.
+
+Docker lab vs CDP Base / Knox VIP: [docs/DEPLOYMENT_SCENARIOS.md](docs/DEPLOYMENT_SCENARIOS.md).
+
+**Primary demos**
 
 | Use case | What it demonstrates | Start here |
 |----------|----------------------|------------|
 | [Honeypot](#1-honeypot--cybersecurity) | Cowrie → Kafka → Flink Agents triage and enrichment | [honeypot/README.md](honeypot/README.md) |
 | [NiFi monitoring](#2-nifi-flow-monitoring) | Flow health, phased heal, runbook HITL | [nifi/README.md](nifi/README.md) · [docs/NIFI_MONITOR.md](docs/NIFI_MONITOR.md) · [docs/NIFI_RUNBOOK.md](docs/NIFI_RUNBOOK.md) |
 | [Kafka monitoring](#3-kafka-cluster-monitoring) | Broker/topic/lag probes and phased healing | [docs/KAFKA_MONITOR.md](docs/KAFKA_MONITOR.md) |
-| [Cross-signal](#4-cross-signal-correlation) | NiFi↔Kafka incidents, scribe, coordinated heals | [docs/SIGNAL_CORRELATE.md](docs/SIGNAL_CORRELATE.md) |
+| [CM monitoring](#4-cloudera-manager-monitoring-cdp) | CDP/Knox CM health + recommendations | [docs/CM_MONITOR.md](docs/CM_MONITOR.md) |
+| [Cross-signal](#5-cross-signal-correlation) | NiFi↔Kafka↔CM incidents, scribe, coordinated heals | [docs/SIGNAL_CORRELATE.md](docs/SIGNAL_CORRELATE.md) |
 
 Registered agents (manifest + dashboard catalog): [`examples/agents/agent-catalog.yaml`](examples/agents/agent-catalog.yaml) · [`examples/agents/agent-manifest.yaml`](examples/agents/agent-manifest.yaml). Browse them in the dashboard at `/agents`, or via `ratatoskr agent list`.
 

@@ -96,7 +96,7 @@ Results appear in `health.metrics` and `health.metric_breaches`.
 | `CM_CONSOLE_BASE` | derived | CM UI base for recommendation deep links |
 | `CM_EVENT_SUPPRESS_PATTERNS` | ZK keystore | `none` disables built-in suppressions |
 
-Copy from [`.env.example`](../.env.example). Local runners load `.env` automatically; **`KNOX_TOKEN` must still be exported** in your shell.
+Templates: see [`.env.example`](../.env.example). Local runners load `.env` automatically; **`KNOX_TOKEN` must still be exported** in your shell. Full Docker vs CDP Base / Knox VIP matrix: [DEPLOYMENT_SCENARIOS.md](DEPLOYMENT_SCENARIOS.md).
 
 ### CDP via Knox (example)
 

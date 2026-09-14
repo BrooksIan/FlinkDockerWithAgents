@@ -12,6 +12,7 @@ Guides for the **Ratatoskr** Flink Agents workspace. Honeypot-specific docs live
 |-----|-------------|
 | [../README.md](../README.md) | Blueprint overview and quick start |
 | [PLATFORM.md](PLATFORM.md) | **Control API, agents, observability, Studio cluster, dashboard integration** |
+| [DEPLOYMENT_SCENARIOS.md](DEPLOYMENT_SCENARIOS.md) | **Docker services vs CDP Base / Knox VIP — deviations & test checklist** |
 | [../ratatoskr/README.md](../ratatoskr/README.md) | CLI package and commands |
 | [../examples/README.md](../examples/README.md) | Example agents and demos |
 
@@ -20,8 +21,9 @@ Guides for the **Ratatoskr** Flink Agents workspace. Honeypot-specific docs live
 | Doc | Description |
 |-----|-------------|
 | [PLATFORM.md](PLATFORM.md) | Platform control plane — API, agent registry, Studio cluster, verify |
+| [DEPLOYMENT_SCENARIOS.md](DEPLOYMENT_SCENARIOS.md) | How services run (Dockerfiles/Compose) and CDP/Knox alternatives |
 | [Blog.md](Blog.md) | Narrative overview and design rationale |
-| [FLINK_AGENTS.md](FLINK_AGENTS.md) | Workflow vs ReAct agents — concepts, comparison, diagrams |
+| [FLINK_AGENTS.md](FLINK_AGENTS.md) | What Flink is + workflow vs ReAct agents |
 | [NIFI_MONITOR.md](NIFI_MONITOR.md) | NiFi flow monitoring / healing + orchestrated demo catalog |
 | [FLINK_AGENTS_CDF_FLOWS.md](FLINK_AGENTS_CDF_FLOWS.md) | Brief: Flink Agents with CDF flows vs NiFi retry |
 | [NIFI_RUNBOOK.md](NIFI_RUNBOOK.md) | ReAct NiFi runbooks + HITL (`nifi.runbook.*`) |

@@ -9,15 +9,38 @@ A practical review of the two agent paradigms in [Apache Flink Agents](https://g
 **Related docs**
 
 - [PLATFORM.md](PLATFORM.md) — generic platform: CLI, Control API, example agents
+- [DEPLOYMENT_SCENARIOS.md](DEPLOYMENT_SCENARIOS.md) — Docker lab vs CDP Base / Knox VIP
 - [honeypot/docs/PRODUCTION_ARCHITECTURE.md](../honeypot/docs/PRODUCTION_ARCHITECTURE.md) — hot path vs enrichment in production
 - [honeypot/README.md](../honeypot/README.md) — optional Cowrie end-to-end demo
 - [Flink Agents 0.3 docs](https://nightlies.apache.org/flink/flink-agents-docs-release-0.3/) — upstream API reference
 
 ---
 
-## What Flink Agents adds to Flink
+## What is Apache Flink?
+
+If you are new to the ecosystem: **[Apache Flink](https://flink.apache.org/)** is a distributed system for processing **streams of events** (and also batch data). Typical jobs:
+
+- read continuously from **Kafka** (or other sources),
+- maintain **state** per key (e.g. session, counter, last offset),
+- apply windows, joins, and CEP-style logic,
+- write results to sinks (Kafka, databases, files).
+
+**Why teams use Flink**
+
+| Capability | Why it matters |
+|------------|----------------|
+| Low-latency streaming | React to events as they arrive, not in nightly batches |
+| Exactly-once / checkpointing | Recover from failures without corrupting state |
+| Horizontal scale | Add TaskManagers as volume grows |
+| Unified batch + stream | Same APIs for historical and live data |
+
+On Cloudera platforms, Flink often sits beside **Kafka** (transport) and **NiFi / CDF** (integration flows). Flink is the **compute** layer for continuous analytics and automation.
+
+### What Flink Agents adds to Flink
 
 Apache Flink already excels at stateful stream processing. **Flink Agents** layers an agent programming model on top: you define an `Agent` with **`@action`** handlers (event-driven steps) and **`@tool`** methods (callable capabilities). Events flow through a graph; the same agent can run in a **local runner** (development, sidecars) or as a **Flink operator** on the cluster via `AgentsExecutionEnvironment`.
+
+In Ratatoskr, that model powers **ops agents** (NiFi/Kafka/CM monitors, correlation, runbooks) as well as demo pipelines (honeypot, Studio). Flink Agents does **not** replace NiFi or Kafka — it **observes and optionally heals** them under policy gates.
 
 ```mermaid
 flowchart TB

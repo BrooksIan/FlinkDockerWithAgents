@@ -6,6 +6,8 @@
 
 This document describes the **generic Flink Agents platform** in this workspace: CLI lifecycle, registered agents, the **Control API**, and the [dashboard](../dashboard/README.md). It does not cover the optional [honeypot](../honeypot/README.md) subproject.
 
+**New to Flink?** See [FLINK_AGENTS.md](FLINK_AGENTS.md#what-is-apache-flink). **Not on Docker?** CDP Base / Knox VIP deviations: [DEPLOYMENT_SCENARIOS.md](DEPLOYMENT_SCENARIOS.md).
+
 ## Architecture
 
 ```text
