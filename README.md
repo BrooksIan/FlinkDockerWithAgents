@@ -1,4 +1,11 @@
-# Cloudera Blueprint: Ratatoskr — Apache Flink Agents on Docker
+# Ratatoskr — Apache Flink Agents on Docker
+
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
+[![Apache Flink](https://img.shields.io/badge/Apache%20Flink-Agents-e6526f.svg?logo=apacheflink&logoColor=white)](https://github.com/apache/flink-agents)
+[![Docker](https://img.shields.io/badge/Docker-Compose%20v2-2496ed.svg?logo=docker&logoColor=white)](deploy/README.md)
+[![Stars](https://img.shields.io/github/stars/BrooksIan/FlinkDockerWithAgents?logo=github)](https://github.com/BrooksIan/FlinkDockerWithAgents/stargazers)
+[![Forks](https://img.shields.io/github/forks/BrooksIan/FlinkDockerWithAgents?logo=github)](https://github.com/BrooksIan/FlinkDockerWithAgents/network/members)
+[![Watchers](https://img.shields.io/github/watchers/BrooksIan/FlinkDockerWithAgents?logo=github)](https://github.com/BrooksIan/FlinkDockerWithAgents/watchers)
 
 <p align="center">
   <img src="assets/branding/Ratatoskr_title_image.png" alt="Ratatoskr — wood-textured wordmark and squirrel mascot" width="480" />
@@ -337,3 +344,8 @@ Local dev: leave `RATATOSKR_API_KEY` unset.
 ## License
 
 Apache License 2.0
+
+
+## Disclaimer
+
+*This blueprint is intended for Proof-of-Concept and research use only. It is not designed for production deployment. Use in production environments is at the user's own risk. The authors and contributors accept no liability for operational impacts or damages.*
