@@ -148,18 +148,20 @@ def actor_class_display(actor_class: str) -> str:
 
 def actor_class_badge_html(actor_class: str) -> str:
     key = (actor_class or "unknown").strip().lower()
+    # Studio-aligned palette (purple chrome + orange accent family)
     colors = {
-        "confirmed_llm": "#7b1fa2",
-        "potential_llm": "#5e35b1",
-        "human": "#1565c0",
-        "bot": "#546e7a",
-        "unknown": "#9e9e9e",
+        "confirmed_llm": "#120046",
+        "potential_llm": "#6b4cff",
+        "human": "#2f8f55",
+        "bot": "#5c5278",
+        "unknown": "#9a92b0",
     }
-    color = colors.get(key, "#9e9e9e")
+    color = colors.get(key, "#9a92b0")
     label = actor_class_display(actor_class)
     return (
-        f"<span style='background:{color};color:white;padding:2px 8px;"
-        f"border-radius:4px;font-size:0.85em;font-weight:600;'>{label}</span>"
+        f"<span style='background:{color};color:white;padding:3px 10px;"
+        f"border-radius:999px;font-size:0.85em;font-weight:600;"
+        f"box-shadow:0 1px 2px rgba(18,0,70,0.12);'>{label}</span>"
     )
 
 
@@ -209,53 +211,131 @@ except ImportError:
 
 # Page configuration
 st.set_page_config(
-    page_title="HoneyPot Threat Detection Dashboard",
+    page_title="Ratatoskr · HoneyPot Threat Detection",
     page_icon="🍯",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for better styling
+# Studio / Designer–aligned tokens (Cloudera orange + purple, light canvas)
+STUDIO_ORANGE = "#ff550d"
+STUDIO_PURPLE = "#120046"
+STUDIO_CANVAS = "#f4f1fa"
+STUDIO_PANEL = "#ffffff"
+STUDIO_TEXT = "#1a1038"
+STUDIO_MUTED = "#5c5278"
+SEVERITY_COLOR_MAP = {
+    "CRITICAL": "#dc2626",
+    "HIGH": "#ff550d",
+    "MEDIUM": "#e08a14",
+    "LOW": "#2f8f55",
+}
+ACTOR_COLOR_SEQUENCE = ["#120046", "#6b4cff", "#ff550d", "#2f8f55", "#5c5278", "#9a92b0"]
+
+# Plotly default template — white panels on lavender canvas
+try:
+    import plotly.io as pio
+
+    pio.templates["ratatoskr_studio"] = go.layout.Template(
+        layout=go.Layout(
+            paper_bgcolor=STUDIO_CANVAS,
+            plot_bgcolor=STUDIO_PANEL,
+            font=dict(color=STUDIO_TEXT, family="Segoe UI, system-ui, sans-serif"),
+            title=dict(font=dict(color=STUDIO_PURPLE, size=16)),
+            colorway=ACTOR_COLOR_SEQUENCE,
+            xaxis=dict(gridcolor="#e8e2f4", zerolinecolor="#d9d0ec", linecolor="#d9d0ec"),
+            yaxis=dict(gridcolor="#e8e2f4", zerolinecolor="#d9d0ec", linecolor="#d9d0ec"),
+            legend=dict(bgcolor="rgba(255,255,255,0.92)", bordercolor="#d9d0ec"),
+            margin=dict(l=40, r=24, t=48, b=40),
+        )
+    )
+    pio.templates.default = "ratatoskr_studio"
+except Exception:
+    pass
+
+# Custom CSS — match Ratatoskr Studio / Designer light workspace
 st.markdown("""
     <style>
+    :root {
+      --studio-orange: #ff550d;
+      --studio-purple: #120046;
+      --studio-canvas: #f4f1fa;
+      --studio-panel: #ffffff;
+      --studio-border: #d9d0ec;
+      --studio-text: #1a1038;
+      --studio-muted: #5c5278;
+    }
+    .stApp {
+      background: var(--studio-canvas);
+      color: var(--studio-text);
+    }
+    section[data-testid="stSidebar"] {
+      background: var(--studio-purple) !important;
+      border-right: 1px solid #3d2a7a;
+    }
+    section[data-testid="stSidebar"] * {
+      color: #f4f0ff !important;
+    }
+    section[data-testid="stSidebar"] .stRadio label,
+    section[data-testid="stSidebar"] .stSelectbox label,
+    section[data-testid="stSidebar"] .stCaption,
+    section[data-testid="stSidebar"] p,
+    section[data-testid="stSidebar"] span {
+      color: #f4f0ff !important;
+    }
+    section[data-testid="stSidebar"] [data-baseweb="radio"] label {
+      color: #f4f0ff !important;
+    }
     .main-header {
-        font-size: 2.5rem;
-        font-weight: bold;
-        color: #1f77b4;
-        text-align: center;
-        padding: 1rem 0;
+        font-size: 2.1rem;
+        font-weight: 700;
+        color: var(--studio-purple);
+        text-align: left;
+        padding: 0.35rem 0 0.75rem;
+        border-bottom: 3px solid var(--studio-orange);
+        margin-bottom: 1rem;
     }
-    .metric-card {
-        background-color: #f0f2f6;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        border-left: 4px solid #1f77b4;
+    .metric-card, div[data-testid="stMetric"] {
+        background-color: var(--studio-panel);
+        padding: 0.85rem 1rem;
+        border-radius: 10px;
+        border: 1px solid var(--studio-border);
+        border-left: 4px solid var(--studio-orange);
+        box-shadow: 0 1px 3px rgba(18, 0, 70, 0.08);
     }
-    .severity-critical {
-        color: #dc3545;
-        font-weight: bold;
+    div[data-testid="stExpander"],
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        background: var(--studio-panel);
+        border: 1px solid var(--studio-border);
+        border-radius: 10px;
+        box-shadow: 0 1px 3px rgba(18, 0, 70, 0.06);
     }
-    .severity-high {
-        color: #fd7e14;
-        font-weight: bold;
+    .stButton > button {
+        background: var(--studio-orange);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
     }
-    .severity-medium {
-        color: #ffc107;
-        font-weight: bold;
+    .stButton > button:hover {
+        background: #ff7a3d;
+        color: #fff;
+        border: none;
     }
-    .severity-low {
-        color: #28a745;
-        font-weight: bold;
-    }
+    .severity-critical { color: #dc2626; font-weight: bold; }
+    .severity-high { color: #ff550d; font-weight: bold; }
+    .severity-medium { color: #e08a14; font-weight: bold; }
+    .severity-low { color: #2f8f55; font-weight: bold; }
     .react-agent-star {
-        color: #ffd700;
+        color: #ff550d;
         font-size: 1.05em;
-        text-shadow: 0 0 6px rgba(255, 215, 0, 0.45);
+        text-shadow: 0 0 6px rgba(255, 85, 13, 0.35);
     }
-    .actor-confirmed-llm { color: #7b1fa2; font-weight: bold; }
-    .actor-potential-llm { color: #5e35b1; font-weight: bold; }
-    .actor-human { color: #1565c0; font-weight: bold; }
-    .actor-bot { color: #546e7a; font-weight: bold; }
+    .actor-confirmed-llm { color: #120046; font-weight: bold; }
+    .actor-potential-llm { color: #6b4cff; font-weight: bold; }
+    .actor-human { color: #2f8f55; font-weight: bold; }
+    .actor-bot { color: #5c5278; font-weight: bold; }
+    h1, h2, h3 { color: var(--studio-purple) !important; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -575,7 +655,8 @@ def render_ai_agent_detection_dashboard(
 ) -> None:
     """Phase 1.5 — Palisade-style LLM agent detection view."""
     st.markdown(
-        '<div class="main-header">🤖 AI Agent Detection (Phase 1.5)</div>',
+        '<div class="main-header">AI Agent Detection</div>'
+        '<p style="color:#5c5278;margin:-0.5rem 0 1rem;">Phase 1.5 · session actor scoring</p>',
         unsafe_allow_html=True,
     )
     st.caption(
@@ -683,7 +764,7 @@ def render_ai_agent_detection_dashboard(
                     values=list(counts.values()),
                     names=[actor_class_display(k) for k in counts.keys()],
                     title="Alerts by actor class",
-                    color_discrete_sequence=px.colors.qualitative.Set2,
+                    color_discrete_sequence=ACTOR_COLOR_SEQUENCE,
                 )
                 st.plotly_chart(fig, use_container_width=True)
         else:
@@ -1157,14 +1238,8 @@ def try_load_text_from_docker_container():
 
 
 def get_severity_color(severity):
-    """Get color for severity level."""
-    colors = {
-        "CRITICAL": "#dc3545",
-        "HIGH": "#fd7e14",
-        "MEDIUM": "#ffc107",
-        "LOW": "#28a745"
-    }
-    return colors.get(severity, "#6c757d")
+    """Get color for severity level (Studio palette)."""
+    return SEVERITY_COLOR_MAP.get(severity, "#5c5278")
 
 
 def get_severity_emoji(severity):
@@ -1340,12 +1415,13 @@ def _react_lab_modules():
 def render_react_agent_lab() -> None:
     """Dedicated page to verify Cloudera ReAct vs workflow with explicit pass/fail."""
     st.markdown(
-        '<div class="main-header">⭐ ReAct Agent Lab</div>',
+        '<div class="main-header">ReAct Agent Lab</div>'
+        '<p style="color:#5c5278;margin:-0.5rem 0 1rem;">Cloudera LLM · tool-using agent experiments</p>',
         unsafe_allow_html=True,
     )
     st.markdown(
         "Run controlled tests here to confirm whether **Cloudera ReAct** or **workflow** "
-        "handled each event. ReAct successes show a **gold star**. "
+        "handled each event. ReAct successes show an **orange star**. "
         "On CRITICAL/HIGH events, ReAct also **executes defensive counter-attack tools** "
         "(mock OSINT, tarpit, reporting, etc.) when "
         "`COWRIE_REACT_EXECUTE_COUNTER_ATTACKS=1`."
@@ -2338,7 +2414,11 @@ def get_threat_intelligence_score(ip: str, whois_data: Optional[Dict] = None) ->
 
 def render_counter_attack_dashboard(alerts_data):
     """Render the counter-attack dashboard page."""
-    st.markdown('<div class="main-header">🥊 Flink Agents Counter-Attack Dashboard</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="main-header">Counter-Attack Dashboard</div>'
+        '<p style="color:#5c5278;margin:-0.5rem 0 1rem;">Flink Agents · response actions and outcomes</p>',
+        unsafe_allow_html=True,
+    )
     
     # Load data
     if not alerts_data:
@@ -2479,7 +2559,7 @@ def render_counter_attack_dashboard(alerts_data):
                 title="Counter-Attacks by Type",
                 labels={"x": "Counter-Attack Type", "y": "Count"},
                 color=list(attack_type_counts.values()),
-                color_continuous_scale="Reds"
+                color_continuous_scale=["#f4f1fa", "#ffb38a", "#ff550d", "#120046"]
             )
             fig_types.update_layout(showlegend=False)
             st.plotly_chart(fig_types, use_container_width=True)
@@ -2526,12 +2606,7 @@ def render_counter_attack_dashboard(alerts_data):
                 color="Severity",
                 size=[10] * len(timeline_df),
                 title="Counter-Attack Actions Over Time",
-                color_discrete_map={
-                    "CRITICAL": "#dc3545",
-                    "HIGH": "#fd7e14",
-                    "MEDIUM": "#ffc107",
-                    "LOW": "#28a745"
-                }
+                color_discrete_map=SEVERITY_COLOR_MAP
             )
             st.plotly_chart(fig_timeline, use_container_width=True)
     
@@ -2658,7 +2733,11 @@ def render_counter_attack_dashboard(alerts_data):
 
 def render_geographic_dashboard(alerts_data):
     """Render the geographic visualization dashboard."""
-    st.markdown('<div class="main-header">🌍 Geographic Attack Analysis</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="main-header">Geographic Attack Analysis</div>'
+        '<p style="color:#5c5278;margin:-0.5rem 0 1rem;">Origin map and regional heat</p>',
+        unsafe_allow_html=True,
+    )
     
     if not alerts_data:
         st.warning("No threat detection data available. Run the demo first to generate data.")
@@ -2717,7 +2796,7 @@ def render_geographic_dashboard(alerts_data):
             hover_data={"attacks": True, "unique_ips": True, "country": False},
             title="Attack Origins Map (Size = Attack Count)",
             color="attacks",
-            color_continuous_scale="Reds",
+            color_continuous_scale=["#f4f1fa", "#ffb38a", "#ff550d", "#120046"],
             labels={"attacks": "Number of Attacks"}
         )
         fig_map.update_layout(height=600, geo=dict(showframe=False, showcoastlines=True))
@@ -2742,7 +2821,7 @@ def render_geographic_dashboard(alerts_data):
             title="Top 10 Attacking Countries",
             labels={"x": "Country", "y": "Attack Count"},
             color=[g["attack_count"] for g in top_countries],
-            color_continuous_scale="Reds"
+            color_continuous_scale=["#f4f1fa", "#ffb38a", "#ff550d", "#120046"]
         )
         fig_top.update_layout(showlegend=False)
         st.plotly_chart(fig_top, use_container_width=True)
@@ -2766,12 +2845,7 @@ def render_geographic_dashboard(alerts_data):
                 y="count",
                 color="severity",
                 title="Severity Distribution by Country",
-                color_discrete_map={
-                    "CRITICAL": "#dc3545",
-                    "HIGH": "#fd7e14",
-                    "MEDIUM": "#ffc107",
-                    "LOW": "#28a745"
-                }
+                color_discrete_map=SEVERITY_COLOR_MAP
             )
             st.plotly_chart(fig_severity, use_container_width=True)
     
@@ -2829,7 +2903,11 @@ def render_geographic_dashboard(alerts_data):
 
 def render_timeline_patterns_dashboard(alerts_data):
     """Render the attack timeline and patterns dashboard."""
-    st.markdown('<div class="main-header">⏱️ Attack Timeline & Patterns</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="main-header">Attack Timeline & Patterns</div>'
+        '<p style="color:#5c5278;margin:-0.5rem 0 1rem;">Temporal distribution of alerts</p>',
+        unsafe_allow_html=True,
+    )
     
     if not alerts_data:
         st.warning("No threat detection data available. Run the demo first to generate data.")
@@ -2887,12 +2965,7 @@ def render_timeline_patterns_dashboard(alerts_data):
             size=[10] * len(timeline_df),
             hover_data=["Source IP", "Alert ID"],
             title="Attack Timeline",
-            color_discrete_map={
-                "CRITICAL": "#dc3545",
-                "HIGH": "#fd7e14",
-                "MEDIUM": "#ffc107",
-                "LOW": "#28a745"
-            }
+            color_discrete_map=SEVERITY_COLOR_MAP
         )
         st.plotly_chart(fig_timeline, use_container_width=True)
         
@@ -3032,7 +3105,11 @@ def render_timeline_patterns_dashboard(alerts_data):
 
 def render_threat_intelligence_dashboard(alerts_data):
     """Render the threat intelligence integration dashboard."""
-    st.markdown('<div class="main-header">🔍 Threat Intelligence Integration</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="main-header">Threat Intelligence</div>'
+        '<p style="color:#5c5278;margin:-0.5rem 0 1rem;">Reputation and feed status</p>',
+        unsafe_allow_html=True,
+    )
     
     if not alerts_data:
         st.warning("No threat detection data available. Run the demo first to generate data.")
@@ -3141,10 +3218,10 @@ def render_threat_intelligence_dashboard(alerts_data):
                         names=threat_counts.index,
                         title="Threat Level Distribution",
                         color_discrete_map={
-                            "HIGH": "#dc3545",
-                            "MEDIUM": "#fd7e14",
-                            "LOW": "#28a745",
-                            "UNKNOWN": "#6c757d"
+                            "HIGH": SEVERITY_COLOR_MAP["HIGH"],
+                            "MEDIUM": SEVERITY_COLOR_MAP["MEDIUM"],
+                            "LOW": SEVERITY_COLOR_MAP["LOW"],
+                            "UNKNOWN": "#9a92b0",
                         }
                     )
                     st.plotly_chart(fig_threat, use_container_width=True)
@@ -3295,13 +3372,22 @@ def render_threat_intelligence_dashboard(alerts_data):
 def main():
     """Main dashboard function."""
     # Page selector in sidebar
-    st.sidebar.title("📊 Dashboard Navigation")
+    st.sidebar.markdown(
+        """
+        <div style="padding:0.25rem 0 0.75rem;">
+          <div style="font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;opacity:0.75;">Ratatoskr Studio</div>
+          <div style="font-size:1.35rem;font-weight:700;line-height:1.2;">HoneyPot</div>
+          <div style="font-size:0.8rem;opacity:0.8;margin-top:0.15rem;">Threat Detection</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
     st.sidebar.caption(
-        "**Internal ops console** — demos, lab tests, and alert visualization. "
-        "Not hardened for external users; use SIEM/Grafana for production monitoring."
+        "Internal ops console — demos, lab tests, and alert visualization. "
+        "Not hardened for external users."
     )
     page = st.sidebar.radio(
-        "Select Dashboard",
+        "Navigate",
         [
             "Threat Detection",
             "AI Agent Detection",
@@ -3478,7 +3564,11 @@ def main():
     
     # Original threat detection dashboard
     # Header
-    st.markdown('<div class="main-header">🛡️ HoneyPot Threat Detection Dashboard</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="main-header">HoneyPot Threat Detection</div>'
+        '<p style="color:#5c5278;margin:-0.5rem 0 1rem;">Ratatoskr · live Cowrie alerts, actor class, and Flink Agent response</p>',
+        unsafe_allow_html=True,
+    )
     
     if not alerts_data:
         st.warning("No threat detection data available. Run the demo first to generate data.")
@@ -3794,12 +3884,7 @@ def main():
                     values=list(severity_counts.values()),
                     names=list(severity_counts.keys()),
                     title="Alerts by Severity",
-                    color_discrete_map={
-                        "CRITICAL": "#dc3545",
-                        "HIGH": "#fd7e14",
-                        "MEDIUM": "#ffc107",
-                        "LOW": "#28a745"
-                    }
+                    color_discrete_map=SEVERITY_COLOR_MAP
                 )
                 st.plotly_chart(fig_severity, use_container_width=True)
     
@@ -3832,7 +3917,7 @@ def main():
                     values=list(actor_counts.values()),
                     names=[actor_class_display(k) for k in actor_counts.keys()],
                     title="Alerts by Actor Class",
-                    color_discrete_sequence=px.colors.qualitative.Pastel,
+                    color_discrete_sequence=ACTOR_COLOR_SEQUENCE,
                 )
                 st.plotly_chart(fig_actor, use_container_width=True)
 
@@ -4592,7 +4677,13 @@ def main():
     
     # Footer
     st.markdown("---")
-    footer_html = f"<div style='text-align: center; color: #6c757d; padding: 1rem;'>🍯 HoneyPot Threat Detection Dashboard | Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</div>"
+    footer_html = (
+        f"<div style='text-align:center;color:#5c5278;padding:1.25rem 1rem;"
+        f"border-top:1px solid #d9d0ec;margin-top:1.5rem;'>"
+        f"<span style='color:#120046;font-weight:600;'>Ratatoskr</span> · HoneyPot · "
+        f"Last updated {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        f"</div>"
+    )
     st.markdown(footer_html, unsafe_allow_html=True)
 
 

@@ -684,6 +684,7 @@ services:
       - ./cowrie-dashboard-data.json:/opt/flink/cowrie-dashboard-data.json:rw
       - ./requirements.txt:/opt/flink/requirements.txt:ro
       - ./dashboard/dashboard_cowrie.py:/opt/flink/dashboard_cowrie.py:ro
+      - ./dashboard/.streamlit:/opt/flink/.streamlit:ro
       - ./src/_pyc_shim.py:/opt/flink/_pyc_shim.py:ro
       - ./src/react/__pycache__:/opt/flink/pyc/react:ro
       - ./src/core/__pycache__:/opt/flink/pyc/core:ro
