@@ -283,7 +283,7 @@ flowchart TB
 | React dashboard | Overview, catalog, Designer, Studio, Runs |
 | Optional Cowrie (`honeypot/`) | Cybersecurity reference pipeline |
 | Optional Apache NiFi (`nifi/`) | Flow monitoring / healing lab |
-| Cloudera AI Inference (optional) | LLM enrichment for honeypot / ReAct |
+| Cloudera AI Inference (optional) | Hosted **chat completions** for honeypot / ReAct runbooks — stock model + prompts/tools/catalogs; **this blueprint does not fine-tune or train domain-specific weights** |
 
 Platform details: [docs/PLATFORM.md](docs/PLATFORM.md).
 
