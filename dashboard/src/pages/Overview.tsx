@@ -58,6 +58,8 @@ export function OverviewPage() {
           under explicit phase gates (<code>monitor</code> → <code>safe</code> → <code>lab</code>).
           Lab services usually run as Docker Compose; CDP Base / Knox VIP setups are documented
           in the repo under <code>docs/DEPLOYMENT_SCENARIOS.md</code>.
+          Optional ReAct runbooks use hosted Inference plus rule catalogs —{" "}
+          <strong>not</strong> fine-tuned domain models.
         </p>
       </div>
 

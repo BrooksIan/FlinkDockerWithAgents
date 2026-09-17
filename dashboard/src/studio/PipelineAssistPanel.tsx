@@ -206,7 +206,7 @@ export function PipelineAssistPanel({
           </label>
 
           <label className="create-agent-field">
-            <span className="muted">Domain</span>
+            <span className="muted">Scenario</span>
             <select
               className="studio-select"
               value={domain}

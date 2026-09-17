@@ -4,6 +4,8 @@ Structured **debug runbooks** for Apache NiFi (and NiFi↔Kafka) incidents. Infe
 
 Talking point: *The LLM never touches the canvas. The operator (or approval bus) decides. The workflow heals.*
 
+**Grounding (not fine-tuning):** runbooks are grounded with the monitor `OutputEvent`, heal-op catalogs, severity guidance, and schema/allowlist constraints (plus deterministic fallback when Inference is off). This blueprint does **not** fine-tune a domain-specific model.
+
 ## Which demo when
 
 | Customer story | Script | Guide |

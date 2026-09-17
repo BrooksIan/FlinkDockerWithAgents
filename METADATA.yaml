@@ -39,11 +39,13 @@ product_mapping: # Cloudera products used
   - Cloudera Data in Motion
   - Cloudera AI Inference Service
   - Cloudera Flow Management
-# model_dependencies: # Models, embeddings, or external AI services, if any. Comment out if none.
-# - openai-compatible-llm
+# Stock hosted chat completions only — this blueprint does not fine-tune or ship domain-adapted weights.
+model_dependencies:
+  - openai-compatible chat via Cloudera AI Inference (stock model; inference-time prompts/tools/catalogs)
 
 # --- Provenance ---
 publisher: Ian Brooks # cloudera | partner-name
+# Catalog provenance (who published the blueprint) — not "model adaptation"/fine-tuning.
 source: Partner # Internal | Partner | NVIDIA Adaptation | Customer
 
 # --- Repository & assets ---

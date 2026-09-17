@@ -42,6 +42,8 @@ Apache Flink already excels at stateful stream processing. **Flink Agents** laye
 
 In Ratatoskr, that model powers **ops agents** (NiFi/Kafka/CM monitors, correlation, runbooks) as well as demo pipelines (honeypot, Studio). Flink Agents does **not** replace NiFi or Kafka — it **observes and optionally heals** them under policy gates.
 
+**LLM usage (no fine-tuning):** when ReAct agents call Cloudera AI Inference (or any OpenAI-compatible endpoint), they use a **stock hosted model**. Domain behavior comes from **inference-time grounding** — monitor facts, severity catalogs, allowlisted heal ops, system prompts, schema validation, and deterministic fallbacks — **not** from fine-tuning, continued pretraining, or custom model weights.
+
 ```mermaid
 flowchart TB
     subgraph Sources["Event sources"]
@@ -191,10 +193,10 @@ In this repo, shared policy lives in `cowrie_workflow_detect` / `cowrie_policy.p
 
 ### Strengths
 
-- **Adaptive** — handles edge cases and unusual command sequences
+- **Flexible at inference** — LLM reasoning over novel context (unusual events, edge cases)
 - **Explainable** — model outputs reasoning text (`react_reasoning`)
 - **Flexible tool use** — can skip or reorder tools by context
-- **Evolves without redeploying rules** — prompt and tool set changes
+- **Prompt/tool changes without redeploying heal rules** — update instructions and allowlists; **no model weight updates**
 
 ### Weaknesses
 

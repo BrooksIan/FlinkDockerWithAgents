@@ -357,7 +357,7 @@ Compose **linear multi-agent pipelines** visually (Source → Window? → Agent 
 
 #### Build with assistant
 
-The **Build with assistant** tab collects structured intent (goal, domain, source/sink, windowing, agents) and returns a validated pipeline draft. Optional LLM refinement uses the same Designer LLM settings as the Agent Designer.
+The **Build with assistant** tab collects structured intent (goal, scenario template, source/sink, windowing, agents) and returns a validated pipeline draft. Optional LLM refinement uses the same Designer LLM settings as the Agent Designer (stock Inference endpoint — **no fine-tuning**).
 
 When the catalog lacks a strong match, the assistant can **suggest new agents** before creating them (default mode):
 
