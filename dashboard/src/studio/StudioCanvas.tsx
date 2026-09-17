@@ -118,9 +118,19 @@ function StudioCanvasInner({
         elevateEdgesOnSelect
         defaultEdgeOptions={{ type: "smoothstep", animated: false }}
       >
-        <Background gap={16} />
+        <Background gap={16} size={1.2} color="#c8bddf" bgColor="#f4f1fa" />
         <Controls showInteractive={false} />
-        <MiniMap pannable zoomable />
+        <MiniMap
+          pannable
+          zoomable
+          maskColor="rgba(18, 0, 70, 0.08)"
+          nodeColor={(node) => {
+            if (node.type === "source") return "#ff550d";
+            if (node.type === "window") return "#e08a14";
+            if (node.type === "sink") return "#6b4cff";
+            return "#2f8f55";
+          }}
+        />
       </ReactFlow>
     </div>
   );

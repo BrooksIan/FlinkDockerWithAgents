@@ -316,9 +316,36 @@ pre.yaml {
   margin: 0.35rem 0;
 }
 
-/* Agentic Studio */
+/* Agentic Studio + Designer canvas workspace (lighter for readability) */
+.studio-page,
+.designer-editor-page {
+  --studio-canvas-bg: #f4f1fa;
+  --studio-canvas-dot: #c8bddf;
+  --studio-panel-bg: #ffffff;
+  --studio-panel-border: #d9d0ec;
+  --studio-node-bg: #ffffff;
+  --studio-node-text: #1a1038;
+  --studio-muted: #5c5278;
+  --studio-input-bg: #ffffff;
+  --studio-input-border: #c4b8de;
+  --studio-shadow: 0 1px 3px rgba(18, 0, 70, 0.08);
+}
+
 .studio-page {
   width: 100%;
+}
+
+.studio-page .card,
+.designer-editor-page .card {
+  background: var(--studio-panel-bg);
+  border-color: var(--studio-panel-border);
+  color: var(--studio-node-text);
+  box-shadow: var(--studio-shadow);
+}
+
+.studio-page .muted,
+.designer-editor-page .muted {
+  color: var(--studio-muted);
 }
 
 .studio-tabs {
@@ -328,18 +355,22 @@ pre.yaml {
 }
 
 .studio-tab {
-  border: 1px solid var(--border);
-  background: var(--panel);
-  color: var(--text);
+  border: 1px solid var(--studio-panel-border);
+  background: var(--studio-panel-bg);
+  color: var(--studio-node-text);
   border-radius: 999px;
   padding: 0.45rem 0.9rem;
   cursor: pointer;
 }
 
+.studio-tab:hover:not(.active) {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--studio-panel-border));
+  background: #fff8f4;
+}
+
 .studio-tab.active {
   background: var(--accent);
   border-color: var(--accent);
-  /* primary CTA */
   color: #fff;
 }
 
@@ -377,11 +408,42 @@ pre.yaml {
   height: 520px;
   padding: 0;
   overflow: hidden;
+  background: var(--studio-canvas-bg);
+  border-color: var(--studio-panel-border);
 }
 
 .studio-canvas .react-flow {
   height: 100%;
   min-height: 480px;
+  background: var(--studio-canvas-bg);
+}
+
+.studio-canvas .react-flow__background {
+  background: var(--studio-canvas-bg) !important;
+}
+
+.studio-canvas .react-flow__controls {
+  box-shadow: var(--studio-shadow);
+  border: 1px solid var(--studio-panel-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.studio-canvas .react-flow__controls-button {
+  background: #fff !important;
+  border-bottom-color: var(--studio-panel-border) !important;
+  fill: var(--studio-node-text) !important;
+}
+
+.studio-canvas .react-flow__controls-button:hover {
+  background: #fff8f4 !important;
+}
+
+.studio-canvas .react-flow__minimap {
+  background: #fff !important;
+  border: 1px solid var(--studio-panel-border) !important;
+  border-radius: 8px;
+  box-shadow: var(--studio-shadow);
 }
 
 .studio-canvas .react-flow__handle,
@@ -389,15 +451,16 @@ pre.yaml {
   width: 16px !important;
   height: 16px !important;
   background: var(--accent) !important;
-  border: 2px solid var(--text) !important;
+  border: 2px solid #fff !important;
   border-radius: 50%;
   z-index: 10;
   pointer-events: all !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
 .studio-canvas .react-flow__handle:hover,
 .studio-canvas .studio-handle:hover {
-  background: var(--ok) !important;
+  background: var(--accent-hover) !important;
   transform: scale(1.2);
 }
 
@@ -412,13 +475,13 @@ pre.yaml {
 }
 
 .studio-canvas .react-flow__edge-path {
-  stroke: var(--accent);
-  stroke-width: 2;
+  stroke: #7a5cff;
+  stroke-width: 2.25;
 }
 
 .studio-canvas .react-flow__connectionline {
   stroke: var(--accent);
-  stroke-width: 2;
+  stroke-width: 2.25;
 }
 
 .studio-palette-item {
@@ -426,17 +489,19 @@ pre.yaml {
   flex-direction: column;
   gap: 0.15rem;
   padding: 0.5rem 0.65rem;
-  border: 1px dashed var(--border);
+  border: 1px dashed var(--studio-panel-border);
   border-radius: 6px;
-  background: color-mix(in srgb, var(--brand-purple) 88%, #000 12%);
+  background: #faf8ff;
+  color: var(--studio-node-text);
   cursor: grab;
   user-select: none;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
 }
 
 .studio-palette-item:hover {
   border-color: var(--accent);
-  background: var(--surface);
+  background: #fff8f4;
+  box-shadow: var(--studio-shadow);
 }
 
 .studio-palette-item:active {
@@ -446,10 +511,12 @@ pre.yaml {
 .studio-palette-item-label {
   font-size: 0.9rem;
   font-weight: 500;
+  color: var(--studio-node-text);
 }
 
 .studio-palette-item-sub {
   font-size: 0.75rem;
+  color: var(--studio-muted);
 }
 
 .studio-palette-actions {
@@ -475,7 +542,7 @@ pre.yaml {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--muted);
+  color: var(--studio-muted);
 }
 
 .studio-palette-hint {
@@ -529,16 +596,19 @@ pre.yaml {
 .studio-palette h4 {
   margin: 1rem 0 0.5rem;
   font-size: 0.9rem;
+  color: var(--studio-node-text);
 }
 
 .studio-node {
-  min-width: 140px;
-  padding: 0.65rem 0.85rem;
-  border-radius: 8px;
-  border: 2px solid var(--border);
-  background: var(--surface);
+  min-width: 150px;
+  padding: 0.7rem 0.9rem;
+  border-radius: 10px;
+  border: 2px solid var(--studio-panel-border);
+  background: var(--studio-node-bg);
+  color: var(--studio-node-text);
   font-size: 0.85rem;
   position: relative;
+  box-shadow: var(--studio-shadow);
 }
 
 .studio-node-body {
@@ -547,38 +617,47 @@ pre.yaml {
 
 .studio-node.selected {
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
 .studio-node.source {
   border-color: var(--brand-orange);
+  background: linear-gradient(180deg, #fffaf7 0%, #ffffff 100%);
 }
 
 .studio-node.agent {
-  border-color: #2d6a3f;
+  border-color: #2f8f55;
+  background: linear-gradient(180deg, #f4fbf6 0%, #ffffff 100%);
 }
 
 .studio-node.window {
-  border-color: #f5a524;
+  border-color: #e08a14;
+  background: linear-gradient(180deg, #fff9ef 0%, #ffffff 100%);
 }
 
 .studio-node.sink {
   border-color: #6b4cff;
+  background: linear-gradient(180deg, #f6f3ff 0%, #ffffff 100%);
 }
 
 .studio-node-title {
-  font-weight: 600;
+  font-weight: 650;
   margin-bottom: 0.25rem;
+  color: var(--studio-node-text);
 }
 
 .studio-node-sub {
   font-size: 0.75rem;
+  color: var(--studio-muted);
 }
 
-.studio-inspector .studio-label {
+.studio-inspector .studio-label,
+.studio-page .studio-label,
+.designer-editor-page .studio-label {
   display: block;
   margin: 0.75rem 0 0.35rem;
   font-size: 0.85rem;
-  color: var(--muted);
+  color: var(--studio-muted);
 }
 
 .designer-skill-list {
@@ -594,33 +673,37 @@ pre.yaml {
   align-items: flex-start;
   font-size: 0.85rem;
   line-height: 1.35;
+  color: var(--studio-node-text);
 }
 
 .designer-skill-option input {
   margin-top: 0.15rem;
 }
 
-.studio-textarea {
-  width: 100%;
-  font-family: ui-monospace, monospace;
-  font-size: 0.8rem;
-  background: color-mix(in srgb, var(--brand-purple) 88%, #000 12%);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 0.5rem;
-  resize: vertical;
-}
-
+.studio-textarea,
 .studio-input,
 .studio-select {
   width: 100%;
   font-size: 0.85rem;
-  background: color-mix(in srgb, var(--brand-purple) 88%, #000 12%);
-  color: var(--text);
-  border: 1px solid var(--border);
+  background: var(--studio-input-bg);
+  color: var(--studio-node-text);
+  border: 1px solid var(--studio-input-border);
   border-radius: 6px;
   padding: 0.45rem 0.5rem;
+}
+
+.studio-textarea {
+  font-family: ui-monospace, monospace;
+  font-size: 0.8rem;
+  padding: 0.5rem;
+  resize: vertical;
+}
+
+.studio-textarea:focus,
+.studio-input:focus,
+.studio-select:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-color: var(--accent);
 }
 
 .studio-palette-kafka .studio-palette-item-label {
@@ -636,8 +719,9 @@ pre.yaml {
   margin-bottom: 0.75rem;
   padding: 0.65rem 0.85rem;
   border-radius: 8px;
-  border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--border));
-  background: color-mix(in srgb, var(--warn) 12%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--studio-panel-border));
+  background: color-mix(in srgb, var(--warn) 12%, #fff);
+  color: var(--studio-node-text);
 }
 
 .studio-cluster-warning p {
@@ -652,12 +736,13 @@ pre.yaml {
   top: 0;
   bottom: 0;
   width: min(480px, 90vw);
-  background: var(--surface);
-  border-left: 1px solid var(--border);
+  background: var(--studio-panel-bg);
+  color: var(--studio-node-text);
+  border-left: 1px solid var(--studio-panel-border);
   padding: 1.25rem;
   z-index: 100;
   overflow-y: auto;
-  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.35);
+  box-shadow: -8px 0 28px rgba(18, 0, 70, 0.12);
 }
 
 .studio-drawer-header {
@@ -671,10 +756,37 @@ pre.yaml {
   height: 360px;
   padding: 0;
   overflow: hidden;
+  background: var(--studio-canvas-bg);
 }
 
 .studio-agent-graph .react-flow {
   height: 100%;
+  background: var(--studio-canvas-bg);
+}
+
+.studio-page button.secondary,
+.designer-editor-page button.secondary {
+  background: #efeaf8;
+  color: var(--studio-node-text);
+  border: 1px solid var(--studio-panel-border);
+}
+
+.studio-page button.secondary:hover:not(:disabled),
+.designer-editor-page button.secondary:hover:not(:disabled) {
+  background: #fff8f4;
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--studio-panel-border));
+}
+
+.studio-page h2,
+.studio-page h3,
+.designer-editor-page h2,
+.designer-editor-page h3 {
+  color: #f4f0ff;
+}
+
+.studio-page .card h3,
+.designer-editor-page .card h3 {
+  color: var(--studio-node-text);
 }
 
 .catalog {
