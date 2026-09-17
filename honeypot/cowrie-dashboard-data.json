@@ -2822,5 +2822,87 @@
         "feed_attacker_disinformation"
       ]
     }
+  },
+  {
+    "alert_id": "lab-react-1789676545626-111",
+    "timestamp": "2026-09-17T20:22:25.626765+00:00",
+    "src_ip": "198.51.100.122",
+    "severity": "CRITICAL",
+    "threat_type": "SUCCESSFUL_INTRUSION",
+    "detection_source": "cloudera_react",
+    "detection_engine": "react",
+    "summary": "Lab react test: SUCCESSFUL_INTRUSION from 198.51.100.122",
+    "response_actions": [],
+    "counter_attacks": [],
+    "react_agent": true,
+    "react_star": true
+  },
+  {
+    "alert_id": "lab-workflow-1789676600956-829",
+    "timestamp": "2026-09-17T20:23:20.956184+00:00",
+    "src_ip": "198.51.100.46",
+    "severity": "CRITICAL",
+    "threat_type": "SUCCESSFUL_INTRUSION",
+    "detection_source": "workflow",
+    "detection_engine": "workflow",
+    "summary": "Lab workflow test: SUCCESSFUL_INTRUSION from 198.51.100.46",
+    "response_actions": [],
+    "counter_attacks": []
+  },
+  {
+    "alert_id": "lab-workflow-1789676615345-896",
+    "timestamp": "2026-09-17T20:23:35.345908+00:00",
+    "src_ip": "203.0.113.146",
+    "severity": "CRITICAL",
+    "threat_type": "SUCCESSFUL_INTRUSION",
+    "detection_source": "workflow",
+    "detection_engine": "workflow",
+    "summary": "Lab workflow test: SUCCESSFUL_INTRUSION from 203.0.113.146",
+    "response_actions": [],
+    "counter_attacks": []
+  },
+  {
+    "alert_id": "lab-react-1789676615355-323",
+    "timestamp": "2026-09-17T20:23:35.355674+00:00",
+    "src_ip": "203.0.113.146",
+    "severity": "CRITICAL",
+    "threat_type": "SUCCESSFUL_INTRUSION",
+    "detection_source": "cloudera_react",
+    "detection_engine": "react",
+    "summary": "Lab react test: SUCCESSFUL_INTRUSION from 203.0.113.146",
+    "response_actions": [],
+    "counter_attacks": [],
+    "react_agent": true,
+    "react_star": true
+  },
+  {
+    "alert_id": "ALERT-2026-09-17T20:28:39.432467Z-3992",
+    "timestamp": "2026-09-17T20:28:39.432467Z",
+    "severity": "CRITICAL",
+    "threat_type": "SUCCESSFUL_INTRUSION",
+    "source_ip": "203.0.113.218",
+    "description": "Successful login from 203.0.113.218 to honeypot",
+    "recommended_action": "Immediate response required",
+    "response_actions": [
+      {
+        "action_id": "cowrie-block-203.0.113.218",
+        "timestamp": "2026-09-17T20:28:39.437867",
+        "action_type": "BLOCK_IP_COWRIE",
+        "target": "203.0.113.218",
+        "severity": "CRITICAL",
+        "reason": "Blocked in Cowrie honeypot: Successful intrusion attempt",
+        "status": "success",
+        "details": {
+          "status": "success",
+          "ip": "203.0.113.218"
+        }
+      }
+    ],
+    "attack_details": {
+      "eventid": "cowrie.login.success",
+      "username": "root",
+      "session": "react-ui-test-584cce92",
+      "protocol": "ssh"
+    }
   }
 ]

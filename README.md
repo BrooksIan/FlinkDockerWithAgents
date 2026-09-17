@@ -1,7 +1,7 @@
 # Ratatoskr
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](pyproject.toml)
+[![Python](https://img.shields.io/badge/Python-3.12%2B-blue.svg)](pyproject.toml)
 [![Cloudera Blueprint](https://img.shields.io/badge/Cloudera-Blueprint-f96702.svg)](METADATA.yaml)
 [![Catalog](https://img.shields.io/badge/Catalog-Developer%20Example-6b4cff.svg)](METADATA.yaml)
 [![Stars](https://img.shields.io/github/stars/BrooksIan/FlinkDockerWithAgents?logo=github)](https://github.com/BrooksIan/FlinkDockerWithAgents/stargazers)
@@ -308,13 +308,25 @@ Platform details: [docs/PLATFORM.md](docs/PLATFORM.md).
 ## Prerequisites
 
 - Docker and Docker Compose v2
-- Python 3.10+
+- Python 3.12+ (host CLI / Control API; Docker image uses Flink **2.1** + Python **3.12**)
 - Git (image build clones `apache/flink-agents`)
 - Optional: Node.js for dashboard development
 - Optional honeypot / LLM: `CLOUDERA_AI_BASE_URL`, `CLOUDERA_JWT_TOKEN` in `.env`
 - Optional NiFi lab: `NIFI_*` vars (see `.env.example`)
 
-Local dev: leave `RATATOSKR_API_KEY` unset.
+Local dev: leave `RATATOSKR_API_KEY` unset. Create a venv with Python 3.12+:
+
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+```
+
+Rebuild the Flink Agents image after this upgrade:
+
+```bash
+ratatoskr build
+```
 
 ## Hardware requirements
 

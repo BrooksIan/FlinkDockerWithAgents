@@ -198,7 +198,7 @@ def ensure_pemja_embed_runtime() -> None:
 
 
 def ensure_pyflink_beam_runtime() -> None:
-    """Install PyFlink 1.20 Beam runner deps when missing from the image."""
+    """Install PyFlink / Beam runner deps when missing from the image."""
     missing: list[str] = []
     try:
         import apache_beam  # noqa: F401
@@ -206,9 +206,8 @@ def ensure_pyflink_beam_runtime() -> None:
         missing.extend(
             [
                 "numpy>=1.22.4,<2",
-                "pyarrow>=5.0.0,<16.0.0",
-                "apache-beam>=2.43.0,<2.49.0",
-                "grpcio-tools>=1.29.0,<=1.51.3",
+                "pyarrow>=5.0.0,<21.0.0",
+                "apache-beam>=2.54.0,<=2.61.0",
                 "setuptools>=75.3,<82",
             ]
         )

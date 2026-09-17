@@ -4,7 +4,7 @@ Docker deployment configs for the Ratatoskr Flink Agents stack.
 
 | File | Description |
 | --- | --- |
-| `Dockerfile` | Builds `agent_flink_image` (PyFlink + Flink Agents). Prefer `ratatoskr build`. |
+| `Dockerfile` | Builds `agent_flink_image` (Flink **2.1** + **Python 3.12** + Flink Agents). Prefer `ratatoskr build`. |
 | `docker-compose.yml` | Minimal JobManager + TaskManager (`ratatoskr up`) |
 | `docker-compose.kafka.yml` | Studio Kafka (`ratatoskr kafka up`) |
 | `docker-compose-cowrie.yml` | Deprecated pointer → `honeypot/docker-compose.yml` |

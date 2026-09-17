@@ -145,9 +145,9 @@ Here's what building a "double the value in every event" agent looks like withou
 
 ```
 1.  Install Java 11
-2.  Download Flink 1.20
+2.  Download Flink 2.1+ (Python 3.12 requires Flink ≥2.1)
 3.  Compile flink-agents from source (branch release-0.3)
-4.  Set up Python 3.10 venv with pyflink pinned
+4.  Set up Python 3.12+ venv with pyflink pinned
 5.  Debug Pemja classloader crash
 6.  Read FLINK-39226
 7.  Add classloader.parent-first-patterns.additional: pemja

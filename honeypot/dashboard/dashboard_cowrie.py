@@ -9,6 +9,7 @@ import json
 import os
 import pandas as pd
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 import plotly.express as px
 import plotly.graph_objects as go
 import sys
@@ -199,8 +200,10 @@ try:
         run_pipeline_test,
     )
     REACT_UI_TEST_AVAILABLE = True
-except ImportError:
+except Exception:
+    # ImportError, FileNotFoundError (missing sibling .pyc), etc.
     REACT_UI_TEST_AVAILABLE = False
+    ATTACK_TYPES = ()  # type: ignore[misc,assignment]
 
 # Try to import ipwhois
 try:
@@ -253,7 +256,7 @@ try:
 except Exception:
     pass
 
-# Custom CSS — match Ratatoskr Studio / Designer light workspace
+# Custom CSS — Studio light workspace; readable light sidebar (not purple-on-purple)
 st.markdown("""
     <style>
     :root {
@@ -269,22 +272,76 @@ st.markdown("""
       background: var(--studio-canvas);
       color: var(--studio-text);
     }
+    /* Light sidebar — dark text, compact chrome */
     section[data-testid="stSidebar"] {
-      background: var(--studio-purple) !important;
-      border-right: 1px solid #3d2a7a;
+      background: var(--studio-panel) !important;
+      border-right: 1px solid var(--studio-border);
+      min-width: 15.5rem !important;
+      max-width: 17.5rem !important;
     }
-    section[data-testid="stSidebar"] * {
-      color: #f4f0ff !important;
+    section[data-testid="stSidebar"] > div {
+      padding-top: 0.75rem;
     }
-    section[data-testid="stSidebar"] .stRadio label,
-    section[data-testid="stSidebar"] .stSelectbox label,
+    section[data-testid="stSidebar"] .stMarkdown,
     section[data-testid="stSidebar"] .stCaption,
+    section[data-testid="stSidebar"] label,
     section[data-testid="stSidebar"] p,
-    section[data-testid="stSidebar"] span {
-      color: #f4f0ff !important;
-    }
+    section[data-testid="stSidebar"] span,
+    section[data-testid="stSidebar"] .stRadio label,
     section[data-testid="stSidebar"] [data-baseweb="radio"] label {
-      color: #f4f0ff !important;
+      color: var(--studio-text) !important;
+    }
+    section[data-testid="stSidebar"] .stCaption,
+    section[data-testid="stSidebar"] .stCaption p {
+      color: var(--studio-muted) !important;
+      font-size: 0.78rem !important;
+      line-height: 1.25 !important;
+    }
+    section[data-testid="stSidebar"] h1,
+    section[data-testid="stSidebar"] h2,
+    section[data-testid="stSidebar"] h3 {
+      color: var(--studio-purple) !important;
+      font-size: 0.95rem !important;
+      margin: 0.35rem 0 0.25rem !important;
+    }
+    section[data-testid="stSidebar"] hr {
+      margin: 0.55rem 0 !important;
+      border-color: var(--studio-border) !important;
+    }
+    section[data-testid="stSidebar"] .stButton > button {
+      font-size: 0.85rem;
+      padding: 0.35rem 0.6rem;
+    }
+    section[data-testid="stSidebar"] [data-testid="stExpander"] {
+      background: var(--studio-canvas);
+      border: 1px solid var(--studio-border);
+      border-radius: 8px;
+      box-shadow: none;
+      margin-bottom: 0.4rem;
+    }
+    section[data-testid="stSidebar"] [data-testid="stExpander"] summary,
+    section[data-testid="stSidebar"] [data-testid="stExpander"] summary p,
+    section[data-testid="stSidebar"] [data-testid="stExpander"] summary span {
+      color: var(--studio-purple) !important;
+      font-size: 0.85rem !important;
+      font-weight: 600 !important;
+    }
+    .sidebar-brand {
+      padding: 0.15rem 0 0.55rem;
+      border-bottom: 2px solid var(--studio-orange);
+      margin-bottom: 0.65rem;
+    }
+    .sidebar-brand .eyebrow {
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--studio-muted);
+    }
+    .sidebar-brand .title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--studio-purple);
+      line-height: 1.15;
     }
     .main-header {
         font-size: 2.1rem;
@@ -1389,25 +1446,36 @@ def _react_lab_modules():
     """
     import importlib
 
-    import cowrie_log_processor
     import react_agent_ui_test
-    import react_dashboard_bridge
+
+    try:
+        import cowrie_log_processor
+
+        importlib.reload(cowrie_log_processor)
+    except Exception:
+        pass
+
+    try:
+        import react_dashboard_bridge
+
+        importlib.reload(react_dashboard_bridge)
+    except Exception:
+        pass
 
     try:
         import demo_cloudera_react_agent
 
         importlib.reload(demo_cloudera_react_agent)
-    except ImportError:
+    except Exception:
         pass
 
-    importlib.reload(react_dashboard_bridge)
     for mod_name in ("react_counter_attack_executor", "react_response_executor", "cowrie_security_alert"):
         try:
             mod = importlib.import_module(mod_name)
             importlib.reload(mod)
-        except ImportError:
+        except Exception:
             pass
-    importlib.reload(cowrie_log_processor)
+
     importlib.reload(react_agent_ui_test)
     return react_agent_ui_test
 
@@ -2446,77 +2514,30 @@ def render_counter_attack_dashboard(alerts_data):
         """)
         return
     
-    # Sidebar info
-    with st.sidebar.expander("🥊 Counter-Attack Capabilities", expanded=True):
-        st.markdown("""
-        **Flink Agents execute counter-attacks automatically:**
-        
-        🔍 **Gather Intelligence**
-        - OSINT collection on attackers
-        - IP reputation checks
-        - Threat intelligence lookups
-        
-        🕳️ **Deploy Tarpit**
-        - Slow down attacker connections
-        - Waste attacker time and resources
-        - Make attacks less profitable
-        
-        📹 **Track Behavior**
-        - Enhanced forensic tracking
-        - Record all commands and responses
-        - Capture network traffic
-        
-        🤝 **Share with Community**
-        - Share indicators with MISP, OpenCTI
-        - Post to abuse.ch threat feeds
-        - Protect other organizations
-        
-        📞 **Report to Authorities**
-        - ISP abuse contacts
-        - National CERT teams
-        - Law enforcement (for CRITICAL)
-        
-        🎭 **Feed Disinformation**
-        - Mislead attackers with fake data
-        - Waste attacker time
-        - Collect more intelligence
-        """)
-        st.markdown("---")
-        st.markdown("**📚 Learn More:**")
-        st.markdown("[Counter-Attack Guide](COUNTER_ATTACK_GUIDE.md)")
-    
-    # Auto-refresh settings for counter-attack dashboard
+    with st.sidebar.expander("Capabilities", expanded=False):
+        st.caption("Intel · tarpit · track · share · report · disinfo")
+        st.caption("Guide: COUNTER_ATTACK_GUIDE.md")
+
     st.sidebar.markdown("---")
-    st.sidebar.header("🔄 Auto-Refresh Settings")
-    
-    auto_refresh = st.sidebar.checkbox("Auto-refresh Counter-Attacks (5s)", value=False, key="counter_attack_auto_refresh")
+    auto_refresh = st.sidebar.checkbox(
+        "Auto-refresh", value=False, key="counter_attack_auto_refresh"
+    )
     refresh_interval = st.sidebar.selectbox(
-        "Refresh Interval",
+        "Interval (s)",
         options=[5, 10, 15, 30, 60],
         index=0,
-        format_func=lambda x: f"{x} seconds",
-        key="counter_attack_refresh_interval"
+        key="counter_attack_refresh_interval",
     )
-    
     if auto_refresh:
         import time
+
         time.sleep(refresh_interval)
         st.rerun()
-    
-    # Manual refresh button
-    if st.sidebar.button("🔄 Refresh Now", key="counter_attack_manual_refresh"):
+    if st.sidebar.button("Reload", use_container_width=True, key="counter_attack_manual_refresh"):
         load_dashboard_data.clear()
         st.rerun()
-    
-    st.sidebar.caption(f"💡 Tip: Enable auto-refresh to see new counter-attacks in real-time (updates every {refresh_interval}s)")
-    
-    # Show auto-refresh status
     if auto_refresh:
-        st.sidebar.info(f"🔄 Auto-refresh enabled - Updates every {refresh_interval}s")
-    
-    # Display last update indicator
-    if auto_refresh:
-        st.info(f"🔄 **Auto-refresh active** - Counter-attack dashboard updates every {refresh_interval} seconds. Last updated: {datetime.now().strftime('%H:%M:%S')}")
+        st.caption(f"Updating every {refresh_interval}s · {datetime.now().strftime('%H:%M:%S')}")
     
     # Statistics
     st.header("📊 Counter-Attack Statistics")
@@ -3371,23 +3392,18 @@ def render_threat_intelligence_dashboard(alerts_data):
 
 def main():
     """Main dashboard function."""
-    # Page selector in sidebar
+    # Compact brand + nav
     st.sidebar.markdown(
         """
-        <div style="padding:0.25rem 0 0.75rem;">
-          <div style="font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;opacity:0.75;">Ratatoskr Studio</div>
-          <div style="font-size:1.35rem;font-weight:700;line-height:1.2;">HoneyPot</div>
-          <div style="font-size:0.8rem;opacity:0.8;margin-top:0.15rem;">Threat Detection</div>
+        <div class="sidebar-brand">
+          <div class="eyebrow">Ratatoskr</div>
+          <div class="title">HoneyPot</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
-    st.sidebar.caption(
-        "Internal ops console — demos, lab tests, and alert visualization. "
-        "Not hardened for external users."
-    )
     page = st.sidebar.radio(
-        "Navigate",
+        "Page",
         [
             "Threat Detection",
             "AI Agent Detection",
@@ -3398,20 +3414,19 @@ def main():
             "Threat Intelligence",
         ],
         index=0,
+        label_visibility="collapsed",
     )
 
     # -----------------------------
     # Data source switcher
     # -----------------------------
     st.sidebar.markdown("---")
-    st.sidebar.subheader("🗄️ Data source")
-    st.sidebar.caption("⭐ = Cloudera ReAct agent used for detection / counter-attacks")
     source = st.sidebar.radio(
-        "Choose data source",
+        "Data source",
         options=["JSON file", "Kafka topic", "Both"],
         index=2,
         key="cowrie_data_source_mode",
-        horizontal=False,
+        horizontal=True,
     )
 
     def _dedupe_by_alert_id(rows: list) -> list:
@@ -3438,28 +3453,42 @@ def main():
     file_rows: list = []
 
     if use_kafka:
-        bootstrap = st.sidebar.text_input(
-            "Kafka bootstrap servers",
-            value=os.environ.get("COWRIE_KAFKA_BOOTSTRAP", os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")),
-            key="cowrie_kafka_bootstrap",
+        with st.sidebar.expander("Kafka", expanded=False):
+            bootstrap = st.text_input(
+                "Bootstrap",
+                value=os.environ.get(
+                    "COWRIE_KAFKA_BOOTSTRAP",
+                    os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092"),
+                ),
+                key="cowrie_kafka_bootstrap",
+            )
+            topic = st.selectbox(
+                "Topic",
+                options=_PREDEFINED_KAFKA_TOPICS,
+                index=0,
+                key="cowrie_kafka_topic",
+            )
+            max_messages = st.slider(
+                "Latest msgs",
+                min_value=25,
+                max_value=1000,
+                value=250,
+                step=25,
+                key="cowrie_kafka_max_messages",
+            )
+            if st.button("Reload Kafka", use_container_width=True, key="cowrie_reload_kafka"):
+                load_dashboard_data_from_kafka.clear()
+                st.rerun()
+        # Defaults when expander widgets have not run yet this session
+        bootstrap = st.session_state.get(
+            "cowrie_kafka_bootstrap",
+            os.environ.get(
+                "COWRIE_KAFKA_BOOTSTRAP",
+                os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092"),
+            ),
         )
-        topic = st.sidebar.selectbox(
-            "Kafka topic (predefined)",
-            options=_PREDEFINED_KAFKA_TOPICS,
-            index=0,
-            key="cowrie_kafka_topic",
-        )
-        max_messages = st.sidebar.slider(
-            "Messages to read (latest)",
-            min_value=25,
-            max_value=1000,
-            value=250,
-            step=25,
-            key="cowrie_kafka_max_messages",
-        )
-        if st.sidebar.button("🔌 Reload from Kafka", key="cowrie_reload_kafka"):
-            load_dashboard_data_from_kafka.clear()
-            st.rerun()
+        topic = st.session_state.get("cowrie_kafka_topic", _PREDEFINED_KAFKA_TOPICS[0])
+        max_messages = int(st.session_state.get("cowrie_kafka_max_messages", 250))
         if topic == "Both (workflow + ReAct)":
             kafka_rows = _dedupe_by_alert_id(
                 load_dashboard_data_from_kafka(
@@ -3481,7 +3510,7 @@ def main():
             )
 
     if use_file:
-        if st.sidebar.button("📄 Reload JSON file", key="cowrie_reload_json"):
+        if st.sidebar.button("Reload JSON", use_container_width=True, key="cowrie_reload_json"):
             load_dashboard_data.clear()
             st.rerun()
         file_rows = load_dashboard_data()
@@ -3493,27 +3522,23 @@ def main():
     else:
         alerts_data = file_rows
 
-    # Always show a small "is it working?" indicator.
-    with st.sidebar.expander("✅ Data source / health", expanded=True):
-        st.write(f"**Loaded alerts:** {len(alerts_data)}")
-        st.write(f"**Mode:** `{source}`")
+    # Compact health strip (collapsed by default)
+    with st.sidebar.expander(f"Status · {len(alerts_data)} alerts", expanded=False):
+        st.caption(f"Mode: {source}")
         if use_kafka:
             k = st.session_state.get("cowrie_dashboard_kafka", {})
             if k.get("enabled") is False and k.get("error"):
                 st.error(k["error"])
-            st.write(f"**Kafka bootstrap:** `{k.get('bootstrap_servers', 'n/a')}`")
-            st.write(f"**Kafka topic:** `{k.get('topic', 'n/a')}`")
+            else:
+                st.caption(f"Kafka: {k.get('topic', 'n/a')}")
         if use_file:
             src = st.session_state.get("cowrie_dashboard_file", "not found")
-            st.write(f"**File:** `{src}`")
+            st.caption(f"File: {Path(str(src)).name if src else 'n/a'}")
         if alerts_data:
             last = alerts_data[-1]
-            st.write(f"**Last alert_id:** `{last.get('alert_id', 'n/a')}`")
+            st.caption(f"Last: {alert_actor_class(last)} · {str(last.get('timestamp', ''))[:19]}")
             if is_react_agent_alert(last):
                 st.markdown(react_agent_badge_markdown(), unsafe_allow_html=True)
-            st.write(f"**Last actor_class:** `{alert_actor_class(last)}`")
-            st.write(f"**Last timestamp:** `{last.get('timestamp', 'n/a')}`")
-
     session_scores: list = []
     sa_meta: dict = {}
     bootstrap_sa = os.environ.get(
@@ -3528,9 +3553,8 @@ def main():
         )
         sa_meta = st.session_state.get("cowrie_session_actor_kafka", {})
         if page == "Threat Detection":
-            with st.sidebar.expander("🤖 Phase 1.5 session scores", expanded=False):
-                st.write(f"**Topic:** `{_KAFKA_SESSION_ACTOR_TOPIC}`")
-                st.write(f"**Loaded:** {len(_dedupe_session_scores(session_scores))}")
+            with st.sidebar.expander("Session scores", expanded=False):
+                st.caption(f"{_KAFKA_SESSION_ACTOR_TOPIC} · {len(_dedupe_session_scores(session_scores))} loaded")
                 if sa_meta.get("error"):
                     st.error(sa_meta["error"])
     
@@ -3597,92 +3621,44 @@ def main():
             )
         return
     
-    # Sidebar - How Flink Agents Respond
-    with st.sidebar.expander("🤖 How Flink Agents Respond", expanded=True):
-        st.markdown("""
-        **Flink Agents automatically respond to threats in real-time:**
-        
-        🔒 **Block IPs**
-        - Blocks malicious IPs in Cowrie honeypot
-        - Blocks IPs at firewall level (defense in depth)
-        - Prevents further attacks immediately
-        
-        📢 **Send Alerts**
-        - Notifies security team via Slack/Email
-        - Escalates critical threats to on-call
-        - Provides detailed threat context
-        
-        🎫 **Create Tickets**
-        - Automatically creates incident tickets
-        - Assigns appropriate severity levels
-        - Includes full attack details
-        
-        📊 **Update Threat Intel**
-        - Adds indicators to threat database
-        - Shares with threat sharing platforms
-        - Builds threat intelligence over time
-        
-        🚫 **Quarantine Sessions**
-        - Terminates active attack sessions
-        - Isolates compromised systems
-        - Collects forensic data
-        
-        **Response Flow:**
-        1. Threat detected → 2. Agent analyzes → 3. Actions executed → 4. Results logged
-        """)
-        st.markdown("---")
-        st.markdown("**📚 Learn More:**")
-        st.markdown("[Response Guide](COWRIE_RESPONSE_GUIDE.md)")
-        st.markdown("[Local Blocking](COWRIE_LOCAL_BLOCKING.md)")
-    
+    # Short help (details live in main-page expander)
+    with st.sidebar.expander("Agent responses", expanded=False):
+        st.caption("Block IP · alert · ticket · threat intel · quarantine")
+        st.caption("Flow: detect → analyze → act → log")
+
     # Attack Simulation Section
-    with st.sidebar.expander("🎯 Simulate Attacks", expanded=False):
-        st.markdown("**Trigger test attacks to see the system in action:**")
-        st.caption("Results show ⭐ when Cloudera ReAct ran, or **Workflow only** otherwise.")
-        st.caption("Tip: select **ReAct Agent Lab** in the sidebar for side-by-side tests.")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            if st.button("🔴 Critical Attack", use_container_width=True, help="Simulate successful intrusion"):
-                _simulate_and_report("SUCCESSFUL_INTRUSION")
-                st.rerun()
-            
-            if st.button("🟠 High Attack", use_container_width=True, help="Simulate malicious command"):
-                _simulate_and_report("MALICIOUS_COMMAND")
-                st.rerun()
-        
-        with col2:
-            if st.button("🟡 Medium Attack", use_container_width=True, help="Simulate brute force"):
-                _simulate_and_report("BRUTE_FORCE_ATTEMPT")
-                st.rerun()
-            
-            if st.button("📁 File Download", use_container_width=True, help="Simulate file download"):
-                _simulate_and_report("SUSPICIOUS_FILE_DOWNLOAD")
-                st.rerun()
-        
-        if st.button("🎲 Random Attack", use_container_width=True, help="Simulate random attack type"):
-            import random
-            attack_types = ["SUCCESSFUL_INTRUSION", "MALICIOUS_COMMAND", "BRUTE_FORCE_ATTEMPT", "SUSPICIOUS_FILE_DOWNLOAD"]
-            attack_type = random.choice(attack_types)
+    with st.sidebar.expander("Simulate", expanded=False):
+        if st.button("Critical", use_container_width=True, key="sim_crit"):
+            _simulate_and_report("SUCCESSFUL_INTRUSION")
+            st.rerun()
+        if st.button("High", use_container_width=True, key="sim_high"):
+            _simulate_and_report("MALICIOUS_COMMAND")
+            st.rerun()
+        if st.button("Medium", use_container_width=True, key="sim_med"):
+            _simulate_and_report("BRUTE_FORCE_ATTEMPT")
+            st.rerun()
+        if st.button("File DL", use_container_width=True, key="sim_file"):
+            _simulate_and_report("SUSPICIOUS_FILE_DOWNLOAD")
+            st.rerun()
+        if st.button("Random", use_container_width=True, key="sim_rand"):
+            attack_type = random.choice(
+                [
+                    "SUCCESSFUL_INTRUSION",
+                    "MALICIOUS_COMMAND",
+                    "BRUTE_FORCE_ATTEMPT",
+                    "SUSPICIOUS_FILE_DOWNLOAD",
+                ]
+            )
             _simulate_and_report(attack_type)
             st.rerun()
-        
         last_sim = st.session_state.get("last_simulate_result")
         if last_sim:
-            if last_sim.get("is_react"):
-                st.success(f"Last: ⭐ ReAct · {last_sim.get('detection_source')}")
-            elif last_sim.get("ok"):
-                st.info(f"Last: workflow · {last_sim.get('detection_source') or 'no detection_source'}")
-        
-        st.markdown("---")
-        st.caption(
-            "Uses cowrie_log_processor (COWRIE_COUNTER_ATTACK_ENGINE=auto → ReAct when CLOUDERA_* valid). "
-            "Use **ReAct Agent Lab** to force workflow vs ReAct side-by-side."
-        )
-    
+            tag = "ReAct" if last_sim.get("is_react") else "workflow"
+            st.caption(f"Last: {tag}")
+
     # Sidebar filters
-    st.sidebar.header("🔍 Filters")
+    st.sidebar.markdown("---")
+    st.sidebar.caption("Filters")
     
     # Severity filter
     all_severities = sorted(set(alert.get("severity", "UNKNOWN") for alert in alerts_data))
@@ -3712,9 +3688,7 @@ def main():
         1 for a in alerts_data if alert_actor_class(a) in ("potential_llm", "confirmed_llm")
     )
     confirmed_llm_count = sum(1 for a in alerts_data if alert_actor_class(a) == "confirmed_llm")
-    ac1, ac2 = st.sidebar.columns(2)
-    ac1.metric("Potential LLM", potential_llm_count)
-    ac2.metric("Confirmed LLM", confirmed_llm_count)
+    st.sidebar.caption(f"LLM: {potential_llm_count} pot. · {confirmed_llm_count} conf.")
     
     # Filter alerts
     # Normalize missing fields so filtering doesn't silently drop alerts.
@@ -3727,37 +3701,29 @@ def main():
     
     # Auto-refresh settings
     st.sidebar.markdown("---")
-    st.sidebar.subheader("🔄 Refresh Settings")
-    
-    auto_refresh = st.sidebar.checkbox("Auto-refresh (5s)", value=False)
-    refresh_blocked_ips_only = st.sidebar.checkbox("Auto-refresh Blocked IPs only", value=True)
-    
+    auto_refresh = st.sidebar.checkbox("Auto-refresh", value=False)
+    refresh_blocked_ips_only = st.sidebar.checkbox("Refresh blocked IPs only", value=True)
+
     if auto_refresh:
-        # Use Streamlit's built-in auto-refresh
         import time
+
         time.sleep(5)
         if refresh_blocked_ips_only:
-            # Only clear blocked IPs cache for faster updates
             load_blocked_ips.clear()
+            st.session_state["refresh_blocked_ips"] = True
         else:
-            # Clear all caches
             st.cache_data.clear()
         st.rerun()
-    
-    # Manual refresh buttons
-    st.sidebar.markdown("**Manual Refresh:**")
-    col1, col2 = st.sidebar.columns(2)
-    with col1:
-        if st.button("🔄 All Data", use_container_width=True):
+
+    c_reload, c_ips = st.sidebar.columns(2)
+    with c_reload:
+        if st.button("Reload", use_container_width=True, key="manual_reload"):
             st.cache_data.clear()
             st.rerun()
-    with col2:
-        if st.button("🔒 IPs Only", use_container_width=True):
-            # Clear only blocked IPs cache
+    with c_ips:
+        if st.button("IPs only", use_container_width=True, key="manual_ips"):
             load_blocked_ips.clear()
             st.rerun()
-    
-    st.sidebar.caption("💡 Tip: Enable auto-refresh for real-time updates")
 
     # How Flink Agents Respond - Main Section
     with st.expander("🤖 How Flink Agents Automatically Respond to Threats", expanded=False):

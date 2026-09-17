@@ -290,6 +290,10 @@ def _load_legacy_test_cmd():
         return sys.modules[qualified]
 
     pyc = Path(__file__).parent / "_legacy_test_cmd.pyc"
+    if not pyc.is_file():
+        raise FileNotFoundError(
+            f"Legacy honeypot test commands unavailable (missing {pyc.name})"
+        )
     code = marshal.loads(pyc.read_bytes()[16:])
     mod = types.ModuleType(qualified)
     mod.__file__ = str(pyc)
@@ -334,9 +338,13 @@ def register_legacy_commands() -> None:
         return
     if not honeypot_available():
         return
+    try:
+        legacy = _load_legacy_test_cmd()
+    except FileNotFoundError as exc:
+        typer.echo(f"Skipping honeypot e2e CLI aliases: {exc}", err=True)
+        _LEGACY_REGISTERED = True
+        return
     _LEGACY_REGISTERED = True
-
-    legacy = _load_legacy_test_cmd()
     _patch_legacy_paths(legacy)
     app.command("phase1")(legacy.test_phase1)
     app.command("phase2")(legacy.test_phase2)

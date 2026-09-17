@@ -163,7 +163,7 @@ def sync_studio_cluster_code(*, profile: str = DEFAULT_PROFILE) -> CopyStats:
 
 
 def ensure_cluster_python_embed_libs(*, profile: str | None = None) -> None:
-    """Install libpython on JM/TM (Pemja needs libpython3.10.so at runtime)."""
+    """Install libpython on JM/TM (Pemja needs libpython3.12.so at runtime)."""
     import subprocess
 
     from ratatoskr.constants import DEFAULT_PROFILE
@@ -171,8 +171,12 @@ def ensure_cluster_python_embed_libs(*, profile: str | None = None) -> None:
 
     active_profile = profile or DEFAULT_PROFILE
     install_cmd = (
-        "dpkg -s libpython3.10 >/dev/null 2>&1 || "
-        "(apt-get update -qq && apt-get install -y -qq libpython3.10 libpython3.10-dev g++ gcc)"
+        "dpkg -s libpython3.12 >/dev/null 2>&1 || "
+        "(apt-get update -qq && "
+        "apt-get install -y -qq software-properties-common && "
+        "add-apt-repository -y ppa:deadsnakes/ppa && "
+        "apt-get update -qq && "
+        "apt-get install -y -qq libpython3.12 libpython3.12-dev g++ gcc)"
     )
     for service in ("jobmanager", "taskmanager"):
         cid = container_id(service, profile=active_profile)

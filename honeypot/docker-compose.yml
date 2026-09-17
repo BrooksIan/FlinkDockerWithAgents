@@ -1,5 +1,5 @@
-# Image: default agent_flink_image:latest (Flink Agents main / 0.3-SNAPSHOT).
-# Pin stable line: ratatoskr build release-0.2.1 then set FLINK_AGENT_IMAGE in .env
+# Image: default agent_flink_image:latest (Flink 2.1 + Python 3.12 + Flink Agents 0.3).
+# Pin stable line: ratatoskr build release-0.3 then set FLINK_AGENT_IMAGE in .env
 x-flink-agent-image: &flink-agent-image
   image: ${FLINK_AGENT_IMAGE:-agent_flink_image:latest}
 
@@ -57,19 +57,19 @@ services:
       - flink-network
 
   # Cowrie Honeypot - Captures real SSH/Telnet attacks
-  # Prompt-injection traps: cowrie-config (read-only). Dynamic disinfo: cowrie-data (writable).
+  # Modern cowrie image paths are under /cowrie/cowrie-git (not /cowrie/cowrie).
+  # Use image-default honeyfs (custom decoy honeyfs lacks a real /etc/passwd).
   cowrie:
     image: cowrie/cowrie:latest
     ports:
       - "2222:2222"  # SSH port (exposed to internet)
       - "2223:2223"  # Telnet port (exposed to internet)
     volumes:
-      - ./cowrie-logs:/cowrie/cowrie/log
+      - ./cowrie-logs:/cowrie/cowrie-git/var/log/cowrie
+      - ./cowrie-config/cowrie.cfg:/cowrie/cowrie-git/etc/cowrie.cfg:ro
+      - ./cowrie-data/txtcmds:/cowrie/cowrie-git/txtcmds:ro
+      # Legacy path used by disinfo applier / dashboard blocklist tooling
       - ./cowrie-data:/cowrie/cowrie/data
-      - ./cowrie-config/cowrie.cfg:/cowrie/cowrie/etc/cowrie.cfg:ro
-      - ./cowrie-config/share/cowrie:/cowrie/cowrie/share/cowrie:ro
-      - ./cowrie-config/honeyfs:/cowrie/cowrie/honeyfs:ro
-      - ./cowrie-config/injections:/cowrie/cowrie/injections:ro
     environment:
       - COWRIE_SSH_PORT=2222
       - COWRIE_TELNET_PORT=2223
@@ -151,6 +151,7 @@ services:
       sh -c "
         export PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:/opt/flink/opt/python/pyflink.zip:/opt/flink/opt/python/py4j-src.zip &&
         export FLINK_REST_ADDRESS=jobmanager FLINK_REST_PORT=8081 &&
+        python3 -m pip install -q kafka-python>=2.0.2 &&
         python3 /opt/flink/cowrie_flink_pipeline_supervisor.py
       "
     environment:
@@ -602,7 +603,7 @@ services:
       - ./src/pipeline/cowrie_pipeline.py:/opt/flink/cowrie_pipeline.py:ro
     working_dir: /opt/flink
     command: >
-      sh -c "python3 /opt/flink/kafka_alerts_to_dashboard.py"
+      sh -c "python3 -m pip install -q kafka-python>=2.0.2 && python3 /opt/flink/kafka_alerts_to_dashboard.py"
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - KAFKA_ALERTS_TOPICS=cowrie.alerts,cowrie.react_alerts
@@ -719,6 +720,7 @@ services:
         if [ ! -f /opt/flink/cowrie-dashboard-data.json ]; then
           echo '[]' > /opt/flink/cowrie-dashboard-data.json
         fi &&
+        python3 -m pip install -q -r /opt/flink/requirements.txt &&
         python3 -m streamlit run dashboard_cowrie.py --server.port=8501 --server.address=0.0.0.0 --server.headless=true
       "
     environment:

@@ -29,11 +29,27 @@ def resolve_sibling_pyc(module_file: str | Path) -> Path:
     raise FileNotFoundError(f"Bytecode not found for {stem} (tried: {tried})")
 
 
+def _load_code(pyc: Path):
+    """Unmarshal ``.cpython-312.pyc`` body; fail clearly on Python version skew."""
+    import sys
+
+    raw = pyc.read_bytes()
+    if len(raw) < _PYC_HEADER_SIZE:
+        raise ImportError(f"Truncated bytecode: {pyc}")
+    try:
+        return marshal.loads(raw[_PYC_HEADER_SIZE:])
+    except Exception as exc:
+        raise ImportError(
+            f"Cannot load {pyc.name} on Python {sys.version_info.major}."
+            f"{sys.version_info.minor} (need 3.12+): {exc}"
+        ) from exc
+
+
 def load_sibling_pyc(module_globals: dict) -> None:
     """Execute bytecode for the calling shim into ``module_globals``."""
     module_file = module_globals["__file__"]
     pyc = resolve_sibling_pyc(module_file)
-    code = marshal.loads(pyc.read_bytes()[_PYC_HEADER_SIZE:])
+    code = _load_code(pyc)
     namespace = {
         "__name__": module_globals.get("__name__"),
         "__file__": str(Path(module_file).resolve()),
@@ -49,7 +65,7 @@ def load_sibling_pyc(module_globals: dict) -> None:
 def run_sibling_pyc_main(module_file: str) -> None:
     """Run ``if __name__ == '__main__'`` block from sibling bytecode."""
     pyc = resolve_sibling_pyc(module_file)
-    code = marshal.loads(pyc.read_bytes()[_PYC_HEADER_SIZE:])
+    code = _load_code(pyc)
     namespace = {
         "__name__": "__main__",
         "__file__": str(Path(module_file).resolve()),

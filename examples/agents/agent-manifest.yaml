@@ -1,93 +1,103 @@
 agents:
   workflow_counter:
     type: workflow
-    description: "Deterministic counter \u2014 doubles input values"
+    description: Deterministic counter — doubles input values
     entry: examples.agents.workflow_counter:CounterAgent
     runner: examples/agents/run_workflow_local.py
     cluster_script: examples/agents/run_workflow_cluster.py
     flink_yaml: examples/agents/workflow_counter/agent.yaml
   workflow_api_fetch:
     type: workflow
-    description: "Poll REST APIs, normalize JSON responses, and emit structured events\
-      \ (Settings \u2192 API fetch)"
+    description: Poll REST APIs, normalize JSON responses, and emit structured events
+      (Settings → API fetch)
     entry: examples.agents.workflow_api_fetch:ApiFetchAgent
     runner: examples/agents/run_workflow_api_fetch_local.py
   workflow_nifi_monitor:
     type: workflow
-    description: "Monitor Apache NiFi flow health and optionally auto-heal (NIFI_HEAL_PHASE=monitor|safe|lab)"
+    description: Monitor Apache NiFi flow health and optionally auto-heal (NIFI_HEAL_PHASE=monitor|safe|lab)
     entry: examples.agents.workflow_nifi_monitor:NiFiMonitorAgent
     runner: examples/agents/run_workflow_nifi_monitor_local.py
     cluster_script: examples/agents/run_workflow_nifi_monitor_cluster.py
   workflow_kafka_monitor:
     type: workflow
-    description: "Monitor Apache Kafka cluster health and optionally auto-heal (KAFKA_HEAL_PHASE=monitor|safe|lab)"
+    description: Monitor Apache Kafka cluster health and optionally auto-heal (KAFKA_HEAL_PHASE=monitor|safe|lab)
     entry: examples.agents.workflow_kafka_monitor:KafkaMonitorAgent
     runner: examples/agents/run_workflow_kafka_monitor_local.py
     cluster_script: examples/agents/run_workflow_kafka_monitor_cluster.py
   workflow_cm_monitor:
     type: workflow
-    description: "Monitor Cloudera Manager cluster health and emit fix recommendations (read-only, no heal)"
+    description: Monitor Cloudera Manager cluster health and emit fix recommendations
+      (read-only, no heal)
     entry: examples.agents.workflow_cm_monitor:CMMonitorAgent
     runner: examples/agents/run_workflow_cm_monitor_local.py
   workflow_signal_correlate:
     type: workflow
-    description: "Correlate NiFi and Kafka monitor signals into cross-stack incidents (observe-only)"
+    description: Correlate NiFi and Kafka monitor signals into cross-stack incidents
+      (observe-only)
     entry: examples.agents.workflow_signal_correlate:SignalCorrelateAgent
     runner: examples/agents/run_workflow_signal_correlate_local.py
   workflow_cross_stack_heal:
     type: workflow
-    description: "Correlate NiFi+Kafka then run coordinated heal playbooks (CROSS_HEAL_PHASE=monitor|lab)"
+    description: Correlate NiFi+Kafka then run coordinated heal playbooks (CROSS_HEAL_PHASE=monitor|lab)
     entry: examples.agents.workflow_cross_stack_heal:CrossStackHealAgent
     runner: examples/agents/run_workflow_cross_stack_heal_local.py
   workflow_schema_gate:
     type: workflow
-    description: "Schema/contract gate — monitor schema.violations; safe ensure topics/flow; lab schema text only (no heal)"
+    description: Schema/contract gate — monitor schema.violations; safe ensure topics/flow;
+      lab schema text only (no heal)
     entry: examples.agents.workflow_schema_gate:SchemaGateAgent
     runner: examples/agents/run_workflow_schema_gate_local.py
   workflow_route_enrich:
     type: workflow
-    description: "Propose routing/enrichment rules; NiFi applies allowlisted UpdateAttribute/RouteOnAttribute patches"
+    description: Propose routing/enrichment rules; NiFi applies allowlisted UpdateAttribute/RouteOnAttribute
+      patches
     entry: examples.agents.workflow_route_enrich:RouteEnrichAgent
     runner: examples/agents/run_workflow_route_enrich_local.py
   workflow_replay:
     type: workflow
-    description: "Lab-gated Kafka/NiFi replay job — reset dedicated group by timestamp, publish window to dest (not heal)"
+    description: Lab-gated Kafka/NiFi replay job — reset dedicated group by timestamp,
+      publish window to dest (not heal)
     entry: examples.agents.workflow_replay:ReplayAgent
     runner: examples/agents/run_workflow_replay_local.py
   workflow_dataplane_approval:
     type: workflow
-    description: "Desired-state bus — propose/ack/apply schema|route|replay over dataplane.propose and dataplane.ack"
+    description: Desired-state bus — propose/ack/apply schema|route|replay over dataplane.propose
+      and dataplane.ack
     entry: examples.agents.workflow_dataplane_approval:DataplaneApprovalAgent
     runner: examples/agents/run_workflow_dataplane_approval_local.py
   react_echo:
     type: react
-    description: "Tool-chaining lab agent (no LLM) \u2014 classify and summarize text"
+    description: Tool-chaining lab agent (no LLM) — classify and summarize text
     entry: examples.agents.react_echo:ReactEchoAgent
     runner: examples/agents/run_react_local.py
     cluster_script: examples/agents/run_react_cluster.py
   react_incident_scribe:
     type: react
-    description: "Explain correlated NiFi/Kafka incidents (LLM when configured; never mutates)"
+    description: Explain correlated NiFi/Kafka incidents (LLM when configured; never
+      mutates)
     entry: examples.agents.react_incident_scribe:IncidentScribeAgent
     runner: examples/agents/run_react_incident_scribe_local.py
   react_cross_runbook:
     type: react
-    description: "Structured NiFi↔Kafka cross-signal runbook from correlation (LLM when configured; never mutates)"
+    description: Structured NiFi↔Kafka cross-signal runbook from correlation (LLM
+      when configured; never mutates)
     entry: examples.agents.react_cross_runbook:CrossRunbookAgent
     runner: examples/agents/run_react_cross_runbook_local.py
   react_nifi_runbook:
     type: react
-    description: "Structured NiFi debugging runbook from monitor facts (LLM when configured; never mutates)"
+    description: Structured NiFi debugging runbook from monitor facts (LLM when configured;
+      never mutates)
     entry: examples.agents.react_nifi_runbook:NiFiRunbookAgent
     runner: examples/agents/run_react_nifi_runbook_local.py
   react_cm_runbook:
     type: react
-    description: "Structured Cloudera Manager debugging runbook from monitor facts (never mutates)"
+    description: Structured Cloudera Manager debugging runbook from monitor facts
+      (never mutates)
     entry: examples.agents.react_cm_runbook:CMRunbookAgent
     runner: examples/agents/run_react_cm_runbook_local.py
   react_double_value:
     type: react
-    description: "ReAct agent \u2014 LLM prompt doubles numeric input from a message"
+    description: ReAct agent — LLM prompt doubles numeric input from a message
     entry: examples.agents.react_double_value:ReactDoubleValueAgent
     runner: examples/agents/run_react_double_local.py
     cluster_script: examples/agents/run_react_double_cluster.py
@@ -98,11 +108,6 @@ agents:
     entry: examples.agents.react_skills_demo:ReactSkillsDemoAgent
     runner: examples/agents/run_react_skills_demo_local.py
     cluster_script: examples/agents/run_react_skills_demo_cluster.py
-  basicreact:
-    type: react
-    description: "ReAct agent with LLM prompt \u2014 configure LLM in Settings."
-    entry: examples.agents.published_shims.basicreact:BasicreactAgent
-    runner: .ratatoskr/agents/def_a8888ce93ad3/run_local.py
   session_detect:
     type: workflow
     description: Classify closed src_ip sessions from dynamic Flink windows
@@ -110,23 +115,6 @@ agents:
     runner: examples/agents/run_session_window_local.py
     cluster_script: examples/agents/run_session_window_cluster.py
     flink_yaml: examples/agents/session_detect/agent.yaml
-  react1:
-    type: react
-    description: "ReAct agent with native Flink skills \u2014 configure LLM in Settings."
-    entry: examples.agents.published_shims.react1:React1Agent
-    runner: .ratatoskr/agents/def_ae8f2dde763f/run_local.py
-  gen_ae8f2dde763f:
-    type: react
-    description: "ReAct agent with native Flink skills \u2014 configure LLM in Settings."
-    entry: examples.agents.published_shims.gen_ae8f2dde763f:React1Agent
-    runner: .ratatoskr/agents/def_ae8f2dde763f/run_local.py
-  square_workflow_agent:
-    type: workflow
-    description: A workflow agent that takes an integer as input and outputs the squared
-      value.
-    entry: examples.agents.published_shims.square_workflow_agent:SquareWorkflowAgentAgent
-    runner: .ratatoskr/agents/def_c9bf03ff73d0/run_local.py
-    flink_yaml: .ratatoskr/agents/def_c9bf03ff73d0/agent.yaml
   readapi_reactthoughts_writekafka:
     type: workflow
     description: Read from an API endpoint, use a ReAct agent to give its thoughts,

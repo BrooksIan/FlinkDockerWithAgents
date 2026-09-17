@@ -31,6 +31,18 @@ def doctor_platform(
     typer.echo("")
 
     typer.echo("Workspace")
+    import sys
+
+    py_ok = sys.version_info >= (3, 12)
+    _line(
+        "python",
+        "OK" if py_ok else "FAIL",
+        f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+        + ("" if py_ok else " (need 3.12+)"),
+    )
+    if not py_ok:
+        critical_fail = True
+
     try:
         load_agent_registry()
         _line("agent manifest", "OK")
