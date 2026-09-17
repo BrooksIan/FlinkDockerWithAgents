@@ -1170,44 +1170,120 @@ def try_load_from_docker_container():
 
 
 def is_private_ip(ip: str) -> bool:
-    """Check if an IP address is private/local."""
+    """True for RFC1918 / loopback / link-local / TEST-NET (non-global) addresses."""
     try:
         ip_obj = ipaddress.ip_address(ip)
-        return ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local
+        return (
+            ip_obj.is_private
+            or ip_obj.is_loopback
+            or ip_obj.is_link_local
+            or ip_obj.is_reserved
+            or not ip_obj.is_global
+        )
     except ValueError:
         return False
+
+
+def alert_source_ip(alert: dict) -> str:
+    """Prefer source_ip, fall back to src_ip (Kafka / lab shapes differ)."""
+    if not isinstance(alert, dict):
+        return ""
+    return str(alert.get("source_ip") or alert.get("src_ip") or "").strip()
+
+
+# Deterministic demo origins for lab / TEST-NET IPs (whois unavailable)
+_DEMO_GEO_ORIGINS = (
+    {"country": "United States", "lat": 37.77, "lon": -122.42, "city": "San Francisco"},
+    {"country": "Russia", "lat": 55.75, "lon": 37.62, "city": "Moscow"},
+    {"country": "China", "lat": 31.23, "lon": 121.47, "city": "Shanghai"},
+    {"country": "Netherlands", "lat": 52.37, "lon": 4.90, "city": "Amsterdam"},
+    {"country": "Brazil", "lat": -23.55, "lon": -46.63, "city": "São Paulo"},
+    {"country": "India", "lat": 19.08, "lon": 72.88, "city": "Mumbai"},
+    {"country": "Germany", "lat": 52.52, "lon": 13.40, "city": "Berlin"},
+    {"country": "Singapore", "lat": 1.35, "lon": 103.82, "city": "Singapore"},
+)
+
+_COUNTRY_COORDS = {
+    "US": (39.8, -98.5),
+    "USA": (39.8, -98.5),
+    "UNITED STATES": (39.8, -98.5),
+    "RU": (61.5, 105.3),
+    "RUS": (61.5, 105.3),
+    "RUSSIA": (61.5, 105.3),
+    "CN": (35.9, 104.2),
+    "CHN": (35.9, 104.2),
+    "CHINA": (35.9, 104.2),
+    "NL": (52.1, 5.3),
+    "NLD": (52.1, 5.3),
+    "NETHERLANDS": (52.1, 5.3),
+    "BR": (-14.2, -51.9),
+    "BRA": (-14.2, -51.9),
+    "BRAZIL": (-14.2, -51.9),
+    "IN": (20.6, 78.9),
+    "IND": (20.6, 78.9),
+    "INDIA": (20.6, 78.9),
+    "DE": (51.2, 10.4),
+    "DEU": (51.2, 10.4),
+    "GERMANY": (51.2, 10.4),
+    "SG": (1.35, 103.8),
+    "SGP": (1.35, 103.8),
+    "SINGAPORE": (1.35, 103.8),
+    "GB": (55.4, -3.4),
+    "UK": (55.4, -3.4),
+    "UNITED KINGDOM": (55.4, -3.4),
+}
+
+
+def demo_geo_for_ip(ip: str) -> Dict[str, Any]:
+    """Stable fake geo for honeypot / documentation IPs so maps still render."""
+    try:
+        last = int(str(ip).rsplit(".", 1)[-1])
+    except Exception:
+        last = sum(ord(c) for c in str(ip))
+    origin = dict(_DEMO_GEO_ORIGINS[last % len(_DEMO_GEO_ORIGINS)])
+    origin.update(
+        {
+            "type": "demo",
+            "asn": "AS64500",
+            "asn_description": "Honeypot lab / TEST-NET",
+            "organization": "Demo attacker (synthetic)",
+            "note": "Lab IP — assigned demo geography (whois not available)",
+        }
+    )
+    return origin
+
+
+def country_coords(country: str) -> tuple:
+    key = (country or "").strip().upper()
+    return _COUNTRY_COORDS.get(key, (20.0, 0.0))
 
 
 @st.cache_data(ttl=3600)  # Cache whois lookups for 1 hour
 def lookup_whois_cached(ip: str) -> Optional[Dict[str, Any]]:
     """Perform whois lookup on an IP address (cached)."""
-    if not WHOIS_AVAILABLE:
-        return None
-    
-    # Skip private IPs - whois doesn't work for them
+    # Lab / private / TEST-NET — deterministic demo geography (Python 3.12 marks TEST-NET private)
     if is_private_ip(ip):
-        return {
-            "type": "private",
-            "note": "Private/local IP address - whois not available"
-        }
-    
+        return demo_geo_for_ip(ip)
+
+    if not WHOIS_AVAILABLE:
+        return demo_geo_for_ip(ip)
+
     try:
         obj = IPWhois(ip)
         result = obj.lookup_rdap(depth=1)
-        
-        # Extract useful information
+
         whois_info = {
             "asn": result.get("asn", "N/A"),
             "asn_description": result.get("asn_description", "N/A"),
             "network": result.get("network", {}).get("name", "N/A") if result.get("network") else "N/A",
             "country": result.get("asn_country_code", "N/A"),
+            "type": "whois",
         }
-        
-        # Extract organization info if available
+
         entities = result.get("entities", [])
         if entities:
             org_info = []
-            for entity in entities[:3]:  # Limit to first 3 entities
+            for entity in entities[:3]:
                 if isinstance(entity, dict):
                     org_name = entity.get("vcardArray", [{}])[1] if entity.get("vcardArray") else None
                     if org_name and isinstance(org_name, list):
@@ -1215,23 +1291,30 @@ def lookup_whois_cached(ip: str) -> Optional[Dict[str, Any]]:
                             if isinstance(item, list) and len(item) > 3 and item[0] == "fn":
                                 org_info.append(item[3])
             if org_info:
-                whois_info["organization"] = ", ".join(org_info[:2])  # Limit to 2 orgs
-        
-        # Extract IP range info
+                whois_info["organization"] = ", ".join(org_info[:2])
+
         if result.get("network"):
             network_info = result["network"]
             if network_info.get("start_address") and network_info.get("end_address"):
-                whois_info["ip_range"] = f"{network_info['start_address']} - {network_info['end_address']}"
+                whois_info["ip_range"] = (
+                    f"{network_info['start_address']} - {network_info['end_address']}"
+                )
             if network_info.get("cidr"):
                 whois_info["cidr"] = network_info.get("cidr")
-        
+
+        country = whois_info.get("country") or "N/A"
+        if country in (None, "", "N/A"):
+            return demo_geo_for_ip(ip)
+        lat, lon = country_coords(str(country))
+        whois_info["lat"] = lat
+        whois_info["lon"] = lon
         return whois_info
-        
+
     except Exception as e:
-        return {
-            "error": str(e),
-            "note": "Whois lookup failed"
-        }
+        fallback = demo_geo_for_ip(ip)
+        fallback["error"] = str(e)[:120]
+        fallback["note"] = "Whois lookup failed — using demo geography"
+        return fallback
 
 
 def load_blocked_ips_from_text():
@@ -1408,33 +1491,37 @@ def _counter_attack_status_emoji(status: str) -> str:
     return "⏳"
 
 
+def _result_field(result: dict, *keys, default="—"):
+    for k in keys:
+        v = result.get(k)
+        if v is not None and v != "":
+            return v
+    return default
+
+
 def _render_counter_attacks_block(result: dict) -> None:
-    """Show executed counter-attacks and response actions from a lab test."""
+    """Compact response summary for a lab test (no metric soup)."""
     counter_attacks = result.get("counter_attacks") or []
     executed_response = result.get("executed_response_actions") or []
     recommended = result.get("recommended_actions") or []
-    severity = result.get("severity") or "—"
+    severity = _result_field(result, "severity", default="—")
     ca_n = result.get("counter_attack_count", len(counter_attacks))
     resp_n = result.get("executed_response_count", len(executed_response))
     rec_n = result.get("recommended_action_count", len(recommended))
 
-    st.markdown(
-        f'<div class="result-meta"><strong>Response</strong> · '
-        f'severity <strong>{severity}</strong> · '
-        f'{ca_n} counter-attack · {resp_n} block/alert · {rec_n} still recommended</div>',
-        unsafe_allow_html=True,
+    st.caption(
+        f"Severity **{severity}** · {ca_n} counter-attack · "
+        f"{resp_n} block/alert · {rec_n} recommended"
     )
 
     if executed_response:
-        with st.expander(f"Executed blocks/alerts ({len(executed_response)})", expanded=True):
+        with st.expander(f"Blocks/alerts ({len(executed_response)})", expanded=False):
             st.dataframe(
                 [
                     {
-                        "": _counter_attack_status_emoji(r.get("status", "")),
                         "Action": r.get("label") or r.get("action_type"),
                         "Status": r.get("status"),
                         "Target": r.get("target"),
-                        "Tool": r.get("react_tool") or "—",
                     }
                     for r in executed_response
                 ],
@@ -1443,30 +1530,25 @@ def _render_counter_attacks_block(result: dict) -> None:
             )
 
     if counter_attacks:
-        with st.expander(f"Counter-attacks ({len(counter_attacks)})", expanded=True):
+        with st.expander(f"Counter-attacks ({len(counter_attacks)})", expanded=False):
             st.dataframe(
                 [
                     {
-                        "": _counter_attack_status_emoji(ca.get("status", "")),
                         "Action": ca.get("label") or ca.get("action_type"),
                         "Status": ca.get("status"),
                         "Target": ca.get("target"),
-                        "Tool": ca.get("react_tool") or "—",
                     }
                     for ca in counter_attacks
                 ],
                 use_container_width=True,
                 hide_index=True,
             )
-    elif ca_n == 0 and resp_n == 0:
-        st.caption("No tools ran (needs MEDIUM+ threat + execute flags on).")
 
     if recommended:
-        with st.expander(f"Still recommended ({len(recommended)})", expanded=False):
+        with st.expander(f"Recommended ({len(recommended)})", expanded=False):
             st.dataframe(
                 [
                     {
-                        "": _counter_attack_status_emoji(r.get("status", "")),
                         "Action": r.get("action_type"),
                         "Status": r.get("status"),
                         "Target": r.get("target"),
@@ -1479,62 +1561,117 @@ def _render_counter_attacks_block(result: dict) -> None:
 
 
 def _render_test_result_card(result: dict, *, title: str) -> None:
-    """Show a single pipeline test result with clear ReAct vs workflow labeling."""
-    is_react = result.get("is_react")
-    passed = result.get("passed", result.get("ok"))
+    """Single readable summary for a pipeline lab result."""
+    is_react = bool(result.get("is_react"))
+    ok = bool(result.get("passed", result.get("ok")))
     if is_react:
-        headline = f"{title} · ReAct"
-        tone = "success"
-    elif result.get("ok"):
-        headline = f"{title} · Workflow only"
-        tone = "warning"
+        status = "ReAct"
+    elif ok:
+        status = "Workflow"
     else:
-        headline = f"{title} · Failed"
-        tone = "error"
+        status = "Failed"
 
-    req = result.get("requested_engine", "n/a")
-    act = result.get("actual_engine", "n/a")
-    src = result.get("detection_source") or "—"
-    aid = result.get("alert_id") or "—"
-    ip = result.get("src_ip") or "—"
-    threat = result.get("threat_type") or "—"
-    elapsed = result.get("elapsed_ms", "—")
-    actions = result.get("response_action_count", 0)
+    req = _result_field(result, "requested_engine", "engine", default="n/a")
+    act = _result_field(result, "actual_engine", "engine", default="n/a")
+    if not result.get("actual_engine") and is_react:
+        act = "react"
+    elif not result.get("actual_engine") and ok and not is_react:
+        act = "workflow"
+    if not ok and not is_react:
+        act = _result_field(result, "actual_engine", default="none")
 
-    st.markdown(
-        f'<div class="result-card">'
-        f'<div class="result-title">{headline}</div>'
-        f'<div class="result-meta">'
-        f'<strong>Engine</strong> {req} → {act} · '
-        f'<strong>{elapsed}</strong> ms · '
-        f'<strong>{actions}</strong> actions'
-        f'</div>'
-        f'<div class="result-meta">'
-        f'<strong>IP</strong> {ip} · '
-        f'<strong>Threat</strong> {threat} · '
-        f'<strong>Source</strong> {src}'
-        f'</div>'
-        f'<div class="result-meta"><strong>Alert</strong> {aid}</div>'
-        f'</div>',
-        unsafe_allow_html=True,
+    alert = result.get("alert") if isinstance(result.get("alert"), dict) else {}
+    src = _result_field(result, "detection_source", default=alert.get("detection_source") or "—")
+    aid = _result_field(result, "alert_id", default=alert.get("alert_id") or "—")
+    ip = _result_field(result, "src_ip", default=alert.get("src_ip") or "—")
+    threat = _result_field(result, "threat_type", default=alert.get("threat_type") or "—")
+    elapsed = _result_field(result, "elapsed_ms", default="—")
+    actions = result.get(
+        "response_action_count",
+        len(result.get("counter_attacks") or [])
+        + len(result.get("executed_response_actions") or []),
     )
-    if tone == "success":
-        st.success("ReAct agent handled this event")
-    elif tone == "warning":
-        st.warning("Workflow path (no ReAct markers)")
-    else:
-        st.error("Test failed")
 
-    if result.get("confidence") is not None:
-        st.caption(f"Confidence: {result.get('confidence')}")
+    st.markdown(f"**{title}** — {status}")
+    st.markdown(
+        f"| | |\n|---|---|\n"
+        f"| Engine | `{req}` → `{act}` |\n"
+        f"| Time | {elapsed} ms |\n"
+        f"| Actions | {actions} |\n"
+        f"| IP | `{ip}` |\n"
+        f"| Threat | `{threat}` |\n"
+        f"| Source | `{src}` |\n"
+        f"| Alert | `{aid}` |"
+    )
+    if result.get("error"):
+        st.error(str(result["error"])[:240])
     if result.get("reasoning"):
         with st.expander("Reasoning", expanded=False):
             st.write(str(result.get("reasoning"))[:500])
     _render_counter_attacks_block(result)
-    if result.get("error"):
-        st.error(result["error"])
-    if passed and is_react:
+    if is_react:
         st.markdown(react_agent_badge_markdown(), unsafe_allow_html=True)
+
+
+def _render_compare_section(cmp: dict, *, ca_on: bool) -> None:
+    """Readable workflow vs ReAct comparison (table first, details below)."""
+    st.subheader("Compare: Workflow vs ReAct")
+    st.caption(f"Shared IP `{cmp.get('src_ip')}`")
+
+    wf = cmp.get("workflow") or {}
+    rx = cmp.get("react") or {}
+
+    def _row(label: str, left, right) -> dict:
+        return {"": label, "Workflow": left, "ReAct": right}
+
+    wf_status = "ReAct" if wf.get("is_react") else ("OK" if wf.get("ok") else "Failed")
+    rx_status = "ReAct" if rx.get("is_react") else ("OK" if rx.get("ok") else "Failed")
+    st.dataframe(
+        [
+            _row("Status", wf_status, rx_status),
+            _row(
+                "Engine",
+                f"{_result_field(wf, 'requested_engine', 'engine')} → {_result_field(wf, 'actual_engine', 'engine')}",
+                f"{_result_field(rx, 'requested_engine', 'engine')} → {_result_field(rx, 'actual_engine', 'engine', default='none')}",
+            ),
+            _row("ms", _result_field(wf, "elapsed_ms"), _result_field(rx, "elapsed_ms")),
+            _row(
+                "Threat",
+                _result_field(wf, "threat_type", default=(wf.get("alert") or {}).get("threat_type")),
+                _result_field(rx, "threat_type", default=(rx.get("alert") or {}).get("threat_type")),
+            ),
+            _row(
+                "Counter-attacks",
+                wf.get("counter_attack_count", 0),
+                rx.get("counter_attack_count", 0),
+            ),
+            _row(
+                "Error",
+                (str(wf.get("error") or "—")[:80]),
+                (str(rx.get("error") or "—")[:80]),
+            ),
+        ],
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    if cmp.get("compare_ok"):
+        st.success("ReAct path confirmed")
+    else:
+        err = rx.get("error") or "No ReAct markers"
+        st.warning(f"ReAct did not win this run: {err}")
+
+    with st.expander("Workflow details", expanded=False):
+        _render_test_result_card(wf, title="Workflow")
+    with st.expander("ReAct details", expanded=False):
+        _render_test_result_card(rx, title="ReAct")
+
+    if (
+        rx.get("counter_attack_count", 0) == 0
+        and rx.get("is_react")
+        and ca_on
+    ):
+        st.caption("ReAct ran but recorded no counter-attacks — check severity / execute flags.")
 
 
 def _react_lab_modules():
@@ -1691,35 +1828,7 @@ def render_react_agent_lab() -> None:
     cmp = st.session_state.get("react_lab_compare")
     if cmp:
         st.markdown("---")
-        st.subheader("⚖️ Side-by-side comparison")
-        st.caption(f"Shared test IP: `{cmp.get('src_ip')}`")
-        left, right = st.columns(2)
-        with left:
-            _render_test_result_card(cmp["workflow"], title="Workflow")
-        with right:
-            _render_test_result_card(cmp["react"], title="ReAct")
-
-        wf_ca = cmp["workflow"].get("counter_attack_count", 0)
-        react_ca = cmp["react"].get("counter_attack_count", 0)
-        st.markdown("**Counter-attack summary**")
-        s1, s2, s3 = st.columns(3)
-        s1.metric("Workflow counter-attacks", wf_ca)
-        s2.metric("⭐ ReAct counter-attacks", react_ca)
-        s3.metric("ReAct-only delta", max(0, react_ca - wf_ca))
-        if react_ca == 0 and cmp["react"].get("is_react") and ca_on:
-            st.warning(
-                "ReAct ran but no counter-attacks were recorded. Check severity/guardrails and "
-                "`COWRIE_REACT_EXECUTE_COUNTER_ATTACKS`."
-            )
-
-        if cmp.get("compare_ok"):
-            st.success("✅ ReAct path confirmed — react test used the LLM agent (⭐)")
-        else:
-            st.warning(
-                "ReAct test did not produce ReAct markers. Re-run **Compare** after code updates "
-                "(this page reloads test modules automatically). Check Cloudera creds, openai, "
-                "and dashboard container logs."
-            )
+        _render_compare_section(cmp, ca_on=ca_on)
 
     st.markdown("---")
     st.subheader("🟣 Kafka Phase 3 sidecar")
@@ -2355,21 +2464,24 @@ def extract_counter_attack_actions(alerts_data):
 
 
 def extract_geographic_data(alerts_data):
-    """Extract geographic data from alerts using whois information."""
+    """Extract geographic data from alerts (whois or lab demo geography)."""
     geo_data = {}
-    
+
     for alert in alerts_data:
-        source_ip = alert.get("source_ip", "")
-        if not source_ip or is_private_ip(source_ip):
+        source_ip = alert_source_ip(alert)
+        if not source_ip:
             continue
-        
-        # Get whois data (cached)
-        whois_data = lookup_whois_cached(source_ip)
-        country = whois_data.get("country", "Unknown") if whois_data else "Unknown"
-        
-        if country == "N/A" or not country:
+
+        whois_data = lookup_whois_cached(source_ip) or demo_geo_for_ip(source_ip)
+        country = whois_data.get("country") or "Unknown"
+        if country in ("N/A", ""):
             country = "Unknown"
-        
+
+        lat = whois_data.get("lat")
+        lon = whois_data.get("lon")
+        if lat is None or lon is None:
+            lat, lon = country_coords(country)
+
         if country not in geo_data:
             geo_data[country] = {
                 "country": country,
@@ -2377,40 +2489,53 @@ def extract_geographic_data(alerts_data):
                 "ips": set(),
                 "severities": {},
                 "threat_types": {},
-                "alerts": []
+                "alerts": [],
+                "lat": lat,
+                "lon": lon,
+                "demo": whois_data.get("type") == "demo",
             }
-        
+
         geo_data[country]["attack_count"] += 1
         geo_data[country]["ips"].add(source_ip)
-        
+
         severity = alert.get("severity", "UNKNOWN")
-        geo_data[country]["severities"][severity] = geo_data[country]["severities"].get(severity, 0) + 1
-        
+        geo_data[country]["severities"][severity] = (
+            geo_data[country]["severities"].get(severity, 0) + 1
+        )
+
         threat_type = alert.get("threat_type", "UNKNOWN")
-        geo_data[country]["threat_types"][threat_type] = geo_data[country]["threat_types"].get(threat_type, 0) + 1
-        
-        geo_data[country]["alerts"].append({
-            "alert_id": alert.get("alert_id", "N/A"),
-            "ip": source_ip,
-            "timestamp": alert.get("timestamp", ""),
-            "severity": severity,
-            "threat_type": threat_type,
-            "whois": whois_data
-        })
-    
-    # Convert sets to counts for JSON serialization
+        geo_data[country]["threat_types"][threat_type] = (
+            geo_data[country]["threat_types"].get(threat_type, 0) + 1
+        )
+
+        geo_data[country]["alerts"].append(
+            {
+                "alert_id": alert.get("alert_id", "N/A"),
+                "ip": source_ip,
+                "timestamp": alert.get("timestamp", ""),
+                "severity": severity,
+                "threat_type": threat_type,
+                "whois": whois_data,
+            }
+        )
+
     result = []
     for country, data in geo_data.items():
-        result.append({
-            "country": country,
-            "attack_count": data["attack_count"],
-            "unique_ips": len(data["ips"]),
-            "ips": list(data["ips"])[:10],  # Limit to first 10 IPs
-            "severities": data["severities"],
-            "threat_types": data["threat_types"],
-            "alerts": data["alerts"][:20]  # Limit to first 20 alerts
-        })
-    
+        result.append(
+            {
+                "country": country,
+                "attack_count": data["attack_count"],
+                "unique_ips": len(data["ips"]),
+                "ips": list(data["ips"])[:10],
+                "severities": data["severities"],
+                "threat_types": data["threat_types"],
+                "alerts": data["alerts"][:20],
+                "lat": data["lat"],
+                "lon": data["lon"],
+                "demo": data["demo"],
+            }
+        )
+
     return sorted(result, key=lambda x: x["attack_count"], reverse=True)
 
 
@@ -2844,77 +2969,92 @@ def render_geographic_dashboard(alerts_data):
         '<p style="color:#5c5278;margin:-0.5rem 0 1rem;">Origin map and regional heat</p>',
         unsafe_allow_html=True,
     )
-    
+
     if not alerts_data:
         st.warning("No threat detection data available. Run the demo first to generate data.")
         return
-    
-    # Extract geographic data
+
+    # Clear stale whois cache so lab-IP demo geo applies after upgrades
+    if st.session_state.pop("_geo_cache_busted", True):
+        try:
+            lookup_whois_cached.clear()
+        except Exception:
+            pass
+        st.session_state["_geo_cache_busted"] = False
+
     geo_data = extract_geographic_data(alerts_data)
-    
+
     if not geo_data:
-        st.info("No geographic data available. IP addresses may be private or whois lookups failed.")
+        st.info("No alerts with a source IP yet. Simulate an attack or ingest Cowrie logs.")
         return
-    
-    # Statistics
-    st.header("📊 Geographic Statistics")
-    
+
+    if any(g.get("demo") for g in geo_data):
+        st.caption(
+            "Lab / TEST-NET IPs use demo geography (whois is not available for documentation ranges)."
+        )
+
+    st.subheader("Overview")
     col1, col2, col3, col4 = st.columns(4)
-    
-    total_countries = len(geo_data)
-    total_attacks = sum(g["attack_count"] for g in geo_data)
-    total_unique_ips = sum(g["unique_ips"] for g in geo_data)
-    top_country = geo_data[0]["country"] if geo_data else "N/A"
-    
-    with col1:
-        st.metric("Countries", total_countries)
-    with col2:
-        st.metric("Total Attacks", total_attacks)
-    with col3:
-        st.metric("Unique IPs", total_unique_ips)
-    with col4:
-        st.metric("Top Country", top_country)
-    
-    # World Map Visualization
-    st.header("🗺️ Attack Origins Map")
-    
-    # Prepare data for map
-    map_data = []
-    for geo in geo_data:
-        map_data.append({
-            "country": geo["country"],
-            "attacks": geo["attack_count"],
-            "unique_ips": geo["unique_ips"]
-        })
-    
-    map_df = pd.DataFrame(map_data)
-    
-    # Create world map using scatter_geo
+    col1.metric("Countries", len(geo_data))
+    col2.metric("Attacks", sum(g["attack_count"] for g in geo_data))
+    col3.metric("Unique IPs", sum(g["unique_ips"] for g in geo_data))
+    col4.metric("Top", geo_data[0]["country"] if geo_data else "—")
+
+    st.subheader("Origins map")
+    map_df = pd.DataFrame(
+        [
+            {
+                "country": geo["country"],
+                "attacks": geo["attack_count"],
+                "unique_ips": geo["unique_ips"],
+                "lat": geo.get("lat", 20.0),
+                "lon": geo.get("lon", 0.0),
+            }
+            for geo in geo_data
+        ]
+    )
+
     try:
-        # Try to get country codes for better map visualization
-        # For now, use a simple approach with country names
         fig_map = px.scatter_geo(
             map_df,
-            locations="country",
-            locationmode="country names",
+            lat="lat",
+            lon="lon",
             size="attacks",
             hover_name="country",
-            hover_data={"attacks": True, "unique_ips": True, "country": False},
-            title="Attack Origins Map (Size = Attack Count)",
+            hover_data={"attacks": True, "unique_ips": True, "lat": False, "lon": False},
             color="attacks",
             color_continuous_scale=["#f4f1fa", "#ffb38a", "#ff550d", "#120046"],
-            labels={"attacks": "Number of Attacks"}
+            labels={"attacks": "Attacks"},
+            size_max=48,
         )
-        fig_map.update_layout(height=600, geo=dict(showframe=False, showcoastlines=True))
+        fig_map.update_layout(
+            height=480,
+            margin=dict(l=0, r=0, t=10, b=0),
+            geo=dict(showframe=False, showcoastlines=True, bgcolor="#f4f1fa"),
+            paper_bgcolor="#f4f1fa",
+        )
         st.plotly_chart(fig_map, use_container_width=True)
     except Exception as e:
-        # Fallback: show data in table format
-        st.warning(f"Map visualization unavailable: {e}")
-        st.info("Displaying data in table format instead.")
-        st.dataframe(map_df, use_container_width=True)
+        st.caption(f"Map unavailable ({e})")
+        st.dataframe(map_df[["country", "attacks", "unique_ips"]], use_container_width=True, hide_index=True)
+
+    st.subheader("By country")
+    st.dataframe(
+        [
+            {
+                "Country": g["country"],
+                "Attacks": g["attack_count"],
+                "IPs": g["unique_ips"],
+                "Top severity": max(g["severities"], key=g["severities"].get) if g["severities"] else "—",
+            }
+            for g in geo_data
+        ],
+        use_container_width=True,
+        hide_index=True,
+    )
     
     # Heat Map by Region
-    st.header("🔥 Attack Heat Map")
+    st.subheader("Heat")
     
     col1, col2 = st.columns(2)
     
@@ -2956,7 +3096,7 @@ def render_geographic_dashboard(alerts_data):
             st.plotly_chart(fig_severity, use_container_width=True)
     
     # Country Details
-    st.header("🌐 Country-Based Statistics")
+    st.subheader("Country details")
     
     selected_country = st.selectbox(
         "Select Country for Details",

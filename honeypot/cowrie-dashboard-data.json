@@ -2904,5 +2904,35 @@
       "session": "react-ui-test-584cce92",
       "protocol": "ssh"
     }
+  },
+  {
+    "alert_id": "ALERT-2026-09-17T20:34:07.098677Z-4655",
+    "timestamp": "2026-09-17T20:34:07.098677Z",
+    "severity": "CRITICAL",
+    "threat_type": "SUCCESSFUL_INTRUSION",
+    "source_ip": "203.0.113.42",
+    "description": "Successful login from 203.0.113.42 to honeypot",
+    "recommended_action": "Immediate response required",
+    "response_actions": [
+      {
+        "action_id": "cowrie-block-203.0.113.42",
+        "timestamp": "2026-09-17T20:34:07.104652",
+        "action_type": "BLOCK_IP_COWRIE",
+        "target": "203.0.113.42",
+        "severity": "CRITICAL",
+        "reason": "Blocked in Cowrie honeypot: Successful intrusion attempt",
+        "status": "success",
+        "details": {
+          "status": "success",
+          "ip": "203.0.113.42"
+        }
+      }
+    ],
+    "attack_details": {
+      "eventid": "cowrie.login.success",
+      "username": "root",
+      "session": "react-ui-test-82cb53bb",
+      "protocol": "ssh"
+    }
   }
 ]
