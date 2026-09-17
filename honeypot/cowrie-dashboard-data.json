@@ -2964,5 +2964,272 @@
       "session": "react-ui-test-b045c60c",
       "protocol": "ssh"
     }
+  },
+  {
+    "alert_id": "ALERT-2026-09-17T21:42:06.206454Z-2383",
+    "timestamp": "2026-09-17T21:42:06.206454Z",
+    "severity": "CRITICAL",
+    "threat_type": "SUCCESSFUL_INTRUSION",
+    "source_ip": "203.0.113.16",
+    "description": "Successful login from 203.0.113.16 to honeypot",
+    "recommended_action": "Immediate response required",
+    "response_actions": [
+      {
+        "action_id": "cowrie-block-203.0.113.16",
+        "timestamp": "2026-09-17T21:42:06.285401",
+        "action_type": "BLOCK_IP_COWRIE",
+        "target": "203.0.113.16",
+        "severity": "CRITICAL",
+        "reason": "Blocked in Cowrie honeypot: Successful intrusion attempt",
+        "status": "success",
+        "details": {
+          "status": "success",
+          "ip": "203.0.113.16"
+        }
+      }
+    ],
+    "attack_details": {
+      "eventid": "cowrie.login.success",
+      "username": "root",
+      "session": "react-ui-test-59afed2b",
+      "protocol": "ssh"
+    }
+  },
+  {
+    "alert_id": "ALERT-2026-09-17T21:42:32.907764Z-12",
+    "timestamp": "2026-09-17T21:42:32.907764Z",
+    "severity": "CRITICAL",
+    "threat_type": "SUCCESSFUL_INTRUSION",
+    "source_ip": "203.0.113.226",
+    "description": "Successful login from 203.0.113.226 to honeypot",
+    "recommended_action": "Immediate response required",
+    "response_actions": [
+      {
+        "action_id": "cowrie-block-203.0.113.226",
+        "timestamp": "2026-09-17T21:42:34.174365",
+        "action_type": "BLOCK_IP_COWRIE",
+        "target": "203.0.113.226",
+        "severity": "CRITICAL",
+        "reason": "Blocked in Cowrie honeypot: Successful login from 203.0.113.226 to honeypot",
+        "status": "error",
+        "details": {
+          "status": "error",
+          "ip": "203.0.113.226",
+          "error": "[Errno 13] Permission denied: '/cowrie'"
+        }
+      },
+      {
+        "action_id": "block-203.0.113.226",
+        "timestamp": "2026-09-17T21:42:34.175079",
+        "action_type": "BLOCK_IP",
+        "target": "203.0.113.226",
+        "severity": "CRITICAL",
+        "reason": "Successful login from 203.0.113.226 to honeypot",
+        "status": "success",
+        "details": {
+          "status": "success",
+          "ip": "203.0.113.226",
+          "blocked_until": "2026-09-17T21:42:34.175074"
+        }
+      },
+      {
+        "action_id": "quarantine-react-ui-test-af14837d",
+        "timestamp": "2026-09-17T21:42:34.175083",
+        "action_type": "QUARANTINE",
+        "target": "react-ui-test-af14837d",
+        "severity": "CRITICAL",
+        "reason": "Active intrusion session",
+        "status": "quarantined",
+        "details": {
+          "status": "quarantined",
+          "session_id": "react-ui-test-af14837d",
+          "quarantined_at": "2026-09-17T21:42:34.175082",
+          "reason": "Successful intrusion detected"
+        }
+      },
+      {
+        "action_id": "INC-20260917-5089",
+        "timestamp": "2026-09-17T21:42:34.175145",
+        "action_type": "LOG_INCIDENT",
+        "target": "INC-20260917-5089",
+        "severity": "CRITICAL",
+        "reason": "Incident tracking",
+        "status": "created",
+        "details": {
+          "status": "created",
+          "ticket_id": "INC-20260917-5089",
+          "url": "https://tickets.example.com/INC-20260917-5089"
+        }
+      },
+      {
+        "action_id": "alert-security-alerts",
+        "timestamp": "2026-09-17T21:42:34.175396",
+        "action_type": "SEND_ALERT",
+        "target": "security-alerts",
+        "severity": "CRITICAL",
+        "reason": "CRITICAL: Successful intrusion from 203.0.113.226\nUsername: root\nSession: react-ui-test-af14837d\nIP has been blocked and session quarantined.",
+        "status": "sent",
+        "details": {
+          "status": "sent",
+          "alert_type": "Slack",
+          "channel": "security-alerts",
+          "severity": "CRITICAL",
+          "message": "CRITICAL: Successful intrusion from 203.0.113.226\nUsername: root\nSession: react-ui-test-af14837d\nIP has been blocked and session quarantined.",
+          "message_id": "msg-1789681354.175381"
+        }
+      },
+      {
+        "action_id": "alert-incident-response",
+        "timestamp": "2026-09-17T21:42:34.175431",
+        "action_type": "SEND_ALERT",
+        "target": "incident-response",
+        "severity": "CRITICAL",
+        "reason": "CRITICAL: Successful intrusion from 203.0.113.226\nUsername: root\nSession: react-ui-test-af14837d\nIP has been blocked and session quarantined.",
+        "status": "sent",
+        "details": {
+          "status": "sent",
+          "alert_type": "Slack",
+          "channel": "incident-response",
+          "severity": "CRITICAL",
+          "message": "CRITICAL: Successful intrusion from 203.0.113.226\nUsername: root\nSession: react-ui-test-af14837d\nIP has been blocked and session quarantined.",
+          "message_id": "msg-1789681354.175428"
+        }
+      },
+      {
+        "action_id": "intel-203.0.113.226",
+        "timestamp": "2026-09-17T21:42:34.175435",
+        "action_type": "UPDATE_THREAT_INTEL",
+        "target": "203.0.113.226",
+        "severity": "CRITICAL",
+        "reason": "Threat intelligence update",
+        "status": "updated",
+        "details": {
+          "status": "updated",
+          "indicator": "203.0.113.226",
+          "threat_type": "SUCCESSFUL_INTRUSION",
+          "evidence": {
+            "username": "root",
+            "password": "react-ui-test",
+            "session": "react-ui-test-af14837d",
+            "timestamp": "2026-09-17T21:42:32.907764Z"
+          }
+        }
+      },
+      {
+        "action_id": "gather-intel-203.0.113.226",
+        "timestamp": "2026-09-17T21:42:34.175458",
+        "action_type": "GATHER_INTELLIGENCE",
+        "target": "203.0.113.226",
+        "severity": "CRITICAL",
+        "reason": "Collecting OSINT on attacker",
+        "status": "gathered",
+        "details": {
+          "status": "gathered",
+          "ip": "203.0.113.226",
+          "intelligence": {
+            "reputation_score": -50,
+            "abuse_reports": 15,
+            "country": "Unknown",
+            "isp": "Unknown",
+            "threat_types": [
+              "brute_force",
+              "malware"
+            ],
+            "first_seen": "2024-01-01",
+            "last_seen": "2026-09-17T21:42:34.175455"
+          }
+        }
+      },
+      {
+        "action_id": "track-react-ui-test-af14837d",
+        "timestamp": "2026-09-17T21:42:34.175479",
+        "action_type": "TRACK_BEHAVIOR",
+        "target": "react-ui-test-af14837d",
+        "severity": "CRITICAL",
+        "reason": "Enhanced forensic tracking",
+        "status": "tracking",
+        "details": {
+          "status": "tracking",
+          "ip": "203.0.113.226",
+          "session_id": "react-ui-test-af14837d",
+          "tracking_level": "comprehensive",
+          "data_collected": [
+            "commands",
+            "network_traffic",
+            "file_operations",
+            "process_activity"
+          ]
+        }
+      },
+      {
+        "action_id": "tarpit-203.0.113.226",
+        "timestamp": "2026-09-17T21:42:34.175508",
+        "action_type": "DEPLOY_TARPIT",
+        "target": "203.0.113.226",
+        "severity": "CRITICAL",
+        "reason": "Slow down attacker connections",
+        "status": "deployed",
+        "details": {
+          "status": "deployed",
+          "ip": "203.0.113.226",
+          "duration_minutes": 1440,
+          "tarpit_id": "tarpit-203.0.113.226-1789681354.175506"
+        }
+      },
+      {
+        "action_id": "share-203.0.113.226",
+        "timestamp": "2026-09-17T21:42:34.175524",
+        "action_type": "SHARE_THREAT_INTEL",
+        "target": "203.0.113.226",
+        "severity": "CRITICAL",
+        "reason": "Protect community from this attacker",
+        "status": "shared",
+        "details": {
+          "status": "shared",
+          "ip": "203.0.113.226",
+          "platforms": [
+            "MISP",
+            "OpenCTI",
+            "abuse.ch",
+            "AlienVault OTX"
+          ],
+          "indicators_shared": 0
+        }
+      },
+      {
+        "action_id": "report-203.0.113.226",
+        "timestamp": "2026-09-17T21:42:34.175574",
+        "action_type": "REPORT_TO_AUTHORITIES",
+        "target": "203.0.113.226",
+        "severity": "CRITICAL",
+        "reason": "Report serious attack to law enforcement",
+        "status": "reported",
+        "details": {
+          "status": "reported",
+          "ip": "203.0.113.226",
+          "reports_sent": [
+            "ISP abuse contact",
+            "National CERT",
+            "Threat sharing platform"
+          ],
+          "report_id": "REPORT-1789681354.175572"
+        }
+      }
+    ],
+    "attack_details": {
+      "eventid": "cowrie.login.success",
+      "username": "root",
+      "session": "react-ui-test-af14837d",
+      "command": null,
+      "filename": null,
+      "actor_class": "unknown",
+      "injection_compliance": {
+        "goal_hijack": false,
+        "prompt_steal": false,
+        "prompt_steal_attempted": false
+      }
+    },
+    "detection_source": "pure_python",
+    "actor_class": "unknown"
   }
 ]
