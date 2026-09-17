@@ -3876,6 +3876,379 @@ def render_settings_page() -> None:
         st.error(f"Unreachable: {exc}")
 
 
+
+def _render_threat_alert_detail(alert: Dict[str, Any]) -> None:
+    """Render detail panels for a single threat alert."""
+    severity = alert.get("severity", "UNKNOWN")
+    if is_react_agent_alert(alert):
+        st.markdown(react_agent_badge_markdown(), unsafe_allow_html=True)
+        ad = alert.get("attack_details") or {}
+        confidence = ad.get("react_confidence")
+        reasoning = ad.get("react_reasoning")
+        if confidence is not None:
+            st.caption(f"ReAct confidence: {confidence}")
+        if reasoning:
+            st.caption(f"ReAct reasoning: {str(reasoning)[:240]}{'…' if len(str(reasoning)) > 240 else ''}")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown(f"**{react_agent_star(alert)}Alert ID:** {alert.get('alert_id', 'N/A')}")
+        st.markdown(f"**Timestamp:** {alert.get('timestamp', 'N/A')}")
+        st.markdown(f"**Severity:** <span class='severity-{severity.lower()}'>{severity}</span>", unsafe_allow_html=True)
+        st.markdown(f"**Threat Type:** {alert.get('threat_type', 'N/A')}")
+
+        # Source IP with whois information
+        source_ip = alert.get('source_ip', 'N/A')
+        st.markdown(f"**Source IP:** `{source_ip}`")
+
+        # Lookup and display whois information
+        if source_ip != 'N/A':
+            whois_data = lookup_whois_cached(source_ip)
+            if whois_data:
+                with st.expander("🌐 IP Whois Information", expanded=False):
+                    if whois_data.get("type") == "private":
+                        st.info(f"🔒 {whois_data.get('note', 'Private/local IP address')}")
+                    elif whois_data.get("error"):
+                        st.warning(f"⚠️ {whois_data.get('error', 'Whois lookup failed')}")
+                    else:
+                        # Display whois information in columns
+                        whois_col1, whois_col2 = st.columns(2)
+
+                        with whois_col1:
+                            if whois_data.get("asn") != "N/A":
+                                st.markdown(f"**ASN:** {whois_data.get('asn')}")
+                                if whois_data.get("asn_description") != "N/A":
+                                    st.caption(whois_data.get("asn_description", "")[:60])
+                            if whois_data.get("country") != "N/A":
+                                st.markdown(f"**Country:** {whois_data.get('country')}")
+
+                        with whois_col2:
+                            if whois_data.get("organization") and whois_data.get("organization") != "N/A":
+                                st.markdown(f"**Organization:** {whois_data.get('organization')[:50]}")
+                            elif whois_data.get("network") != "N/A":
+                                st.markdown(f"**Network:** {whois_data.get('network')[:50]}")
+                            if whois_data.get("cidr"):
+                                st.caption(f"CIDR: {whois_data.get('cidr')}")
+
+                        if whois_data.get("ip_range"):
+                            st.caption(f"IP Range: {whois_data.get('ip_range')}")
+
+    with col2:
+        st.markdown("**Actor classification (Phase 1.5)**")
+        _render_actor_classification_panel(alert)
+        st.markdown(f"**Description:** {alert.get('description', 'N/A')}")
+        st.markdown(f"**Recommended Action:** {alert.get('recommended_action', 'N/A')}")
+        st.markdown(f"**Response Actions:** {len(alert.get('response_actions', []))}")
+
+    # Alert Responses Section (show alerts first)
+    response_actions = alert.get("response_actions", [])
+    alert_responses = [a for a in response_actions if a.get("action_type") == "SEND_ALERT"]
+
+    if alert_responses:
+        st.subheader("📢 Alert Responses")
+        st.info(f"**{len(alert_responses)} alert(s) sent to security team**")
+
+        for i, alert_action in enumerate(alert_responses, 1):
+            status = alert_action.get("status", "UNKNOWN")
+            target = alert_action.get("target", "N/A")
+            details = alert_action.get("details", {})
+
+            # Determine status
+            if status in ["sent", "success"]:
+                status_emoji = "✅"
+                status_color = "green"
+                status_text = "Sent"
+            elif status == "PENDING":
+                status_emoji = "⏳"
+                status_color = "orange"
+                status_text = "Pending"
+            else:
+                status_emoji = "❌"
+                status_color = "red"
+                status_text = "Failed"
+
+            # Determine alert type from target
+            alert_type = "Unknown"
+            alert_icon = "📢"
+            if "slack" in target.lower() or "#" in target:
+                alert_type = "Slack"
+                alert_icon = "💬"
+            elif "email" in target.lower() or "@" in target:
+                alert_type = "Email"
+                alert_icon = "📧"
+            elif "webhook" in target.lower() or "http" in target.lower():
+                alert_type = "Webhook"
+                alert_icon = "🔗"
+
+            with st.container():
+                st.markdown(f"**{i}. {alert_icon} {alert_type} Alert**")
+
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.markdown(f"**Channel/Recipient:** `{target}`")
+                with col2:
+                    st.markdown(f"**Status:** :{status_color}[{status_text}]")
+                with col3:
+                    st.markdown(f"**Time:** {alert_action.get('timestamp', 'N/A')}")
+
+                # Show alert message/content
+                if details:
+                    message_id = details.get("message_id", "N/A")
+                    channel = details.get("channel", target)
+                    alert_message = details.get("message") or alert_action.get("reason", "")
+
+                    with st.expander(f"📄 View Alert Content ({alert_type})", expanded=True):
+                        # Show alert message prominently
+                        if alert_message and alert_message != "Team notification" and alert_message != "Malicious activity alert":
+                            st.markdown("**📢 Alert Message:**")
+                            st.info(alert_message)
+                            st.markdown("---")
+
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.markdown(f"**Message ID:** `{message_id}`")
+                            st.markdown(f"**Channel/Recipient:** `{channel}`")
+                        with col2:
+                            st.markdown(f"**Alert Type:** {details.get('alert_type', alert_type)}")
+                            st.markdown(f"**Severity:** {alert_action.get('severity', 'N/A')}")
+
+                        # Show full details
+                        st.markdown("**Full Alert Details:**")
+                        st.json(details)
+                else:
+                    # Fallback: show reason as message
+                    reason = alert_action.get("reason", "")
+                    if reason and reason not in ["Team notification", "Malicious activity alert"]:
+                        with st.expander(f"📄 View Alert Content ({alert_type})", expanded=True):
+                            st.markdown("**📢 Alert Message:**")
+                            st.info(reason)
+
+                st.markdown("---")
+
+    # Response actions details (all actions)
+    st.subheader("📋 All Response Actions")
+    response_actions = alert.get("response_actions", [])
+
+    if response_actions:
+        # Show summary first
+        st.info(f"**{len(response_actions)} automated response action(s) executed**")
+
+        # Group actions by type for better display
+        action_groups = {}
+        for action in response_actions:
+            action_type = action.get("action_type", "UNKNOWN")
+            if action_type not in action_groups:
+                action_groups[action_type] = []
+            action_groups[action_type].append(action)
+
+        for action_type, actions in action_groups.items():
+            # Skip SEND_ALERT as we already showed it above
+            if action_type == "SEND_ALERT":
+                continue
+
+            st.markdown(f"**{action_type}** ({len(actions)} action(s))")
+
+            for i, action in enumerate(actions, 1):
+                status = action.get("status", "UNKNOWN")
+
+                # Determine status emoji and color
+                if status in ["success", "blocked", "sent", "created", "updated", "quarantined"]:
+                    status_emoji = "✅"
+                    status_color = "green"
+                elif status == "PENDING":
+                    status_emoji = "⏳"
+                    status_color = "orange"
+                else:
+                    status_emoji = "❌"
+                    status_color = "red"
+
+                # Action type descriptions
+                action_descriptions = {
+                    "BLOCK_IP_COWRIE": "🔒 Blocked IP in Cowrie honeypot (prevents connections at source)",
+                    "BLOCK_IP": "🛡️ Blocked IP at firewall level (network-wide protection)",
+                    "LOG_INCIDENT": "🎫 Created incident ticket for tracking",
+                    "UPDATE_THREAT_INTEL": "📊 Updated threat intelligence database",
+                    "QUARANTINE": "🚫 Quarantined active session/system"
+                }
+
+                action_desc = action_descriptions.get(action_type, f"Executed {action_type}")
+
+                with st.container():
+                    st.markdown(f"  {status_emoji} **{i}. {action_type}**")
+                    st.caption(f"   {action_desc}")
+
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.markdown(f"   **Target:** `{action.get('target', 'N/A')}`")
+                        st.markdown(f"   **Status:** :{status_color}[{status}]")
+                    with col2:
+                        st.markdown(f"   **Severity:** {action.get('severity', 'N/A')}")
+                        st.markdown(f"   **Time:** {action.get('timestamp', 'N/A')}")
+
+                    st.markdown(f"   **Reason:** {action.get('reason', 'N/A')}")
+
+                    if action.get("details"):
+                        with st.expander(f"   🔍 View {action_type} Details"):
+                            st.json(action.get("details"))
+
+                    st.markdown("---")
+    else:
+        st.warning("⚠️ No response actions taken for this alert. This may indicate:")
+        st.markdown("- Threat was logged but didn't meet response thresholds")
+        st.markdown("- Response system is in monitoring-only mode")
+        st.markdown("- Manual review required before action")
+
+    # Attack details
+    attack_details = alert.get("attack_details", {})
+    if attack_details:
+        st.subheader("🔍 Attack Details")
+        st.json(attack_details)
+
+    # Forensic Data Section
+    forensic_data = alert.get("forensic_data", {})
+    if forensic_data:
+        st.subheader("🔬 Forensic Data")
+
+        # Session Information
+        session_info = forensic_data.get("session_info", {})
+        if session_info:
+            with st.expander("📊 Session Information", expanded=False):
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown(f"**Session ID:** `{session_info.get('session_id', 'N/A')}`")
+                    st.markdown(f"**Start Time:** {session_info.get('start_time', 'N/A')}")
+                    st.markdown(f"**Protocol:** {session_info.get('protocol', 'N/A')}")
+                with col2:
+                    duration = session_info.get('duration_seconds', 0)
+                    st.markdown(f"**Duration:** {duration} seconds ({duration//60}m {duration%60}s)")
+                    st.markdown(f"**End Time:** {session_info.get('end_time', 'N/A')}")
+                    authenticated = session_info.get('authenticated', False)
+                    auth_status = "✅ Authenticated" if authenticated else "❌ Not Authenticated"
+                    st.markdown(f"**Status:** {auth_status}")
+
+        # Network Information
+        network_info = forensic_data.get("network_info", {})
+        if network_info:
+            with st.expander("🌐 Network Information", expanded=False):
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown(f"**Source IP:** `{network_info.get('source_ip', 'N/A')}`")
+                    hostname = network_info.get('source_hostname')
+                    if hostname:
+                        st.markdown(f"**Hostname:** `{hostname}`")
+                    st.markdown(f"**Source Port:** {network_info.get('source_port', 'N/A')}")
+                    st.markdown(f"**Destination:** {network_info.get('destination_ip', 'N/A')}:{network_info.get('destination_port', 'N/A')}")
+                with col2:
+                    st.markdown(f"**Bytes Sent:** {network_info.get('bytes_sent', 0):,}")
+                    st.markdown(f"**Bytes Received:** {network_info.get('bytes_received', 0):,}")
+
+                connections = network_info.get("connections", [])
+                if connections:
+                    st.markdown("**Network Connections:**")
+                    for conn in connections:
+                        st.markdown(f"- {conn.get('protocol', 'N/A').upper()} connection on port {conn.get('local_port', 'N/A')} "
+                                  f"from {conn.get('remote_port', 'N/A')} at {conn.get('established_at', 'N/A')}")
+
+        # Command History
+        command_history = forensic_data.get("command_history", [])
+        if command_history:
+            with st.expander(f"⌨️ Command History ({len(command_history)} commands)", expanded=False):
+                for i, cmd in enumerate(command_history, 1):
+                    st.markdown(f"**{i}. {cmd.get('timestamp', 'N/A')}**")
+                    st.code(cmd.get('command', 'N/A'), language='bash')
+                    if cmd.get('command_hash'):
+                        st.caption(f"Hash: `{cmd.get('command_hash')}`")
+                    if cmd.get('exit_code') is not None:
+                        exit_code = cmd.get('exit_code')
+                        status = "✅" if exit_code == 0 else "❌"
+                        st.caption(f"{status} Exit code: {exit_code}")
+                    st.markdown("---")
+
+        # Filesystem Changes
+        filesystem_changes = forensic_data.get("filesystem_changes", [])
+        if filesystem_changes:
+            with st.expander(f"📁 Filesystem Changes ({len(filesystem_changes)} files)", expanded=False):
+                for change in filesystem_changes:
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.markdown(f"**Action:** {change.get('action', 'N/A').upper()}")
+                        st.markdown(f"**Filename:** `{change.get('filename', 'N/A')}`")
+                        st.markdown(f"**Path:** `{change.get('path', 'N/A')}`")
+                    with col2:
+                        size = change.get('size_bytes', 0)
+                        st.markdown(f"**Size:** {size:,} bytes ({size/1024:.2f} KB)")
+                        if change.get('hash'):
+                            st.markdown(f"**Hash:** `{change.get('hash')}`")
+                        st.markdown(f"**Time:** {change.get('timestamp', 'N/A')}")
+                    st.markdown("---")
+
+        # Process Information
+        processes = forensic_data.get("processes", [])
+        if processes:
+            with st.expander(f"⚙️ Process Information ({len(processes)} processes)", expanded=False):
+                for proc in processes:
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.markdown(f"**PID:** {proc.get('pid', 'N/A')}")
+                        st.markdown(f"**Name:** `{proc.get('name', 'N/A')}`")
+                        st.markdown(f"**User:** `{proc.get('user', 'N/A')}`")
+                    with col2:
+                        st.markdown(f"**Parent PID:** {proc.get('parent_pid', 'N/A')}")
+                        st.markdown(f"**Started:** {proc.get('started_at', 'N/A')}")
+                    if proc.get('command_line'):
+                        st.code(proc.get('command_line', 'N/A'), language='bash')
+                    st.markdown("---")
+
+        # Client Information
+        client_info = forensic_data.get("client_info", {})
+        if client_info:
+            with st.expander("💻 Client Information", expanded=False):
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown(f"**SSH Client:** {client_info.get('ssh_client', 'N/A')}")
+                    st.markdown(f"**SSH Version:** {client_info.get('ssh_version', 'N/A')}")
+                with col2:
+                    st.markdown(f"**Cipher:** {client_info.get('cipher', 'N/A')}")
+                    st.markdown(f"**MAC:** {client_info.get('mac', 'N/A')}")
+
+        # Attack Timeline
+        timeline = forensic_data.get("timeline", [])
+        if timeline:
+            with st.expander(f"⏱️ Attack Timeline ({len(timeline)} events)", expanded=False):
+                for event in timeline:
+                    st.markdown(f"**{event.get('timestamp', 'N/A')}** - {event.get('event', 'N/A')}")
+                    st.caption(event.get('description', 'N/A'))
+                    st.markdown("---")
+
+        # Indicators of Compromise
+        iocs = forensic_data.get("indicators_of_compromise", [])
+        if iocs:
+            with st.expander(f"🚨 Indicators of Compromise ({len(iocs)} IOCs)", expanded=True):
+                for ioc in iocs:
+                    st.markdown(f"- ⚠️ {ioc}")
+
+        # Threat Intelligence
+        threat_intel = forensic_data.get("threat_intelligence", {})
+        if threat_intel:
+            with st.expander("🔍 Threat Intelligence", expanded=False):
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown(f"**IP Reputation:** {threat_intel.get('ip_reputation', 'Unknown')}")
+                    geo = threat_intel.get('geolocation', {})
+                    if geo:
+                        st.markdown(f"**Country:** {geo.get('country', 'Unknown')}")
+                        st.markdown(f"**City:** {geo.get('city', 'Unknown')}")
+                with col2:
+                    st.markdown(f"**Tor Exit Node:** {'Yes' if threat_intel.get('is_tor_exit') else 'No'}")
+                    st.markdown(f"**Proxy/VPN:** {'Yes' if threat_intel.get('is_proxy') else 'No'}")
+                    if geo.get('latitude') and geo.get('longitude'):
+                        st.markdown(f"**Location:** {geo.get('latitude')}, {geo.get('longitude')}")
+
+        # Full Forensic Data (JSON)
+        with st.expander("📋 View Full Forensic Data (JSON)", expanded=False):
+            st.json(forensic_data)
+
 def main():
     """Main dashboard function."""
     _init_settings_defaults()
@@ -4571,8 +4944,8 @@ def main():
         f"🚨 Threat Alerts ({len(filtered_alerts)})",
         expanded=False,
     ):
-        # Extra per-section filters (in addition to sidebar filters)
-        with st.expander("🔎 Threat alert filters", expanded=False):
+        show_filters = st.checkbox("🔎 Threat alert filters", value=False, key="threat_alert_filters_toggle")
+        if show_filters:
             colf1, colf2, colf3 = st.columns(3)
             with colf1:
                 ip_query = st.text_input("Source IP contains", value="", placeholder="e.g. 198.51.100.")
@@ -4584,7 +4957,6 @@ def main():
                 )
             with colf3:
                 min_actions = st.number_input("Min response actions", min_value=0, value=0, step=1)
-
             colf4, colf5 = st.columns(2)
             with colf4:
                 only_with_actions = st.checkbox("Only alerts with response actions", value=False)
@@ -4594,6 +4966,12 @@ def main():
                     options=["All time", "Last 15m", "Last 1h", "Last 6h", "Last 24h"],
                     index=0,
                 )
+        else:
+            ip_query = ""
+            text_query = ""
+            min_actions = 0
+            only_with_actions = False
+            recent_window = "All time"
 
         def _alert_dt(alert: Dict[str, Any]) -> Optional[datetime]:
             return _parse_alert_timestamp(alert.get("timestamp"))
@@ -4635,406 +5013,52 @@ def main():
         threat_alerts = [a for a in filtered_alerts if _matches_section_filters(a)]
 
         if threat_alerts:
-            # Create DataFrame for table
             alerts_df_data = []
+            label_to_alert = {}
             for alert in threat_alerts:
                 median = alert_actor_median_delta(alert)
+                severity = alert.get("severity", "UNKNOWN")
+                emoji = get_severity_emoji(severity)
+                ac_label = actor_class_display(alert_actor_class(alert))
+                label = (
+                    f"{react_agent_star(alert)}{emoji} {alert.get('threat_type', 'UNKNOWN')} — "
+                    f"{alert.get('source_ip', 'N/A')} ({severity}) · {ac_label} — "
+                    f"{str(alert.get('timestamp', 'N/A'))[:19]}"
+                )
+                # Ensure unique selectbox labels
+                base = label
+                n = 2
+                while label in label_to_alert:
+                    label = f"{base} ({n})"
+                    n += 1
+                label_to_alert[label] = alert
                 alerts_df_data.append({
                     "Agent": "⭐ ReAct" if is_react_agent_alert(alert) else "Workflow",
-                    "Actor Class": actor_class_display(alert_actor_class(alert)),
+                    "Actor Class": ac_label,
                     "Alert ID": alert.get("alert_id", "N/A"),
                     "Timestamp": alert.get("timestamp", "N/A"),
-                    "Severity": alert.get("severity", "UNKNOWN"),
+                    "Severity": severity,
                     "Threat Type": alert.get("threat_type", "UNKNOWN"),
                     "Source IP": alert.get("source_ip", "N/A"),
                     "Median Δ (s)": round(median, 2) if median is not None else None,
-                    "Description": alert.get("description", "N/A")[:100] + "..." if len(alert.get("description", "")) > 100 else alert.get("description", "N/A"),
-                    "Actions": len(alert.get("response_actions", []))
+                    "Description": (
+                        alert.get("description", "N/A")[:100] + "..."
+                        if len(alert.get("description", "")) > 100
+                        else alert.get("description", "N/A")
+                    ),
+                    "Actions": len(alert.get("response_actions", [])),
                 })
 
-            alerts_df = pd.DataFrame(alerts_df_data)
-            st.dataframe(alerts_df, use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(alerts_df_data), use_container_width=True, hide_index=True)
 
-            with st.expander(f"Alert details ({len(threat_alerts)})", expanded=False):
-                for idx, alert in enumerate(threat_alerts):
-                    severity = alert.get("severity", "UNKNOWN")
-                    emoji = get_severity_emoji(severity)
-                    color = get_severity_color(severity)
-
-                    ac_label = actor_class_display(alert_actor_class(alert))
-                    with st.expander(
-                        f"{react_agent_star(alert)}{emoji} **{alert.get('threat_type', 'UNKNOWN')}** - {alert.get('source_ip', 'N/A')} "
-                        f"({severity}) · {ac_label} — {alert.get('timestamp', 'N/A')}",
-                        expanded=False
-                    ):
-                        if is_react_agent_alert(alert):
-                            st.markdown(react_agent_badge_markdown(), unsafe_allow_html=True)
-                            ad = alert.get("attack_details") or {}
-                            confidence = ad.get("react_confidence")
-                            reasoning = ad.get("react_reasoning")
-                            if confidence is not None:
-                                st.caption(f"ReAct confidence: {confidence}")
-                            if reasoning:
-                                st.caption(f"ReAct reasoning: {str(reasoning)[:240]}{'…' if len(str(reasoning)) > 240 else ''}")
-
-                        col1, col2 = st.columns(2)
-
-                        with col1:
-                            st.markdown(f"**{react_agent_star(alert)}Alert ID:** {alert.get('alert_id', 'N/A')}")
-                            st.markdown(f"**Timestamp:** {alert.get('timestamp', 'N/A')}")
-                            st.markdown(f"**Severity:** <span class='severity-{severity.lower()}'>{severity}</span>", unsafe_allow_html=True)
-                            st.markdown(f"**Threat Type:** {alert.get('threat_type', 'N/A')}")
-
-                            # Source IP with whois information
-                            source_ip = alert.get('source_ip', 'N/A')
-                            st.markdown(f"**Source IP:** `{source_ip}`")
-
-                            # Lookup and display whois information
-                            if source_ip != 'N/A':
-                                whois_data = lookup_whois_cached(source_ip)
-                                if whois_data:
-                                    with st.expander("🌐 IP Whois Information", expanded=False):
-                                        if whois_data.get("type") == "private":
-                                            st.info(f"🔒 {whois_data.get('note', 'Private/local IP address')}")
-                                        elif whois_data.get("error"):
-                                            st.warning(f"⚠️ {whois_data.get('error', 'Whois lookup failed')}")
-                                        else:
-                                            # Display whois information in columns
-                                            whois_col1, whois_col2 = st.columns(2)
-
-                                            with whois_col1:
-                                                if whois_data.get("asn") != "N/A":
-                                                    st.markdown(f"**ASN:** {whois_data.get('asn')}")
-                                                    if whois_data.get("asn_description") != "N/A":
-                                                        st.caption(whois_data.get("asn_description", "")[:60])
-                                                if whois_data.get("country") != "N/A":
-                                                    st.markdown(f"**Country:** {whois_data.get('country')}")
-
-                                            with whois_col2:
-                                                if whois_data.get("organization") and whois_data.get("organization") != "N/A":
-                                                    st.markdown(f"**Organization:** {whois_data.get('organization')[:50]}")
-                                                elif whois_data.get("network") != "N/A":
-                                                    st.markdown(f"**Network:** {whois_data.get('network')[:50]}")
-                                                if whois_data.get("cidr"):
-                                                    st.caption(f"CIDR: {whois_data.get('cidr')}")
-
-                                            if whois_data.get("ip_range"):
-                                                st.caption(f"IP Range: {whois_data.get('ip_range')}")
-
-                        with col2:
-                            st.markdown("**Actor classification (Phase 1.5)**")
-                            _render_actor_classification_panel(alert)
-                            st.markdown(f"**Description:** {alert.get('description', 'N/A')}")
-                            st.markdown(f"**Recommended Action:** {alert.get('recommended_action', 'N/A')}")
-                            st.markdown(f"**Response Actions:** {len(alert.get('response_actions', []))}")
-
-                        # Alert Responses Section (show alerts first)
-                        response_actions = alert.get("response_actions", [])
-                        alert_responses = [a for a in response_actions if a.get("action_type") == "SEND_ALERT"]
-
-                        if alert_responses:
-                            st.subheader("📢 Alert Responses")
-                            st.info(f"**{len(alert_responses)} alert(s) sent to security team**")
-
-                            for i, alert_action in enumerate(alert_responses, 1):
-                                status = alert_action.get("status", "UNKNOWN")
-                                target = alert_action.get("target", "N/A")
-                                details = alert_action.get("details", {})
-
-                                # Determine status
-                                if status in ["sent", "success"]:
-                                    status_emoji = "✅"
-                                    status_color = "green"
-                                    status_text = "Sent"
-                                elif status == "PENDING":
-                                    status_emoji = "⏳"
-                                    status_color = "orange"
-                                    status_text = "Pending"
-                                else:
-                                    status_emoji = "❌"
-                                    status_color = "red"
-                                    status_text = "Failed"
-
-                                # Determine alert type from target
-                                alert_type = "Unknown"
-                                alert_icon = "📢"
-                                if "slack" in target.lower() or "#" in target:
-                                    alert_type = "Slack"
-                                    alert_icon = "💬"
-                                elif "email" in target.lower() or "@" in target:
-                                    alert_type = "Email"
-                                    alert_icon = "📧"
-                                elif "webhook" in target.lower() or "http" in target.lower():
-                                    alert_type = "Webhook"
-                                    alert_icon = "🔗"
-
-                                with st.container():
-                                    st.markdown(f"**{i}. {alert_icon} {alert_type} Alert**")
-
-                                    col1, col2, col3 = st.columns(3)
-                                    with col1:
-                                        st.markdown(f"**Channel/Recipient:** `{target}`")
-                                    with col2:
-                                        st.markdown(f"**Status:** :{status_color}[{status_text}]")
-                                    with col3:
-                                        st.markdown(f"**Time:** {alert_action.get('timestamp', 'N/A')}")
-
-                                    # Show alert message/content
-                                    if details:
-                                        message_id = details.get("message_id", "N/A")
-                                        channel = details.get("channel", target)
-                                        alert_message = details.get("message") or alert_action.get("reason", "")
-
-                                        with st.expander(f"📄 View Alert Content ({alert_type})", expanded=True):
-                                            # Show alert message prominently
-                                            if alert_message and alert_message != "Team notification" and alert_message != "Malicious activity alert":
-                                                st.markdown("**📢 Alert Message:**")
-                                                st.info(alert_message)
-                                                st.markdown("---")
-
-                                            col1, col2 = st.columns(2)
-                                            with col1:
-                                                st.markdown(f"**Message ID:** `{message_id}`")
-                                                st.markdown(f"**Channel/Recipient:** `{channel}`")
-                                            with col2:
-                                                st.markdown(f"**Alert Type:** {details.get('alert_type', alert_type)}")
-                                                st.markdown(f"**Severity:** {alert_action.get('severity', 'N/A')}")
-
-                                            # Show full details
-                                            st.markdown("**Full Alert Details:**")
-                                            st.json(details)
-                                    else:
-                                        # Fallback: show reason as message
-                                        reason = alert_action.get("reason", "")
-                                        if reason and reason not in ["Team notification", "Malicious activity alert"]:
-                                            with st.expander(f"📄 View Alert Content ({alert_type})", expanded=True):
-                                                st.markdown("**📢 Alert Message:**")
-                                                st.info(reason)
-
-                                    st.markdown("---")
-
-                        # Response actions details (all actions)
-                        st.subheader("📋 All Response Actions")
-                        response_actions = alert.get("response_actions", [])
-
-                        if response_actions:
-                            # Show summary first
-                            st.info(f"**{len(response_actions)} automated response action(s) executed**")
-
-                            # Group actions by type for better display
-                            action_groups = {}
-                            for action in response_actions:
-                                action_type = action.get("action_type", "UNKNOWN")
-                                if action_type not in action_groups:
-                                    action_groups[action_type] = []
-                                action_groups[action_type].append(action)
-
-                            for action_type, actions in action_groups.items():
-                                # Skip SEND_ALERT as we already showed it above
-                                if action_type == "SEND_ALERT":
-                                    continue
-
-                                st.markdown(f"**{action_type}** ({len(actions)} action(s))")
-
-                                for i, action in enumerate(actions, 1):
-                                    status = action.get("status", "UNKNOWN")
-
-                                    # Determine status emoji and color
-                                    if status in ["success", "blocked", "sent", "created", "updated", "quarantined"]:
-                                        status_emoji = "✅"
-                                        status_color = "green"
-                                    elif status == "PENDING":
-                                        status_emoji = "⏳"
-                                        status_color = "orange"
-                                    else:
-                                        status_emoji = "❌"
-                                        status_color = "red"
-
-                                    # Action type descriptions
-                                    action_descriptions = {
-                                        "BLOCK_IP_COWRIE": "🔒 Blocked IP in Cowrie honeypot (prevents connections at source)",
-                                        "BLOCK_IP": "🛡️ Blocked IP at firewall level (network-wide protection)",
-                                        "LOG_INCIDENT": "🎫 Created incident ticket for tracking",
-                                        "UPDATE_THREAT_INTEL": "📊 Updated threat intelligence database",
-                                        "QUARANTINE": "🚫 Quarantined active session/system"
-                                    }
-
-                                    action_desc = action_descriptions.get(action_type, f"Executed {action_type}")
-
-                                    with st.container():
-                                        st.markdown(f"  {status_emoji} **{i}. {action_type}**")
-                                        st.caption(f"   {action_desc}")
-
-                                        col1, col2 = st.columns(2)
-                                        with col1:
-                                            st.markdown(f"   **Target:** `{action.get('target', 'N/A')}`")
-                                            st.markdown(f"   **Status:** :{status_color}[{status}]")
-                                        with col2:
-                                            st.markdown(f"   **Severity:** {action.get('severity', 'N/A')}")
-                                            st.markdown(f"   **Time:** {action.get('timestamp', 'N/A')}")
-
-                                        st.markdown(f"   **Reason:** {action.get('reason', 'N/A')}")
-
-                                        if action.get("details"):
-                                            with st.expander(f"   🔍 View {action_type} Details"):
-                                                st.json(action.get("details"))
-
-                                        st.markdown("---")
-                        else:
-                            st.warning("⚠️ No response actions taken for this alert. This may indicate:")
-                            st.markdown("- Threat was logged but didn't meet response thresholds")
-                            st.markdown("- Response system is in monitoring-only mode")
-                            st.markdown("- Manual review required before action")
-
-                        # Attack details
-                        attack_details = alert.get("attack_details", {})
-                        if attack_details:
-                            st.subheader("🔍 Attack Details")
-                            st.json(attack_details)
-
-                        # Forensic Data Section
-                        forensic_data = alert.get("forensic_data", {})
-                        if forensic_data:
-                            st.subheader("🔬 Forensic Data")
-
-                            # Session Information
-                            session_info = forensic_data.get("session_info", {})
-                            if session_info:
-                                with st.expander("📊 Session Information", expanded=False):
-                                    col1, col2 = st.columns(2)
-                                    with col1:
-                                        st.markdown(f"**Session ID:** `{session_info.get('session_id', 'N/A')}`")
-                                        st.markdown(f"**Start Time:** {session_info.get('start_time', 'N/A')}")
-                                        st.markdown(f"**Protocol:** {session_info.get('protocol', 'N/A')}")
-                                    with col2:
-                                        duration = session_info.get('duration_seconds', 0)
-                                        st.markdown(f"**Duration:** {duration} seconds ({duration//60}m {duration%60}s)")
-                                        st.markdown(f"**End Time:** {session_info.get('end_time', 'N/A')}")
-                                        authenticated = session_info.get('authenticated', False)
-                                        auth_status = "✅ Authenticated" if authenticated else "❌ Not Authenticated"
-                                        st.markdown(f"**Status:** {auth_status}")
-
-                            # Network Information
-                            network_info = forensic_data.get("network_info", {})
-                            if network_info:
-                                with st.expander("🌐 Network Information", expanded=False):
-                                    col1, col2 = st.columns(2)
-                                    with col1:
-                                        st.markdown(f"**Source IP:** `{network_info.get('source_ip', 'N/A')}`")
-                                        hostname = network_info.get('source_hostname')
-                                        if hostname:
-                                            st.markdown(f"**Hostname:** `{hostname}`")
-                                        st.markdown(f"**Source Port:** {network_info.get('source_port', 'N/A')}")
-                                        st.markdown(f"**Destination:** {network_info.get('destination_ip', 'N/A')}:{network_info.get('destination_port', 'N/A')}")
-                                    with col2:
-                                        st.markdown(f"**Bytes Sent:** {network_info.get('bytes_sent', 0):,}")
-                                        st.markdown(f"**Bytes Received:** {network_info.get('bytes_received', 0):,}")
-
-                                    connections = network_info.get("connections", [])
-                                    if connections:
-                                        st.markdown("**Network Connections:**")
-                                        for conn in connections:
-                                            st.markdown(f"- {conn.get('protocol', 'N/A').upper()} connection on port {conn.get('local_port', 'N/A')} "
-                                                      f"from {conn.get('remote_port', 'N/A')} at {conn.get('established_at', 'N/A')}")
-
-                            # Command History
-                            command_history = forensic_data.get("command_history", [])
-                            if command_history:
-                                with st.expander(f"⌨️ Command History ({len(command_history)} commands)", expanded=False):
-                                    for i, cmd in enumerate(command_history, 1):
-                                        st.markdown(f"**{i}. {cmd.get('timestamp', 'N/A')}**")
-                                        st.code(cmd.get('command', 'N/A'), language='bash')
-                                        if cmd.get('command_hash'):
-                                            st.caption(f"Hash: `{cmd.get('command_hash')}`")
-                                        if cmd.get('exit_code') is not None:
-                                            exit_code = cmd.get('exit_code')
-                                            status = "✅" if exit_code == 0 else "❌"
-                                            st.caption(f"{status} Exit code: {exit_code}")
-                                        st.markdown("---")
-
-                            # Filesystem Changes
-                            filesystem_changes = forensic_data.get("filesystem_changes", [])
-                            if filesystem_changes:
-                                with st.expander(f"📁 Filesystem Changes ({len(filesystem_changes)} files)", expanded=False):
-                                    for change in filesystem_changes:
-                                        col1, col2 = st.columns(2)
-                                        with col1:
-                                            st.markdown(f"**Action:** {change.get('action', 'N/A').upper()}")
-                                            st.markdown(f"**Filename:** `{change.get('filename', 'N/A')}`")
-                                            st.markdown(f"**Path:** `{change.get('path', 'N/A')}`")
-                                        with col2:
-                                            size = change.get('size_bytes', 0)
-                                            st.markdown(f"**Size:** {size:,} bytes ({size/1024:.2f} KB)")
-                                            if change.get('hash'):
-                                                st.markdown(f"**Hash:** `{change.get('hash')}`")
-                                            st.markdown(f"**Time:** {change.get('timestamp', 'N/A')}")
-                                        st.markdown("---")
-
-                            # Process Information
-                            processes = forensic_data.get("processes", [])
-                            if processes:
-                                with st.expander(f"⚙️ Process Information ({len(processes)} processes)", expanded=False):
-                                    for proc in processes:
-                                        col1, col2 = st.columns(2)
-                                        with col1:
-                                            st.markdown(f"**PID:** {proc.get('pid', 'N/A')}")
-                                            st.markdown(f"**Name:** `{proc.get('name', 'N/A')}`")
-                                            st.markdown(f"**User:** `{proc.get('user', 'N/A')}`")
-                                        with col2:
-                                            st.markdown(f"**Parent PID:** {proc.get('parent_pid', 'N/A')}")
-                                            st.markdown(f"**Started:** {proc.get('started_at', 'N/A')}")
-                                        if proc.get('command_line'):
-                                            st.code(proc.get('command_line', 'N/A'), language='bash')
-                                        st.markdown("---")
-
-                            # Client Information
-                            client_info = forensic_data.get("client_info", {})
-                            if client_info:
-                                with st.expander("💻 Client Information", expanded=False):
-                                    col1, col2 = st.columns(2)
-                                    with col1:
-                                        st.markdown(f"**SSH Client:** {client_info.get('ssh_client', 'N/A')}")
-                                        st.markdown(f"**SSH Version:** {client_info.get('ssh_version', 'N/A')}")
-                                    with col2:
-                                        st.markdown(f"**Cipher:** {client_info.get('cipher', 'N/A')}")
-                                        st.markdown(f"**MAC:** {client_info.get('mac', 'N/A')}")
-
-                            # Attack Timeline
-                            timeline = forensic_data.get("timeline", [])
-                            if timeline:
-                                with st.expander(f"⏱️ Attack Timeline ({len(timeline)} events)", expanded=False):
-                                    for event in timeline:
-                                        st.markdown(f"**{event.get('timestamp', 'N/A')}** - {event.get('event', 'N/A')}")
-                                        st.caption(event.get('description', 'N/A'))
-                                        st.markdown("---")
-
-                            # Indicators of Compromise
-                            iocs = forensic_data.get("indicators_of_compromise", [])
-                            if iocs:
-                                with st.expander(f"🚨 Indicators of Compromise ({len(iocs)} IOCs)", expanded=True):
-                                    for ioc in iocs:
-                                        st.markdown(f"- ⚠️ {ioc}")
-
-                            # Threat Intelligence
-                            threat_intel = forensic_data.get("threat_intelligence", {})
-                            if threat_intel:
-                                with st.expander("🔍 Threat Intelligence", expanded=False):
-                                    col1, col2 = st.columns(2)
-                                    with col1:
-                                        st.markdown(f"**IP Reputation:** {threat_intel.get('ip_reputation', 'Unknown')}")
-                                        geo = threat_intel.get('geolocation', {})
-                                        if geo:
-                                            st.markdown(f"**Country:** {geo.get('country', 'Unknown')}")
-                                            st.markdown(f"**City:** {geo.get('city', 'Unknown')}")
-                                    with col2:
-                                        st.markdown(f"**Tor Exit Node:** {'Yes' if threat_intel.get('is_tor_exit') else 'No'}")
-                                        st.markdown(f"**Proxy/VPN:** {'Yes' if threat_intel.get('is_proxy') else 'No'}")
-                                        if geo.get('latitude') and geo.get('longitude'):
-                                            st.markdown(f"**Location:** {geo.get('latitude')}, {geo.get('longitude')}")
-
-                            # Full Forensic Data (JSON)
-                            with st.expander("📋 View Full Forensic Data (JSON)", expanded=False):
-                                st.json(forensic_data)
+            selected_label = st.selectbox(
+                "Inspect alert",
+                options=list(label_to_alert.keys()),
+                index=0,
+                key="threat_alert_inspect",
+            )
+            with st.expander("Selected alert details", expanded=False):
+                _render_threat_alert_detail(label_to_alert[selected_label])
         else:
             st.info("No alerts match the selected filters.")
 
