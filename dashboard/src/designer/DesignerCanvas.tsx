@@ -162,9 +162,14 @@ function DesignerCanvasInner({
         elevateEdgesOnSelect
         defaultEdgeOptions={{ type: "smoothstep", animated: false }}
       >
-        <Background gap={16} />
+        <Background gap={16} size={1.2} color="#c8bddf" bgColor="#f4f1fa" />
         <Controls showInteractive={false} />
-        <MiniMap pannable zoomable />
+        <MiniMap
+          pannable
+          zoomable
+          maskColor="rgba(18, 0, 70, 0.08)"
+          nodeColor="#ff550d"
+        />
       </ReactFlow>
     </div>
   );

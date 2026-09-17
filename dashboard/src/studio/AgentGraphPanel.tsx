@@ -59,7 +59,7 @@ export function AgentGraphPanel({ agentName, onClose }: Props) {
       {graph && graph.nodes.length > 0 ? (
         <div className="studio-agent-graph card">
           <ReactFlow nodes={flow.nodes} edges={flow.edges} fitView nodesDraggable={false} nodesConnectable={false} elementsSelectable={false}>
-            <Background gap={16} />
+            <Background gap={16} size={1.2} color="#c8bddf" bgColor="#f4f1fa" />
             <Controls showInteractive={false} />
           </ReactFlow>
         </div>
