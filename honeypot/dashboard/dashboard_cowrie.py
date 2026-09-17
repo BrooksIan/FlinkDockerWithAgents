@@ -360,6 +360,74 @@ st.markdown("""
         border-left: 4px solid var(--studio-orange);
         box-shadow: 0 1px 3px rgba(18, 0, 70, 0.08);
     }
+    div[data-testid="stMetric"] label,
+    div[data-testid="stMetricLabel"],
+    div[data-testid="stMetricLabel"] p {
+        color: var(--studio-muted) !important;
+        font-size: 0.8rem !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.02em;
+        opacity: 1 !important;
+    }
+    div[data-testid="stMetric"] [data-testid="stMetricValue"],
+    div[data-testid="stMetricValue"] {
+        color: var(--studio-purple) !important;
+        font-size: 1.55rem !important;
+        font-weight: 700 !important;
+        line-height: 1.2 !important;
+    }
+    div[data-testid="stMetric"] [data-testid="stMetricDelta"] {
+        color: var(--studio-muted) !important;
+    }
+    .result-card {
+        background: var(--studio-panel);
+        border: 1px solid var(--studio-border);
+        border-left: 4px solid var(--studio-orange);
+        border-radius: 10px;
+        padding: 0.9rem 1rem 0.75rem;
+        margin: 0.65rem 0 1rem;
+    }
+    .result-card .result-title {
+        color: var(--studio-purple);
+        font-weight: 700;
+        font-size: 1.05rem;
+        margin: 0 0 0.35rem;
+    }
+    .result-card .result-meta {
+        color: var(--studio-muted);
+        font-size: 0.82rem;
+        line-height: 1.4;
+        margin: 0.4rem 0 0.2rem;
+    }
+    .result-card .result-meta strong {
+        color: var(--studio-text);
+        font-weight: 600;
+    }
+    .eff-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.65rem;
+        margin: 0.5rem 0 1rem;
+    }
+    .eff-cell {
+        background: var(--studio-panel);
+        border: 1px solid var(--studio-border);
+        border-left: 4px solid var(--studio-orange);
+        border-radius: 10px;
+        padding: 0.75rem 0.9rem;
+    }
+    .eff-cell .label {
+        color: var(--studio-muted);
+        font-size: 0.78rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+    .eff-cell .value {
+        color: var(--studio-purple);
+        font-size: 1.6rem;
+        font-weight: 700;
+        line-height: 1.1;
+    }
     div[data-testid="stExpander"],
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background: var(--studio-panel);
@@ -1346,63 +1414,68 @@ def _render_counter_attacks_block(result: dict) -> None:
     executed_response = result.get("executed_response_actions") or []
     recommended = result.get("recommended_actions") or []
     severity = result.get("severity") or "—"
+    ca_n = result.get("counter_attack_count", len(counter_attacks))
+    resp_n = result.get("executed_response_count", len(executed_response))
+    rec_n = result.get("recommended_action_count", len(recommended))
 
-    st.markdown("#### 🥊 Counter-attacks & response")
-
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Counter-attacks", result.get("counter_attack_count", len(counter_attacks)))
-    m2.metric("Blocks/alerts run", result.get("executed_response_count", len(executed_response)))
-    m3.metric("Still recommended", result.get("recommended_action_count", len(recommended)))
-    m4.metric("Severity", severity)
+    st.markdown(
+        f'<div class="result-meta"><strong>Response</strong> · '
+        f'severity <strong>{severity}</strong> · '
+        f'{ca_n} counter-attack · {resp_n} block/alert · {rec_n} still recommended</div>',
+        unsafe_allow_html=True,
+    )
 
     if executed_response:
-        st.caption("**Executed response actions** (Cowrie blocklist / Slack mocks)")
-        st.dataframe(
-            [
-                {
-                    "": _counter_attack_status_emoji(r.get("status", "")),
-                    "Action": r.get("label") or r.get("action_type"),
-                    "Status": r.get("status"),
-                    "Target": r.get("target"),
-                    "Tool": r.get("react_tool") or "—",
-                }
-                for r in executed_response
-            ],
-            use_container_width=True,
-            hide_index=True,
-        )
+        with st.expander(f"Executed blocks/alerts ({len(executed_response)})", expanded=True):
+            st.dataframe(
+                [
+                    {
+                        "": _counter_attack_status_emoji(r.get("status", "")),
+                        "Action": r.get("label") or r.get("action_type"),
+                        "Status": r.get("status"),
+                        "Target": r.get("target"),
+                        "Tool": r.get("react_tool") or "—",
+                    }
+                    for r in executed_response
+                ],
+                use_container_width=True,
+                hide_index=True,
+            )
 
     if counter_attacks:
-        rows = []
-        for ca in counter_attacks:
-            rows.append(
-                {
-                    "": _counter_attack_status_emoji(ca.get("status", "")),
-                    "Action": ca.get("label") or ca.get("action_type"),
-                    "Status": ca.get("status"),
-                    "Target": ca.get("target"),
-                    "Tool": ca.get("react_tool") or "—",
-                }
+        with st.expander(f"Counter-attacks ({len(counter_attacks)})", expanded=True):
+            st.dataframe(
+                [
+                    {
+                        "": _counter_attack_status_emoji(ca.get("status", "")),
+                        "Action": ca.get("label") or ca.get("action_type"),
+                        "Status": ca.get("status"),
+                        "Target": ca.get("target"),
+                        "Tool": ca.get("react_tool") or "—",
+                    }
+                    for ca in counter_attacks
+                ],
+                use_container_width=True,
+                hide_index=True,
             )
-        st.dataframe(rows, use_container_width=True, hide_index=True)
-    else:
-        st.info(
-            "No counter-attack tools executed. Expected on **MEDIUM+** when "
-            "`COWRIE_REACT_EXECUTE_COUNTER_ATTACKS=1` and the event is classified as a threat."
-        )
+    elif ca_n == 0 and resp_n == 0:
+        st.caption("No tools ran (needs MEDIUM+ threat + execute flags on).")
 
     if recommended:
-        st.caption("**Recommended response actions** (block / alert — not counter-attacks)")
-        rec_rows = [
-            {
-                "": _counter_attack_status_emoji(r.get("status", "")),
-                "Action": r.get("action_type"),
-                "Status": r.get("status"),
-                "Target": r.get("target"),
-            }
-            for r in recommended
-        ]
-        st.dataframe(rec_rows, use_container_width=True, hide_index=True)
+        with st.expander(f"Still recommended ({len(recommended)})", expanded=False):
+            st.dataframe(
+                [
+                    {
+                        "": _counter_attack_status_emoji(r.get("status", "")),
+                        "Action": r.get("action_type"),
+                        "Status": r.get("status"),
+                        "Target": r.get("target"),
+                    }
+                    for r in recommended
+                ],
+                use_container_width=True,
+                hide_index=True,
+            )
 
 
 def _render_test_result_card(result: dict, *, title: str) -> None:
@@ -1410,28 +1483,53 @@ def _render_test_result_card(result: dict, *, title: str) -> None:
     is_react = result.get("is_react")
     passed = result.get("passed", result.get("ok"))
     if is_react:
-        st.success(f"⭐ {title}: **ReAct agent was used**")
+        headline = f"{title} · ReAct"
+        tone = "success"
     elif result.get("ok"):
-        st.warning(f"{title}: **Workflow only** (no ReAct markers)")
+        headline = f"{title} · Workflow only"
+        tone = "warning"
     else:
-        st.error(f"{title}: **Test failed**")
+        headline = f"{title} · Failed"
+        tone = "error"
 
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Requested", str(result.get("requested_engine", "n/a")))
-    c2.metric("Actual", str(result.get("actual_engine", "n/a")))
-    c3.metric("Elapsed (ms)", result.get("elapsed_ms", "—"))
-    c4.metric("Total actions", result.get("response_action_count", 0))
+    req = result.get("requested_engine", "n/a")
+    act = result.get("actual_engine", "n/a")
+    src = result.get("detection_source") or "—"
+    aid = result.get("alert_id") or "—"
+    ip = result.get("src_ip") or "—"
+    threat = result.get("threat_type") or "—"
+    elapsed = result.get("elapsed_ms", "—")
+    actions = result.get("response_action_count", 0)
 
-    st.caption(
-        f"detection_source=`{result.get('detection_source')}` · "
-        f"alert_id=`{result.get('alert_id')}` · "
-        f"src_ip=`{result.get('src_ip')}` · "
-        f"threat=`{result.get('threat_type')}`"
+    st.markdown(
+        f'<div class="result-card">'
+        f'<div class="result-title">{headline}</div>'
+        f'<div class="result-meta">'
+        f'<strong>Engine</strong> {req} → {act} · '
+        f'<strong>{elapsed}</strong> ms · '
+        f'<strong>{actions}</strong> actions'
+        f'</div>'
+        f'<div class="result-meta">'
+        f'<strong>IP</strong> {ip} · '
+        f'<strong>Threat</strong> {threat} · '
+        f'<strong>Source</strong> {src}'
+        f'</div>'
+        f'<div class="result-meta"><strong>Alert</strong> {aid}</div>'
+        f'</div>',
+        unsafe_allow_html=True,
     )
+    if tone == "success":
+        st.success("ReAct agent handled this event")
+    elif tone == "warning":
+        st.warning("Workflow path (no ReAct markers)")
+    else:
+        st.error("Test failed")
+
     if result.get("confidence") is not None:
-        st.caption(f"ReAct confidence: **{result.get('confidence')}**")
+        st.caption(f"Confidence: {result.get('confidence')}")
     if result.get("reasoning"):
-        st.caption(f"ReAct reasoning: {str(result.get('reasoning'))[:300]}")
+        with st.expander("Reasoning", expanded=False):
+            st.write(str(result.get("reasoning"))[:500])
     _render_counter_attacks_block(result)
     if result.get("error"):
         st.error(result["error"])
@@ -2540,26 +2638,25 @@ def render_counter_attack_dashboard(alerts_data):
         st.caption(f"Updating every {refresh_interval}s · {datetime.now().strftime('%H:%M:%S')}")
     
     # Statistics
-    st.header("📊 Counter-Attack Statistics")
-    
+    st.subheader("Overview")
     col1, col2, col3, col4, col5 = st.columns(5)
-    
+
     total_counter_attacks = len(counter_attacks)
     unique_ips = len(set(ca["source_ip"] for ca in counter_attacks))
     react_counter_attacks = sum(1 for ca in counter_attacks if ca.get("react_agent"))
-    successful_attacks = sum(1 for ca in counter_attacks if ca["status"] in ["success", "gathered", "deployed", "tracking", "shared", "reported", "fed"])
+    successful_attacks = sum(
+        1
+        for ca in counter_attacks
+        if ca["status"]
+        in ["success", "gathered", "deployed", "tracking", "shared", "reported", "fed"]
+    )
     critical_counter_attacks = sum(1 for ca in counter_attacks if ca["severity"] == "CRITICAL")
-    
-    with col1:
-        st.metric("Total Counter-Attacks", total_counter_attacks)
-    with col2:
-        st.metric("Unique Attackers", unique_ips)
-    with col3:
-        st.metric("⭐ ReAct Actions", react_counter_attacks)
-    with col4:
-        st.metric("Successful Actions", successful_attacks)
-    with col5:
-        st.metric("Critical Responses", critical_counter_attacks)
+
+    col1.metric("Total", total_counter_attacks)
+    col2.metric("Attackers", unique_ips)
+    col3.metric("ReAct", react_counter_attacks)
+    col4.metric("Succeeded", successful_attacks)
+    col5.metric("Critical", critical_counter_attacks)
     
     # Counter-Attack Type Distribution
     st.header("📈 Counter-Attack Breakdown")
@@ -2711,45 +2808,33 @@ def render_counter_attack_dashboard(alerts_data):
         attacker_df = pd.DataFrame(attacker_df_data)
         st.dataframe(attacker_df, use_container_width=True, hide_index=True)
     
-    # Counter-Attack Effectiveness
-    st.header("💪 Counter-Attack Effectiveness")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        intel_count = sum(1 for ca in counter_attacks if ca["action_type"] == "GATHER_INTELLIGENCE")
-        st.metric("Intelligence Gathered", intel_count, help="Number of OSINT collections")
-    
-    with col2:
-        tarpit_count = sum(1 for ca in counter_attacks if ca["action_type"] == "DEPLOY_TARPIT")
-        st.metric("Tarpits Deployed", tarpit_count, help="Number of tarpits deployed")
-    
-    with col3:
-        reports_count = sum(1 for ca in counter_attacks if ca["action_type"] == "REPORT_TO_AUTHORITIES")
-        st.metric("Authority Reports", reports_count, help="Number of reports to authorities")
-    
-    st.markdown("---")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        shares_count = sum(1 for ca in counter_attacks if ca["action_type"] == "SHARE_THREAT_INTEL")
-        st.metric("Threat Shares", shares_count, help="Number of threat intel shares")
-    
-    with col2:
-        tracks_count = sum(1 for ca in counter_attacks if ca["action_type"] == "TRACK_BEHAVIOR")
-        st.metric("Behavior Tracks", tracks_count, help="Number of behavior tracking sessions")
-    
-    with col3:
-        disinfo_count = sum(1 for ca in counter_attacks if ca["action_type"] == "FEED_DISINFORMATION")
-        st.metric("Disinformation Feeds", disinfo_count, help="Number of disinformation operations")
-    
+    # Counter-Attack Effectiveness — single readable grid
+    st.subheader("Effectiveness")
+    intel_count = sum(1 for ca in counter_attacks if ca["action_type"] == "GATHER_INTELLIGENCE")
+    tarpit_count = sum(1 for ca in counter_attacks if ca["action_type"] == "DEPLOY_TARPIT")
+    reports_count = sum(1 for ca in counter_attacks if ca["action_type"] == "REPORT_TO_AUTHORITIES")
+    shares_count = sum(1 for ca in counter_attacks if ca["action_type"] == "SHARE_THREAT_INTEL")
+    tracks_count = sum(1 for ca in counter_attacks if ca["action_type"] == "TRACK_BEHAVIOR")
+    disinfo_count = sum(1 for ca in counter_attacks if ca["action_type"] == "FEED_DISINFORMATION")
+    st.markdown(
+        f"""
+        <div class="eff-grid">
+          <div class="eff-cell"><div class="label">Intelligence</div><div class="value">{intel_count}</div></div>
+          <div class="eff-cell"><div class="label">Tarpits</div><div class="value">{tarpit_count}</div></div>
+          <div class="eff-cell"><div class="label">Authority reports</div><div class="value">{reports_count}</div></div>
+          <div class="eff-cell"><div class="label">Threat shares</div><div class="value">{shares_count}</div></div>
+          <div class="eff-cell"><div class="label">Behavior tracks</div><div class="value">{tracks_count}</div></div>
+          <div class="eff-cell"><div class="label">Disinfo feeds</div><div class="value">{disinfo_count}</div></div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     # Footer with update info
-    st.markdown("---")
     if auto_refresh:
-        st.caption(f"🔄 Auto-refresh enabled - Dashboard updates every {refresh_interval} seconds. Last update: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        st.caption(f"Auto-refresh every {refresh_interval}s · {datetime.now().strftime('%H:%M:%S')}")
     else:
-        st.caption(f"Last update: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Enable auto-refresh in sidebar for real-time updates")
+        st.caption(f"Updated {datetime.now().strftime('%H:%M:%S')}")
 
 
 def render_geographic_dashboard(alerts_data):
