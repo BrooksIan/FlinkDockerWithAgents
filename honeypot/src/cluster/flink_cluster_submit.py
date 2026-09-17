@@ -28,8 +28,8 @@ PHASE2_JOB_NAME = "Cowrie Phase2 Workflow (Kafka)"
 DEFAULT_PYTHONPATH = (
     "/opt/flink:"
     "/opt/flink/pythonpath/agent-site-packages:"
-    "/opt/flink/opt/python/pyflink.zip:"
-    "/opt/flink/opt/python/py4j-src.zip"
+    "/opt/flink/opt/python/pyflink:"
+    "/opt/flink/opt/python/py4j"
 )
 
 
@@ -168,15 +168,23 @@ def ensure_flink_agents_jars() -> None:
     common_dir = lib_root / "common"
     version_dir = lib_root / f"flink-{flink_major}"
 
-    common_jar = next(
-        (FLINK_AGENTS_SRC / "dist/common/target").glob("flink-agents-dist-common-*.jar"),
-        None,
-    )
+    # Prefer jars already installed in the image (/opt/flink/lib).
+    common_jar = next(FLINK_LIB.glob("flink-agents-dist-common-*.jar"), None)
     thin_jars = list(
-        (FLINK_AGENTS_SRC / f"dist/flink-{flink_major}/target").glob(
-            f"flink-agents-dist-flink-{flink_major}-*-thin.jar"
-        )
+        FLINK_LIB.glob(f"flink-agents-dist-flink-{flink_major}-*-thin.jar")
     )
+    if not common_jar or not thin_jars:
+        common_jar = next(
+            (FLINK_AGENTS_SRC / "dist/common/target").glob(
+                "flink-agents-dist-common-*.jar"
+            ),
+            None,
+        )
+        thin_jars = list(
+            (FLINK_AGENTS_SRC / f"dist/flink-{flink_major}/target").glob(
+                f"flink-agents-dist-flink-{flink_major}-*-thin.jar"
+            )
+        )
     if not common_jar or not thin_jars:
         raise FileNotFoundError(
             f"Flink Agents JARs not found for Flink {flink_major}"

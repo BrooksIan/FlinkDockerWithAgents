@@ -16,7 +16,7 @@ services:
       retries: 24
       start_period: 20s
     environment:
-      - PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:/opt/flink/opt/python/pyflink.zip:/opt/flink/opt/python/py4j-src.zip
+      - PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:/opt/flink/opt/python/pyflink:/opt/flink/opt/python/py4j
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
@@ -27,7 +27,9 @@ services:
     <<: *flink-agent-image
     depends_on:
       - jobmanager
-    command: taskmanager
+    command: >
+      bash -c "python3 -m pip install -q --target=/opt/flink/pythonpath/agent-site-packages 'avro>=1.11.3' &&
+      exec /docker-entrypoint.sh taskmanager"
     scale: 1
     volumes:
       - ./cowrie-config/injections:/opt/flink/cowrie-config/injections:ro
@@ -35,6 +37,10 @@ services:
       - ./src/traps/cowrie_actor_classify_agent.py:/opt/flink/cowrie_actor_classify_agent.py:ro
       - ./src/traps/cowrie_actor_classify.py:/opt/flink/cowrie_actor_classify.py:ro
       - ./src/traps/cowrie_injection_catalog.py:/opt/flink/cowrie_injection_catalog.py:ro
+      - ./src/traps/cowrie_trap_state.py:/opt/flink/cowrie_trap_state.py:ro
+      - ./src/traps/cowrie_trap_disinfo.py:/opt/flink/cowrie_trap_disinfo.py:ro
+      - ./src/traps/cowrie_trap_compliance.py:/opt/flink/cowrie_trap_compliance.py:ro
+      - ./src/traps/cowrie_disinfo_publish.py:/opt/flink/cowrie_disinfo_publish.py:ro
       - ./src/pipeline/cowrie_phase2_agent.py:/opt/flink/cowrie_phase2_agent.py:ro
       - ./src/core/cowrie_workflow_detect.py:/opt/flink/cowrie_workflow_detect.py:ro
       - ./src/core/cowrie_policy.py:/opt/flink/cowrie_policy.py:ro
@@ -42,8 +48,13 @@ services:
       - ./src/core/cowrie_counter_attack.py:/opt/flink/cowrie_counter_attack.py:ro
       - ./src/core/cowrie_block_ip.py:/opt/flink/cowrie_block_ip.py:ro
       - ./src/core/cowrie_response_tools.py:/opt/flink/cowrie_response_tools.py:ro
+      - ./src/_pyc_shim.py:/opt/flink/_pyc_shim.py:ro
+      - ./src/pipeline/__pycache__:/opt/flink/pyc/pipeline:ro
+      - ./src/core/__pycache__:/opt/flink/pyc/core:ro
+      - ./src/traps/__pycache__:/opt/flink/pyc/traps:ro
+      - ./demo/__pycache__:/opt/flink/pyc/demo:ro
     environment:
-      - PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:/opt/flink/opt/python/pyflink.zip:/opt/flink/opt/python/py4j-src.zip
+      - PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:/opt/flink/opt/python/pyflink:/opt/flink/opt/python/py4j
       - COWRIE_INJECTION_CATALOG=/opt/flink/cowrie-config/injections/catalog.json
       - |
         FLINK_PROPERTIES=
@@ -136,6 +147,10 @@ services:
       - ./src/traps/cowrie_actor_classify_agent.py:/opt/flink/cowrie_actor_classify_agent.py:ro
       - ./src/traps/cowrie_actor_classify.py:/opt/flink/cowrie_actor_classify.py:ro
       - ./src/traps/cowrie_injection_catalog.py:/opt/flink/cowrie_injection_catalog.py:ro
+      - ./src/traps/cowrie_trap_state.py:/opt/flink/cowrie_trap_state.py:ro
+      - ./src/traps/cowrie_trap_disinfo.py:/opt/flink/cowrie_trap_disinfo.py:ro
+      - ./src/traps/cowrie_trap_compliance.py:/opt/flink/cowrie_trap_compliance.py:ro
+      - ./src/traps/cowrie_disinfo_publish.py:/opt/flink/cowrie_disinfo_publish.py:ro
       - ./cowrie-config/injections:/opt/flink/cowrie-config/injections:ro
       - ./src/pipeline/cowrie_phase2_workflow_job.py:/opt/flink/cowrie_phase2_workflow_job.py:ro
       - ./src/pipeline/cowrie_phase2_agent.py:/opt/flink/cowrie_phase2_agent.py:ro
@@ -146,16 +161,21 @@ services:
       - ./demo/demo_cowrie_response.py:/opt/flink/demo/demo_cowrie_response.py:ro
       - ./src/core/cowrie_counter_attack.py:/opt/flink/cowrie_counter_attack.py:ro
       - ./src/core/cowrie_block_ip.py:/opt/flink/cowrie_block_ip.py:ro
+      - ./src/_pyc_shim.py:/opt/flink/_pyc_shim.py:ro
+      - ./src/pipeline/__pycache__:/opt/flink/pyc/pipeline:ro
+      - ./src/core/__pycache__:/opt/flink/pyc/core:ro
+      - ./src/traps/__pycache__:/opt/flink/pyc/traps:ro
+      - ./demo/__pycache__:/opt/flink/pyc/demo:ro
     working_dir: /opt/flink
     command: >
       sh -c "
-        export PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:/opt/flink/opt/python/pyflink.zip:/opt/flink/opt/python/py4j-src.zip &&
+        export PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:/opt/flink/opt/python/pyflink:/opt/flink/opt/python/py4j &&
         export FLINK_REST_ADDRESS=jobmanager FLINK_REST_PORT=8081 &&
-        python3 -m pip install -q kafka-python>=2.0.2 &&
+        python3 -m pip install -q kafka-python>=2.0.2 'avro>=1.11.3' --target=/opt/flink/pythonpath/agent-site-packages &&
         python3 /opt/flink/cowrie_flink_pipeline_supervisor.py
       "
     environment:
-      - PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:/opt/flink/opt/python/pyflink.zip:/opt/flink/opt/python/py4j-src.zip
+      - PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:/opt/flink/opt/python/pyflink:/opt/flink/opt/python/py4j
       - FLINK_REST_ADDRESS=jobmanager
       - FLINK_REST_PORT=8081
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
@@ -237,7 +257,7 @@ services:
         if [ \"$${PHASE1_PYTHON_NORMALIZER:-0}\" = \"1\" ]; then
           python3 /opt/flink/cowrie_kafka_normalizer.py;
         else
-          export PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:/opt/flink/opt/python/pyflink.zip:/opt/flink/opt/python/py4j-src.zip &&
+          export PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:/opt/flink/opt/python/pyflink:/opt/flink/opt/python/py4j &&
           export FLINK_REST_ADDRESS=jobmanager FLINK_REST_PORT=8081 &&
           export KAFKA_BOOTSTRAP_SERVERS=kafka:9092 &&
           export KAFKA_COWRIE_TOPIC=cowrie.events &&
@@ -247,7 +267,7 @@ services:
         fi
       "
     environment:
-      - PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:/opt/flink/opt/python/pyflink.zip:/opt/flink/opt/python/py4j-src.zip
+      - PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:/opt/flink/opt/python/pyflink:/opt/flink/opt/python/py4j
       - FLINK_REST_ADDRESS=jobmanager
       - FLINK_REST_PORT=8081
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
@@ -299,7 +319,7 @@ services:
           python3 /opt/flink/cowrie_kafka_actor_classifier.py;
         };
         if [ \"$${PHASE15_PYTHON_CLASSIFIER:-0}\" != \"1\" ]; then
-          export PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:/opt/flink/opt/python/pyflink.zip:/opt/flink/opt/python/py4j-src.zip &&
+          export PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:/opt/flink/opt/python/pyflink:/opt/flink/opt/python/py4j &&
           export FLINK_REST_ADDRESS=jobmanager FLINK_REST_PORT=8081 &&
           export KAFKA_BOOTSTRAP_SERVERS=kafka:9092 &&
           export KAFKA_NORMALIZED_TOPIC=cowrie.normalized &&
@@ -318,7 +338,7 @@ services:
         fi
       "
     environment:
-      - PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:/opt/flink/opt/python/pyflink.zip:/opt/flink/opt/python/py4j-src.zip
+      - PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:/opt/flink/opt/python/pyflink:/opt/flink/opt/python/py4j
       - FLINK_REST_ADDRESS=jobmanager
       - FLINK_REST_PORT=8081
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
@@ -382,7 +402,7 @@ services:
           export PYTHONPATH=/opt/flink/pythonpath/agent-site-packages:/opt/flink &&
           python3 /opt/flink/cowrie_phase2_workflow_processor.py;
         else
-          export PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:/opt/flink/opt/python/pyflink.zip:/opt/flink/opt/python/py4j-src.zip &&
+          export PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:/opt/flink/opt/python/pyflink:/opt/flink/opt/python/py4j &&
           export FLINK_REST_ADDRESS=jobmanager FLINK_REST_PORT=8081 &&
           export COWRIE_COUNTER_ATTACK_ENGINE=workflow &&
           export COWRIE_PHASE2_ENGINE=$${COWRIE_PHASE2_ENGINE:-pure_python} &&
@@ -396,7 +416,7 @@ services:
         fi
       "
     environment:
-      - PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:/opt/flink/opt/python/pyflink.zip:/opt/flink/opt/python/py4j-src.zip
+      - PYTHONPATH=/opt/flink:/opt/flink/pythonpath/agent-site-packages:/opt/flink/opt/python/pyflink:/opt/flink/opt/python/py4j
       - FLINK_REST_ADDRESS=jobmanager
       - FLINK_REST_PORT=8081
       - COWRIE_COUNTER_ATTACK_ENGINE=workflow
@@ -449,6 +469,14 @@ services:
       - ./cowrie-dashboard-data.json:/opt/flink/cowrie-dashboard-data.json:rw
       - ./src/services/kafka_alerts_to_dashboard.py:/opt/flink/kafka_alerts_to_dashboard.py:ro
       - ./requirements.txt:/opt/flink/requirements.txt:ro
+      - ./src/_pyc_shim.py:/opt/flink/_pyc_shim.py:ro
+      - ./src/pipeline/__pycache__:/opt/flink/pyc/pipeline:ro
+      - ./src/core/__pycache__:/opt/flink/pyc/core:ro
+      - ./src/integrations/__pycache__:/opt/flink/pyc/integrations:ro
+      - ./src/react/__pycache__:/opt/flink/pyc/react:ro
+      - ./src/traps/__pycache__:/opt/flink/pyc/traps:ro
+      - ./demo/__pycache__:/opt/flink/pyc/demo:ro
+      - ./.env:/opt/flink/.env:ro
     working_dir: /opt/flink
     command: >
       sh -c "
@@ -497,6 +525,8 @@ services:
     volumes:
       - ./src/traps/cowrie_disinfo_applier.py:/opt/flink/cowrie_disinfo_applier.py:ro
       - ./cowrie-data:/cowrie/cowrie/data
+      - ./src/_pyc_shim.py:/opt/flink/_pyc_shim.py:ro
+      - ./src/traps/__pycache__:/opt/flink/pyc/traps:ro
     working_dir: /opt/flink
     command: >
       sh -c "
@@ -641,6 +671,13 @@ services:
       - ./src/core/cowrie_counter_attack.py:/opt/flink/cowrie_counter_attack.py:ro
       - ./cowrie-data:/cowrie/cowrie/data:rw
       - ./src/pipeline/cowrie_pipeline.py:/opt/flink/cowrie_pipeline.py:ro
+      - ./src/_pyc_shim.py:/opt/flink/_pyc_shim.py:ro
+      - ./src/services/__pycache__:/opt/flink/pyc/services:ro
+      - ./src/core/__pycache__:/opt/flink/pyc/core:ro
+      - ./src/react/__pycache__:/opt/flink/pyc/react:ro
+      - ./src/integrations/__pycache__:/opt/flink/pyc/integrations:ro
+      - ./demo/__pycache__:/opt/flink/pyc/demo:ro
+      - ./src/pipeline/__pycache__:/opt/flink/pyc/pipeline:ro
     working_dir: /opt/flink
     command: >
       sh -c "python3 /opt/flink/cowrie_log_processor.py --log-file /cowrie/cowrie/log/cowrie.json --dashboard-file /opt/flink/cowrie-dashboard-data.json"
@@ -679,8 +716,8 @@ services:
     env_file:
       - ./.env
     volumes:
-      # cloudera_llm_config.py loads project-root .env from /opt/flink/.env (belt-and-suspenders with env_file)
-      - ./.env:/opt/flink/.env:ro
+      # Settings page can update Cloudera / Kafka keys for this process (+ optional persist)
+      - ./.env:/opt/flink/.env:rw
       - ./dashboard-data:/opt/flink/dashboard-data
       - ./cowrie-dashboard-data.json:/opt/flink/cowrie-dashboard-data.json:rw
       - ./requirements.txt:/opt/flink/requirements.txt:ro
@@ -692,6 +729,7 @@ services:
       - ./src/pipeline/__pycache__:/opt/flink/pyc/pipeline:ro
       - ./src/integrations/__pycache__:/opt/flink/pyc/integrations:ro
       - ./src/services/__pycache__:/opt/flink/pyc/services:ro
+      - ./src/traps/__pycache__:/opt/flink/pyc/traps:ro
       - ./demo/__pycache__:/opt/flink/pyc/demo:ro
       - ./src/services/cowrie_log_processor.py:/opt/flink/cowrie_log_processor.py:ro
       - ./demo/demo_cowrie_response.py:/opt/flink/demo_cowrie_response.py:ro

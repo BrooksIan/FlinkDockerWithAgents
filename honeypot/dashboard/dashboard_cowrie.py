@@ -3615,8 +3615,378 @@ def render_threat_intelligence_dashboard(alerts_data):
         st.info("No reputation data available to display.")
 
 
+def _env_file_candidates() -> list[Path]:
+    """Likely ``.env`` paths (Docker mount first, then repo)."""
+    return [
+        Path("/opt/flink/.env"),
+        Path(__file__).resolve().parents[1] / ".env",
+        Path.cwd() / ".env",
+        Path.cwd() / "honeypot" / ".env",
+    ]
+
+
+def resolve_env_file(*, writable_only: bool = False) -> Optional[Path]:
+    for path in _env_file_candidates():
+        try:
+            if path.is_file():
+                if writable_only and not os.access(path, os.W_OK):
+                    continue
+                return path
+        except OSError:
+            continue
+    if writable_only:
+        for path in _env_file_candidates():
+            parent = path.parent
+            try:
+                if parent.is_dir() and os.access(parent, os.W_OK):
+                    return path
+            except OSError:
+                continue
+    return None
+
+
+def _read_dotenv(path: Path) -> Dict[str, str]:
+    out: Dict[str, str] = {}
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return out
+    for line in text.splitlines():
+        raw = line.strip()
+        if not raw or raw.startswith("#") or "=" not in raw:
+            continue
+        key, _, val = raw.partition("=")
+        key = key.strip()
+        val = val.strip()
+        if len(val) >= 2 and val[0] == val[-1] and val[0] in ("'", '"'):
+            val = val[1:-1]
+        if key:
+            out[key] = val
+    return out
+
+
+def _upsert_dotenv(path: Path, updates: Dict[str, str]) -> None:
+    """Create or update keys in a ``.env`` file (preserves other lines)."""
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines() if path.is_file() else []
+    except OSError:
+        lines = []
+    remaining = dict(updates)
+    new_lines: list[str] = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#") and "=" in stripped:
+            key = stripped.split("=", 1)[0].strip()
+            if key in remaining:
+                new_lines.append(f"{key}={remaining.pop(key)}")
+                continue
+        new_lines.append(line)
+    if remaining:
+        if new_lines and new_lines[-1].strip():
+            new_lines.append("")
+        new_lines.append("# Updated from HoneyPot Settings")
+        for key, val in remaining.items():
+            new_lines.append(f"{key}={val}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+
+
+def _mask_secret(value: str, *, keep: int = 6) -> str:
+    v = (value or "").strip()
+    if not v:
+        return "(empty)"
+    if len(v) <= keep * 2:
+        return "*" * min(len(v), 12)
+    return f"{v[:keep]}…{v[-keep:]} ({len(v)} chars)"
+
+
+def _init_settings_defaults() -> None:
+    """Seed session settings from process env / ``.env`` once per session."""
+    if st.session_state.get("_settings_seeded"):
+        return
+    env_file = resolve_env_file()
+    dotenv = _read_dotenv(env_file) if env_file else {}
+
+    def _pick(*keys: str, default: str = "") -> str:
+        for key in keys:
+            val = (os.environ.get(key) or dotenv.get(key) or "").strip()
+            if val:
+                return val
+        return default
+
+    st.session_state.setdefault(
+        "cowrie_kafka_bootstrap",
+        _pick("COWRIE_KAFKA_BOOTSTRAP", "KAFKA_BOOTSTRAP_SERVERS", default="kafka:9092"),
+    )
+    st.session_state.setdefault("cowrie_kafka_topic", _PREDEFINED_KAFKA_TOPICS[0])
+    st.session_state.setdefault("cowrie_kafka_max_messages", 250)
+    st.session_state.setdefault("cowrie_data_source_mode", "Both")
+    st.session_state.setdefault(
+        "settings_kafka_session_actor_topic",
+        _pick("KAFKA_SESSION_ACTOR_TOPIC", default="cowrie.session_actor"),
+    )
+    st.session_state.setdefault(
+        "settings_kafka_enriched_topic",
+        _pick("KAFKA_NORMALIZED_ENRICHED_TOPIC", default="cowrie.normalized.enriched"),
+    )
+    st.session_state.setdefault(
+        "settings_cloudera_base_url",
+        _pick("CLOUDERA_AI_BASE_URL", "BASE_URL"),
+    )
+    st.session_state.setdefault(
+        "settings_cloudera_model_id",
+        _pick("CLOUDERA_MODEL_ID", "CLOUDERA_MODEL_NAME", "MODEL_ID"),
+    )
+    st.session_state.setdefault(
+        "settings_cloudera_jwt",
+        _pick("CLOUDERA_JWT_TOKEN", "CLOUDERA_API_KEY", "API_KEY"),
+    )
+    st.session_state["_settings_seeded"] = True
+
+
+def apply_runtime_settings(
+    *,
+    kafka_bootstrap: str,
+    session_actor_topic: str,
+    enriched_topic: str,
+    cloudera_base_url: str,
+    cloudera_model_id: str,
+    cloudera_jwt: str,
+) -> None:
+    """Push Settings values into ``os.environ`` for this Streamlit process."""
+    bootstrap = (kafka_bootstrap or "").strip() or "kafka:9092"
+    os.environ["COWRIE_KAFKA_BOOTSTRAP"] = bootstrap
+    os.environ["KAFKA_BOOTSTRAP_SERVERS"] = bootstrap
+    os.environ["KAFKA_SESSION_ACTOR_TOPIC"] = (session_actor_topic or "").strip() or "cowrie.session_actor"
+    os.environ["KAFKA_NORMALIZED_ENRICHED_TOPIC"] = (
+        (enriched_topic or "").strip() or "cowrie.normalized.enriched"
+    )
+    if cloudera_base_url.strip():
+        os.environ["CLOUDERA_AI_BASE_URL"] = cloudera_base_url.strip()
+    if cloudera_model_id.strip():
+        os.environ["CLOUDERA_MODEL_ID"] = cloudera_model_id.strip()
+    if cloudera_jwt.strip():
+        os.environ["CLOUDERA_JWT_TOKEN"] = cloudera_jwt.strip()
+        os.environ["CLOUDERA_API_KEY"] = cloudera_jwt.strip()
+
+
+def _cloudera_status_lines() -> tuple[bool, list[str]]:
+    """Return (ok, messages) for current Cloudera env."""
+    messages: list[str] = []
+    try:
+        from cloudera_llm_config import get_cloudera_config, validate_config
+
+        cfg = get_cloudera_config()
+        ok = bool(validate_config(cfg))
+        if ok:
+            messages.append(f"Model `{cfg.get('model_id') or '—'}`")
+            messages.append(f"Base URL `{cfg.get('base_url') or '—'}`")
+            messages.append(f"Token {_mask_secret(str(cfg.get('api_key') or ''))}")
+        else:
+            messages.append("Configuration invalid — check base URL and JWT.")
+        return ok, messages
+    except Exception as exc:
+        base = (os.environ.get("CLOUDERA_AI_BASE_URL") or "").strip()
+        token = (os.environ.get("CLOUDERA_JWT_TOKEN") or "").strip()
+        model = (os.environ.get("CLOUDERA_MODEL_ID") or "").strip()
+        ok = bool(base and token and model)
+        messages.append(f"Model `{model or '—'}`")
+        messages.append(f"Base URL `{base or '—'}`")
+        messages.append(f"Token {_mask_secret(token)}")
+        if not ok:
+            messages.append(f"Lookup helper unavailable: {exc}")
+        return ok, messages
+
+
+def render_settings_page() -> None:
+    """Kafka + Cloudera settings (session + optional ``.env`` persistence)."""
+    _init_settings_defaults()
+    st.markdown(
+        '<div class="main-header">Settings</div>'
+        '<p style="color:#5c5278;margin:-0.5rem 0 1rem;">Kafka and Cloudera LLM for this dashboard</p>',
+        unsafe_allow_html=True,
+    )
+
+    env_path = resolve_env_file()
+    env_writable = resolve_env_file(writable_only=True)
+    st.caption(
+        f"Env file: `{env_path}`"
+        + (" (writable)" if env_writable and env_path == env_writable else " (read-only — Apply still updates this process)")
+        if env_path
+        else "No `.env` found — Apply updates this process only"
+    )
+
+    with st.form("honeypot_settings_form", clear_on_submit=False):
+        st.subheader("Kafka")
+        data_source = st.radio(
+            "Dashboard data source",
+            options=["JSON file", "Kafka topic", "Both"],
+            horizontal=True,
+            index=["JSON file", "Kafka topic", "Both"].index(
+                st.session_state.get("cowrie_data_source_mode", "Both")
+            )
+            if st.session_state.get("cowrie_data_source_mode", "Both")
+            in ("JSON file", "Kafka topic", "Both")
+            else 2,
+        )
+        kafka_bootstrap = st.text_input(
+            "Bootstrap servers",
+            value=st.session_state.get("cowrie_kafka_bootstrap", "kafka:9092"),
+            help="Used by the dashboard Kafka readers (e.g. kafka:9092 in Compose)",
+        )
+        topic_default = st.session_state.get("cowrie_kafka_topic", _PREDEFINED_KAFKA_TOPICS[0])
+        topic_index = (
+            _PREDEFINED_KAFKA_TOPICS.index(topic_default)
+            if topic_default in _PREDEFINED_KAFKA_TOPICS
+            else 0
+        )
+        kafka_topic = st.selectbox(
+            "Alerts topic",
+            options=_PREDEFINED_KAFKA_TOPICS,
+            index=topic_index,
+        )
+        kafka_max = st.slider(
+            "Latest messages to read",
+            min_value=25,
+            max_value=1000,
+            value=int(st.session_state.get("cowrie_kafka_max_messages", 250)),
+            step=25,
+        )
+        session_actor_topic = st.text_input(
+            "Session actor topic",
+            value=st.session_state.get(
+                "settings_kafka_session_actor_topic", "cowrie.session_actor"
+            ),
+        )
+        enriched_topic = st.text_input(
+            "Normalized enriched topic",
+            value=st.session_state.get(
+                "settings_kafka_enriched_topic", "cowrie.normalized.enriched"
+            ),
+        )
+
+        st.subheader("Cloudera LLM")
+        cloudera_base = st.text_input(
+            "Base URL",
+            value=st.session_state.get("settings_cloudera_base_url", ""),
+            placeholder="https://…/api/v1/…",
+        )
+        cloudera_model = st.text_input(
+            "Model ID",
+            value=st.session_state.get("settings_cloudera_model_id", ""),
+        )
+        cloudera_jwt = st.text_input(
+            "JWT token",
+            value=st.session_state.get("settings_cloudera_jwt", ""),
+            type="password",
+            help="Paste a fresh JWT when ReAct shows token expired",
+        )
+        persist = st.checkbox(
+            "Also write to .env",
+            value=bool(env_writable),
+            disabled=not bool(env_writable),
+            help="Persists Cloudera + Kafka bootstrap for the next dashboard restart",
+        )
+        submitted = st.form_submit_button("Apply settings", use_container_width=True)
+
+    if submitted:
+        st.session_state["cowrie_data_source_mode"] = data_source
+        st.session_state["cowrie_kafka_bootstrap"] = kafka_bootstrap.strip() or "kafka:9092"
+        st.session_state["cowrie_kafka_topic"] = kafka_topic
+        st.session_state["cowrie_kafka_max_messages"] = int(kafka_max)
+        st.session_state["settings_kafka_session_actor_topic"] = session_actor_topic.strip()
+        st.session_state["settings_kafka_enriched_topic"] = enriched_topic.strip()
+        st.session_state["settings_cloudera_base_url"] = cloudera_base.strip()
+        st.session_state["settings_cloudera_model_id"] = cloudera_model.strip()
+        st.session_state["settings_cloudera_jwt"] = cloudera_jwt.strip()
+
+        apply_runtime_settings(
+            kafka_bootstrap=st.session_state["cowrie_kafka_bootstrap"],
+            session_actor_topic=st.session_state["settings_kafka_session_actor_topic"],
+            enriched_topic=st.session_state["settings_kafka_enriched_topic"],
+            cloudera_base_url=st.session_state["settings_cloudera_base_url"],
+            cloudera_model_id=st.session_state["settings_cloudera_model_id"],
+            cloudera_jwt=st.session_state["settings_cloudera_jwt"],
+        )
+
+        # Keep module-level topic aliases in sync for this process.
+        global _KAFKA_SESSION_ACTOR_TOPIC, _KAFKA_ENRICHED_TOPIC, _PHASE15_PIPELINE_TOPICS
+        _KAFKA_SESSION_ACTOR_TOPIC = st.session_state["settings_kafka_session_actor_topic"] or "cowrie.session_actor"
+        _KAFKA_ENRICHED_TOPIC = st.session_state["settings_kafka_enriched_topic"] or "cowrie.normalized.enriched"
+        _PHASE15_PIPELINE_TOPICS = [
+            "cowrie.normalized",
+            _KAFKA_ENRICHED_TOPIC,
+            _KAFKA_SESSION_ACTOR_TOPIC,
+        ]
+
+        if persist and env_writable:
+            try:
+                _upsert_dotenv(
+                    env_writable,
+                    {
+                        "COWRIE_KAFKA_BOOTSTRAP": st.session_state["cowrie_kafka_bootstrap"],
+                        "KAFKA_BOOTSTRAP_SERVERS": st.session_state["cowrie_kafka_bootstrap"],
+                        "KAFKA_SESSION_ACTOR_TOPIC": _KAFKA_SESSION_ACTOR_TOPIC,
+                        "KAFKA_NORMALIZED_ENRICHED_TOPIC": _KAFKA_ENRICHED_TOPIC,
+                        "CLOUDERA_AI_BASE_URL": st.session_state["settings_cloudera_base_url"],
+                        "CLOUDERA_MODEL_ID": st.session_state["settings_cloudera_model_id"],
+                        "CLOUDERA_JWT_TOKEN": st.session_state["settings_cloudera_jwt"],
+                    },
+                )
+                st.success(f"Applied and saved to `{env_writable}`")
+            except OSError as exc:
+                st.warning(f"Applied in-process, but could not write `.env`: {exc}")
+        else:
+            st.success("Applied for this dashboard process")
+
+        try:
+            load_dashboard_data_from_kafka.clear()
+        except Exception:
+            pass
+        st.rerun()
+
+    # Live status (outside form)
+    st.subheader("Status")
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("**Kafka**")
+        st.caption(f"Bootstrap `{st.session_state.get('cowrie_kafka_bootstrap')}`")
+        st.caption(f"Alerts topic `{st.session_state.get('cowrie_kafka_topic')}`")
+        st.caption(f"Source `{st.session_state.get('cowrie_data_source_mode')}`")
+        bootstrap = st.session_state.get("cowrie_kafka_bootstrap", "kafka:9092")
+        try:
+            from kafka import KafkaAdminClient  # type: ignore
+
+            admin = KafkaAdminClient(
+                bootstrap_servers=bootstrap,
+                client_id="honeypot-settings-check",
+                request_timeout_ms=3000,
+            )
+            topics = sorted(admin.list_topics())
+            admin.close()
+            st.success(f"Reachable · {len(topics)} topics")
+        except Exception as exc:
+            st.warning(f"Not reachable from dashboard: {exc}")
+    with c2:
+        st.markdown("**Cloudera**")
+        ok, lines = _cloudera_status_lines()
+        for line in lines:
+            st.caption(line)
+        if ok:
+            st.success("Looks valid for ReAct")
+        else:
+            st.error("ReAct will stay on workflow until this is fixed")
+
+    st.caption(
+        "Note: Compose sidecars (Phase 3 augmentor) read `.env` at container start — "
+        "recreate those services after saving a new JWT."
+    )
+
+
 def main():
     """Main dashboard function."""
+    _init_settings_defaults()
+
     # Compact brand + nav
     st.sidebar.markdown(
         """
@@ -3637,10 +4007,15 @@ def main():
             "Geographic Analysis",
             "Timeline & Patterns",
             "Threat Intelligence",
+            "Settings",
         ],
         index=0,
         label_visibility="collapsed",
     )
+
+    if page == "Settings":
+        render_settings_page()
+        return
 
     # -----------------------------
     # Data source switcher
@@ -3649,10 +4024,10 @@ def main():
     source = st.sidebar.radio(
         "Data source",
         options=["JSON file", "Kafka topic", "Both"],
-        index=2,
         key="cowrie_data_source_mode",
         horizontal=True,
     )
+    st.sidebar.caption("Kafka / Cloudera → **Settings**")
 
     def _dedupe_by_alert_id(rows: list) -> list:
         if not rows:

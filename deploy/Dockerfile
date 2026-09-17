@@ -60,7 +60,7 @@ RUN git clone --depth 1 --branch "${FLINK_AGENTS_VERSION}" https://github.com/ap
         'apache-beam>=2.54.0,<=2.61.0' \
         'pemja>=0.6.0,<0.7.0' \
         'setuptools>=75.3,<82' \
-        'avro-python3>=1.10.0,<1.12.0' \
+        'avro>=1.11.3' \
         'requests>=2.32.0' \
         'kafka-python>=2.0.2' \
         'streamlit>=1.28.0' \
