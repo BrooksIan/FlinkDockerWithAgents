@@ -2,7 +2,7 @@
 # Populate fields used by the master blueprint website and internal catalog.
 
 # --- Identity ---
-name: "Ratatoskr — Apache Flink Agents on Docker"
+name: "Ratatoskr"
 slug: "ratatoskr-flink-agents" # URL-safe repo / catalog identifier
 description: "Build, run, and verify Apache Flink Agents with a CLI, Control API, visual designer, optional NiFi flow monitoring/healing, and Cowrie honeypot demo."
 reprise_link: "https://[catalog-url]/ratatoskr-flink-agents" # Public reprise link

@@ -1,10 +1,14 @@
-# Ratatoskr — Apache Flink Agents on Docker
+# Ratatoskr
+
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](pyproject.toml)
 [![Cloudera Blueprint](https://img.shields.io/badge/Cloudera-Blueprint-f96702.svg)](METADATA.yaml)
+[![Catalog](https://img.shields.io/badge/Catalog-Developer%20Example-6b4cff.svg)](METADATA.yaml)
 [![Stars](https://img.shields.io/github/stars/BrooksIan/FlinkDockerWithAgents?logo=github)](https://github.com/BrooksIan/FlinkDockerWithAgents/stargazers)
 [![Watchers](https://img.shields.io/github/watchers/BrooksIan/FlinkDockerWithAgents?logo=github)](https://github.com/BrooksIan/FlinkDockerWithAgents/watchers)
 [![Forks](https://img.shields.io/github/forks/BrooksIan/FlinkDockerWithAgents?logo=github)](https://github.com/BrooksIan/FlinkDockerWithAgents/network/members)
+
+**Cloudera Blueprint** for Apache Flink Agents on Docker — CLI, Control API, Agent Designer, Agentic Studio, and ops demos (NiFi, Kafka, CM, honeypot).
 
 <p align="center">
   <img src="assets/branding/Ratatoskr_title_image.png" alt="Ratatoskr — wood-textured wordmark and squirrel mascot" width="480" />
@@ -342,8 +346,7 @@ Local dev: leave `RATATOSKR_API_KEY` unset.
 
 ## License
 
-Apache License 2.0
-
+This project is licensed under the [Apache License 2.0](LICENSE).
 
 ## Disclaimer
 
