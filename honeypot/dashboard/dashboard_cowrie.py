@@ -21,6 +21,115 @@ import urllib.request
 from typing import Dict, Any, List, Optional, Union
 
 
+def _cloudera_jwt_status() -> Dict[str, Any]:
+    """Decode CLOUDERA_JWT_TOKEN payload (no signature verify) for expiry UX."""
+    # Prefer Settings session value (updated by Apply) over process env.
+    token = (
+        st.session_state.get("settings_cloudera_jwt")
+        or os.environ.get("CLOUDERA_JWT_TOKEN")
+        or os.environ.get("CLOUDERA_API_KEY")
+        or ""
+    ).strip()
+    if not token:
+        return {"ok": False, "reason": "missing", "message": "No Cloudera JWT set — add it in Settings."}
+    try:
+        import base64
+
+        parts = token.split(".")
+        if len(parts) < 2:
+            return {"ok": False, "reason": "malformed", "message": "Cloudera JWT is malformed."}
+        payload_b64 = parts[1] + "=" * (-len(parts[1]) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(payload_b64.encode("utf-8")))
+        exp = payload.get("exp")
+        if exp is None:
+            return {"ok": True, "reason": "no_exp", "message": "JWT present (no exp claim)."}
+        exp_i = int(exp)
+        now = int(datetime.now(timezone.utc).timestamp())
+        if exp_i <= now:
+            ago = now - exp_i
+            return {
+                "ok": False,
+                "reason": "expired",
+                "message": (
+                    f"Cloudera JWT expired {ago // 60}m ago — paste a fresh token in **Settings** "
+                    "and click Apply."
+                ),
+                "exp": exp_i,
+            }
+        return {
+            "ok": True,
+            "reason": "valid",
+            "message": f"JWT OK · expires in {(exp_i - now) // 60}m",
+            "exp": exp_i,
+        }
+    except Exception as exc:
+        return {"ok": False, "reason": "decode_error", "message": f"Could not decode JWT: {exc}"}
+
+
+def _humanize_react_error(err: Any) -> str:
+    """Map opaque API/JSON failures to actionable ReAct Lab messages."""
+    text = str(err or "").strip() or "No ReAct markers"
+    low = text.lower()
+    jwt = _cloudera_jwt_status()
+    jwt_ok = bool(jwt.get("ok"))
+
+    # Stale "expired" errors after a successful Settings Apply should not stick.
+    if jwt_ok and (
+        "token has expired" in low
+        or ("jwt" in low and "expir" in low)
+        or "expecting value" in low
+        or "line 1 column 1" in low
+    ):
+        return (
+            "Previous run failed while the JWT was expired/invalid. "
+            "Current token looks valid — click ⭐ Test ReAct again."
+        )
+
+    if "expecting value" in low or "line 1 column 1" in low:
+        if not jwt_ok and jwt.get("reason") == "expired":
+            return jwt["message"]
+        return (
+            "Cloudera returned an empty/non-JSON body (often an expired JWT or bad base URL). "
+            "Update the JWT in **Settings**, Apply, then re-run."
+        )
+    if "token has expired" in low or ("jwt" in low and "expir" in low):
+        if not jwt_ok:
+            return jwt.get("message") or (
+                "Cloudera JWT expired — paste a fresh token in **Settings** and Apply."
+            )
+        return (
+            "Cloudera rejected the previous token as expired. "
+            "Current token looks valid — re-run the test."
+        )
+    if "401" in text or "authentication" in low:
+        return f"Cloudera auth failed (401). Check JWT in Settings. Detail: {text[:160]}"
+    return text
+
+
+def _react_reasoning_is_guardrail_only(text: Any) -> bool:
+    """True only when LLM reasoning is missing (not merely annotated with guardrail)."""
+    s = str(text or "").strip()
+    if not s:
+        return True
+    # Real Cloudera text is often annotated with "[guardrail: …]" after policy merge;
+    # that alone is not guardrail-only.
+    return s.startswith("No reasoning provided") or s.startswith("Policy classified")
+
+
+def _format_react_reasoning_caption(text: Any) -> str:
+    """Explain guardrail-only fallback vs real LLM reasoning."""
+    s = str(text or "").strip()
+    if not s:
+        return ""
+    if _react_reasoning_is_guardrail_only(s):
+        return (
+            "Guardrail-only (no LLM reasoning) — Cloudera did not return analysis, "
+            "so policy mapped the Cowrie eventid to a threat. "
+            f"Detail: {s[:200]}{'…' if len(s) > 200 else ''}"
+        )
+    return f"ReAct reasoning: {s[:240]}{'…' if len(s) > 240 else ''}"
+
+
 def _scroll_main_to_top() -> None:
     """Force the Streamlit main pane to the top (used on page/tab changes)."""
     import streamlit.components.v1 as components
@@ -1651,10 +1760,17 @@ def _render_test_result_card(result: dict, *, title: str) -> None:
         f"| Alert | `{aid}` |"
     )
     if result.get("error"):
-        st.error(str(result["error"])[:240])
-    if result.get("reasoning"):
-        with st.expander("Reasoning", expanded=False):
-            st.write(str(result.get("reasoning"))[:500])
+        st.error(_humanize_react_error(result["error"])[:240])
+    reasoning = result.get("reasoning")
+    if not reasoning and isinstance(alert, dict):
+        ad = alert.get("attack_details") if isinstance(alert.get("attack_details"), dict) else {}
+        reasoning = ad.get("react_reasoning") or alert.get("reasoning")
+    if reasoning:
+        if _react_reasoning_is_guardrail_only(reasoning):
+            st.warning(_format_react_reasoning_caption(reasoning))
+        else:
+            with st.expander("Reasoning", expanded=False):
+                st.write(str(reasoning)[:500])
     _render_counter_attacks_block(result)
     if is_react:
         st.markdown(react_agent_badge_markdown(), unsafe_allow_html=True)
@@ -1705,7 +1821,7 @@ def _render_compare_section(cmp: dict, *, ca_on: bool) -> None:
     if cmp.get("compare_ok"):
         st.success("ReAct path confirmed")
     else:
-        err = rx.get("error") or "No ReAct markers"
+        err = _humanize_react_error(rx.get("error") or "No ReAct markers")
         st.warning(f"ReAct did not win this run: {err}")
 
     with st.expander("Workflow details", expanded=False):
@@ -1801,6 +1917,28 @@ def render_react_agent_lab() -> None:
     d6.metric("Alert execution", "✅ On" if resp_on else "❌ Off")
     d7.metric("Block IP (Cowrie)", "✅ On" if block_on else "❌ Off")
 
+    jwt_status = _cloudera_jwt_status()
+    if not jwt_status.get("ok"):
+        st.error(jwt_status["message"])
+    else:
+        st.caption(jwt_status["message"])
+        # Drop stale lab failures from before the token was refreshed.
+        for key in ("react_lab_last", "react_lab_compare", "react_lab_kafka"):
+            prev = st.session_state.get(key)
+            if not prev:
+                continue
+            err = ""
+            if isinstance(prev, dict):
+                err = str(prev.get("error") or "")
+                if not err and isinstance(prev.get("react"), dict):
+                    err = str((prev.get("react") or {}).get("error") or "")
+            if err and (
+                "expired" in err.lower()
+                or "expecting value" in err.lower()
+                or "line 1 column 1" in err.lower()
+            ):
+                del st.session_state[key]
+
     st.caption(
         "Severity policy: **MEDIUM** → gather intel · **HIGH** → + track, tarpit, share, **Cowrie block** · "
         "**CRITICAL** → + report, disinformation · Set `COWRIE_REACT_EXECUTE_COUNTER_ATTACKS=0` to disable counter-attacks. "
@@ -1828,17 +1966,45 @@ def render_react_agent_lab() -> None:
     attack_type = st.selectbox("Attack scenario", options=list(rtl.ATTACK_TYPES), index=0)
     append = st.checkbox("Append results to dashboard JSON", value=True)
 
+    jwt_ok = bool(jwt_status.get("ok"))
+    if not jwt_ok:
+        st.info(
+            "ReAct / Compare need a valid Cloudera JWT. "
+            "Open **Settings**, paste a fresh token, click **Apply**, then return here."
+        )
+
     col_w, col_r, col_a = st.columns(3)
     with col_w:
         run_wf = st.button("▶️ Test Workflow", use_container_width=True)
     with col_r:
-        run_react = st.button("⭐ Test ReAct", use_container_width=True)
+        run_react = st.button(
+            "⭐ Test ReAct",
+            use_container_width=True,
+            disabled=not jwt_ok,
+            help=None if jwt_ok else jwt_status.get("message"),
+        )
     with col_a:
-        run_auto = st.button("🔀 Test Auto", use_container_width=True)
+        run_auto = st.button(
+            "🔀 Test Auto",
+            use_container_width=True,
+            disabled=not jwt_ok,
+            help=None if jwt_ok else jwt_status.get("message"),
+        )
 
-    if st.button("⚖️ Compare Workflow vs ReAct (same IP)", use_container_width=True):
+    run_compare = st.button(
+        "⚖️ Compare Workflow vs ReAct (same IP)",
+        use_container_width=True,
+        disabled=not jwt_ok,
+        help=None if jwt_ok else jwt_status.get("message"),
+    )
+    if run_compare:
         with st.spinner("Running workflow + ReAct on the same synthetic IP..."):
             cmp = rtl.run_compare_test(attack_type=attack_type, append_to_dashboard=append)
+        # Humanize nested errors for display
+        for side in ("workflow", "react"):
+            side_res = cmp.get(side) or {}
+            if side_res.get("error"):
+                side_res["error"] = _humanize_react_error(side_res["error"])
         st.session_state["react_lab_compare"] = cmp
         if append:
             load_dashboard_data.clear()
@@ -1852,16 +2018,22 @@ def render_react_agent_lab() -> None:
             load_dashboard_data.clear()
     if run_react:
         with st.spinner("Calling Cloudera ReAct (may take 10–60s)..."):
-            st.session_state["react_lab_last"] = rtl.run_pipeline_test(
+            res = rtl.run_pipeline_test(
                 engine="react", attack_type=attack_type, append_to_dashboard=append
             )
+            if res.get("error"):
+                res["error"] = _humanize_react_error(res["error"])
+            st.session_state["react_lab_last"] = res
         if append:
             load_dashboard_data.clear()
     if run_auto:
         with st.spinner("Running auto engine test..."):
-            st.session_state["react_lab_last"] = rtl.run_pipeline_test(
+            res = rtl.run_pipeline_test(
                 engine="auto", attack_type=attack_type, append_to_dashboard=append
             )
+            if res.get("error"):
+                res["error"] = _humanize_react_error(res["error"])
+            st.session_state["react_lab_last"] = res
         if append:
             load_dashboard_data.clear()
 
@@ -3764,6 +3936,92 @@ def _cloudera_status_lines() -> tuple[bool, list[str]]:
         return ok, messages
 
 
+def _test_cloudera_llm_connection() -> Dict[str, Any]:
+    """Live chat-completions ping using Settings / env Cloudera credentials."""
+    import time
+
+    base = (
+        st.session_state.get("settings_cloudera_base_url")
+        or os.environ.get("CLOUDERA_AI_BASE_URL")
+        or os.environ.get("OPENAI_BASE_URL")
+        or ""
+    ).strip().rstrip("/")
+    token = (
+        st.session_state.get("settings_cloudera_jwt")
+        or os.environ.get("CLOUDERA_JWT_TOKEN")
+        or os.environ.get("CLOUDERA_API_KEY")
+        or ""
+    ).strip()
+    model = (
+        st.session_state.get("settings_cloudera_model_id")
+        or os.environ.get("CLOUDERA_MODEL_ID")
+        or os.environ.get("CLOUDERA_MODEL_NAME")
+        or ""
+    ).strip()
+
+    jwt = _cloudera_jwt_status()
+    if not base or not token or not model:
+        return {
+            "ok": False,
+            "stage": "config",
+            "error": "Missing base URL, model ID, or JWT — fill Cloudera fields and Apply first.",
+            "jwt": jwt,
+        }
+    if not jwt.get("ok") and jwt.get("reason") == "expired":
+        return {
+            "ok": False,
+            "stage": "jwt",
+            "error": jwt.get("message") or "JWT expired",
+            "jwt": jwt,
+            "base_url": base,
+            "model": model,
+        }
+
+    try:
+        from openai import OpenAI
+    except ImportError as exc:
+        return {
+            "ok": False,
+            "stage": "import",
+            "error": f"openai package missing: {exc}",
+            "jwt": jwt,
+        }
+
+    base_url = base if "/v1" in base else f"{base}/v1"
+    started = time.time()
+    try:
+        client = OpenAI(api_key=token, base_url=base_url)
+        resp = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": "Reply with exactly: pong"}],
+            max_tokens=8,
+            temperature=0,
+        )
+        content = ((resp.choices[0].message.content or "") if resp.choices else "").strip()
+        elapsed_ms = int((time.time() - started) * 1000)
+        return {
+            "ok": True,
+            "stage": "chat",
+            "elapsed_ms": elapsed_ms,
+            "reply": content[:120],
+            "model": model,
+            "base_url": base_url,
+            "jwt": jwt,
+            "token": _mask_secret(token),
+        }
+    except Exception as exc:
+        return {
+            "ok": False,
+            "stage": "chat",
+            "error": _humanize_react_error(exc),
+            "detail": str(exc)[:300],
+            "elapsed_ms": int((time.time() - started) * 1000),
+            "model": model,
+            "base_url": base_url,
+            "jwt": jwt,
+        }
+
+
 def render_settings_page() -> None:
     """Kafka + Cloudera settings with Kafka reachability status."""
     _init_settings_defaults()
@@ -3919,6 +4177,33 @@ def render_settings_page() -> None:
     except Exception as exc:
         st.error(f"Unreachable: {exc}")
 
+    st.subheader("Cloudera LLM status")
+    st.caption("Uses values from the last **Apply** (session / process env).")
+    jwt_status = _cloudera_jwt_status()
+    if jwt_status.get("ok"):
+        st.caption(jwt_status["message"])
+    else:
+        st.warning(jwt_status["message"])
+
+    if st.button("🔌 Test Cloudera LLM connection", use_container_width=True, key="settings_test_cloudera"):
+        with st.spinner("Calling Cloudera chat completions…"):
+            # Prefer applied session values; fall back to process env inside the helper.
+            st.session_state["settings_cloudera_test"] = _test_cloudera_llm_connection()
+
+    test = st.session_state.get("settings_cloudera_test")
+    if test:
+        if test.get("ok"):
+            st.success(
+                f"Connected · `{test.get('model')}` · {test.get('elapsed_ms')} ms · "
+                f"reply `{test.get('reply') or '—'}`"
+            )
+            st.caption(f"Base `{test.get('base_url')}` · token {test.get('token')}")
+        else:
+            st.error(f"Failed ({test.get('stage')}): {test.get('error')}")
+            if test.get("detail") and test.get("detail") != test.get("error"):
+                with st.expander("Details"):
+                    st.code(str(test.get("detail")))
+
 
 
 def _render_threat_alert_detail(alert: Dict[str, Any]) -> None:
@@ -3932,7 +4217,11 @@ def _render_threat_alert_detail(alert: Dict[str, Any]) -> None:
         if confidence is not None:
             st.caption(f"ReAct confidence: {confidence}")
         if reasoning:
-            st.caption(f"ReAct reasoning: {str(reasoning)[:240]}{'…' if len(str(reasoning)) > 240 else ''}")
+            caption = _format_react_reasoning_caption(reasoning)
+            if _react_reasoning_is_guardrail_only(reasoning):
+                st.warning(caption)
+            else:
+                st.caption(caption)
 
     col1, col2 = st.columns(2)
 

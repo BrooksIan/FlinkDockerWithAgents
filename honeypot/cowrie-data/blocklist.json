@@ -286,7 +286,84 @@
       "blocked_at": "2026-06-25T10:20:23.340364",
       "duration_minutes": 1440,
       "blocked_by": "Cowrie workflow"
+    },
+    {
+      "ip": "203.0.113.57",
+      "reason": "ReAct: SUCCESSFUL_INTRUSION (CRITICAL)",
+      "blocked_at": "2026-09-18T12:54:58.265240",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.153",
+      "reason": "ReAct: SUCCESSFUL_INTRUSION (CRITICAL)",
+      "blocked_at": "2026-09-18T13:12:45.888732",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.202",
+      "reason": "ReAct: SUCCESSFUL_INTRUSION (CRITICAL)",
+      "blocked_at": "2026-09-18T13:22:48.130454",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.10",
+      "reason": "ReAct: MALICIOUS_COMMAND (HIGH)",
+      "blocked_at": "2026-09-18T13:23:58.895502",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.203",
+      "reason": "ReAct: MALICIOUS_COMMAND (HIGH)",
+      "blocked_at": "2026-09-18T13:29:43.074615",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.211",
+      "reason": "ReAct: MALICIOUS_COMMAND (HIGH)",
+      "blocked_at": "2026-09-18T13:30:44.524434",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.1",
+      "reason": "ReAct: MALICIOUS_COMMAND (HIGH)",
+      "blocked_at": "2026-09-18T13:31:52.499139",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.182",
+      "reason": "ReAct: MALICIOUS_COMMAND (HIGH)",
+      "blocked_at": "2026-09-18T13:33:42.851019",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.35",
+      "reason": "ReAct: MALICIOUS_COMMAND (HIGH)",
+      "blocked_at": "2026-09-18T13:39:20.802964",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.77",
+      "reason": "ReAct: MALICIOUS_COMMAND (HIGH)",
+      "blocked_at": "2026-09-18T13:39:53.244188",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
+    },
+    {
+      "ip": "203.0.113.246",
+      "reason": "ReAct: MALICIOUS_COMMAND (HIGH)",
+      "blocked_at": "2026-09-18T13:59:13.153253",
+      "duration_hours": 24,
+      "blocked_by": "Flink Agents"
     }
   ],
-  "last_updated": "2026-06-25T10:20:23.340617"
+  "last_updated": "2026-09-18T13:59:13.153271"
 }
