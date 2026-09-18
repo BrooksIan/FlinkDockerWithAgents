@@ -21,6 +21,48 @@ import urllib.request
 from typing import Dict, Any, List, Optional, Union
 
 
+def _scroll_main_to_top() -> None:
+    """Force the Streamlit main pane to the top (used on page/tab changes)."""
+    import streamlit.components.v1 as components
+
+    # Delay slightly so Streamlit can paint the new page before we scroll.
+    components.html(
+        """
+        <script>
+        (function () {
+          function jump() {
+            const doc = window.parent.document;
+            const nodes = [
+              doc.querySelector('[data-testid="stAppViewContainer"]'),
+              doc.querySelector('[data-testid="stMain"]'),
+              doc.querySelector('section.main'),
+              doc.querySelector('.main'),
+              doc.scrollingElement,
+              doc.documentElement,
+              doc.body,
+            ];
+            for (const el of nodes) {
+              if (!el) continue;
+              if (typeof el.scrollTo === 'function') {
+                try { el.scrollTo({ top: 0, left: 0, behavior: 'instant' }); }
+                catch (e) { el.scrollTop = 0; }
+              } else {
+                el.scrollTop = 0;
+              }
+            }
+            try { window.parent.scrollTo(0, 0); } catch (e) {}
+          }
+          jump();
+          setTimeout(jump, 50);
+          setTimeout(jump, 200);
+        })();
+        </script>
+        """,
+        height=0,
+        width=0,
+    )
+
+
 def _parse_alert_timestamp(value: Union[str, datetime, None]) -> Optional[datetime]:
     """Parse alert timestamps as UTC-aware datetimes for safe sorting/comparison."""
     if value is None:
@@ -4285,6 +4327,12 @@ def main():
         label_visibility="collapsed",
     )
     st.sidebar.caption(f"View · {page}")
+
+    # On tab change, jump the main pane to the top so prior scroll position
+    # (and any scrolled-off content) does not carry over.
+    if st.session_state.get("_honeypot_page_scrolled") != page:
+        st.session_state["_honeypot_page_scrolled"] = page
+        _scroll_main_to_top()
 
     if page == "Settings":
         # Early return: nothing from other pages (incl. ReAct Lab / Phase 3) is rendered.
