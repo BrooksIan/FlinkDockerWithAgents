@@ -80,6 +80,57 @@ export function AgentNodeSettingsForm({ agent, config, kafkaTopics, onUpdate }: 
           );
         }
 
+        if (field.type === "radio") {
+          const selected = String(value || field.defaultValue || field.options?.[0] || "");
+          return (
+            <fieldset
+              key={field.key}
+              style={{ border: "none", margin: "0.75rem 0 0", padding: 0 }}
+            >
+              <legend className="studio-label" style={{ padding: 0 }}>
+                {field.label}
+                {field.required ? " *" : ""}
+              </legend>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", marginTop: "0.35rem" }}>
+                {(field.options || []).map((opt) => {
+                  const radioId = `${id}-${opt}`;
+                  const label = field.optionLabels?.[opt] || opt;
+                  return (
+                    <label
+                      key={opt}
+                      htmlFor={radioId}
+                      className="studio-label"
+                      style={{
+                        display: "flex",
+                        gap: "0.5rem",
+                        alignItems: "flex-start",
+                        fontWeight: 400,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <input
+                        id={radioId}
+                        type="radio"
+                        name={id}
+                        value={opt}
+                        checked={selected === opt}
+                        onChange={() => patch(field.key, opt)}
+                        style={{ marginTop: "0.2rem" }}
+                      />
+                      <span>{label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+              {field.help && (
+                <p className="muted" style={{ fontSize: "0.8rem" }}>
+                  {field.help}
+                </p>
+              )}
+            </fieldset>
+          );
+        }
+
         if (field.type === "checkbox") {
           return (
             <div key={field.key} style={{ marginTop: "0.75rem" }}>

@@ -1,6 +1,13 @@
 /** Per-agent Studio node settings shown in the pipeline inspector. */
 
-export type AgentSettingFieldType = "text" | "url" | "password" | "select" | "checkbox" | "kafka_topic";
+export type AgentSettingFieldType =
+  | "text"
+  | "url"
+  | "password"
+  | "select"
+  | "radio"
+  | "checkbox"
+  | "kafka_topic";
 
 export interface AgentSettingField {
   key: string;
@@ -10,6 +17,8 @@ export interface AgentSettingField {
   placeholder?: string;
   defaultValue?: string | boolean;
   options?: string[];
+  /** Optional display labels keyed by option value (radio/select). */
+  optionLabels?: Record<string, string>;
   help?: string;
 }
 
@@ -105,6 +114,34 @@ export const AGENT_SETTINGS: Record<string, AgentSettingsDefinition> = {
         label: "Kafka bootstrap (optional)",
         type: "text",
         placeholder: "localhost:9093",
+      },
+    ],
+  },
+  workflow_nifi_monitor: {
+    title: "NiFi monitor / heal",
+    hint: "Poll NiFi health and optionally auto-heal. Phase gates mutations (NIFI_HEAL_PHASE).",
+    fields: [
+      {
+        key: "phase",
+        label: "Heal phase",
+        type: "radio",
+        required: true,
+        options: ["monitor", "safe", "lab"],
+        defaultValue: "monitor",
+        optionLabels: {
+          monitor: "Monitor — observe only (no mutations)",
+          safe: "Safe — start stopped processors / enable services",
+          lab: "Lab — safe + config fix, terminate, optional empty queues",
+        },
+        help: "Maps to NIFI_HEAL_PHASE for this pipeline node.",
+      },
+      {
+        key: "process_group_id",
+        label: "Process group ID",
+        type: "text",
+        defaultValue: "root",
+        placeholder: "root",
+        help: "NiFi process group to poll (default: root).",
       },
     ],
   },
