@@ -124,13 +124,28 @@ def ensure_pemja_parent_classpath() -> None:
             continue
 
 
-def remove_flink_agents_common_from_classpath() -> None:
-    """Remove common JAR from ``/opt/flink/lib`` (used when resetting cluster state)."""
-    for jar in FLINK_LIB.glob("flink-agents-dist-common-*.jar"):
+def remove_flink_agents_lib_jars() -> None:
+    """Remove all Flink Agents JARs from ``/opt/flink/lib``.
+
+    The image copies both common and thin into ``lib``. Historically bootstrap only
+    deleted the common JAR (Pemja / dual-classloader fix), which left thin alone on
+    the parent classloader. Thin references Jackson classes that live in common →
+    ``NoClassDefFoundError: com.fasterxml.jackson.core.JsonProcessingException``
+    during ``to_datastream()``.
+
+    Pipelines must load common+thin together via ``attach_flink_agents_jars`` (one
+    user classloader). Keep them out of ``/opt/flink/lib`` after bootstrap.
+    """
+    for jar in FLINK_LIB.glob("flink-agents-*.jar"):
         try:
             jar.unlink()
         except OSError:
             pass
+
+
+def remove_flink_agents_common_from_classpath() -> None:
+    """Backward-compatible alias: strip all Agents JARs from ``/opt/flink/lib``."""
+    remove_flink_agents_lib_jars()
 
 
 def ensure_flink_agents_common_on_classpath() -> None:
@@ -215,10 +230,13 @@ def ensure_pyflink_beam_runtime() -> None:
         import pemja  # noqa: F401
     except ImportError:
         missing.append(PEMJA_VERSION)
+    # PyFlink 1.19+/2.x imports ``avro.errors`` (apache-avro >=1.11). The legacy
+    # ``avro-python3`` wheel provides an ``avro`` package without that module and
+    # breaks TaskManagers with ModuleNotFoundError during stage-bundle startup.
     try:
-        import avro  # noqa: F401
+        from avro.errors import AvroTypeException  # noqa: F401
     except ImportError:
-        missing.append("avro-python3>=1.10.0,<1.12.0")
+        missing.append("avro>=1.11.0,<1.12.0")
     if not missing:
         return
 
@@ -245,7 +263,8 @@ def bootstrap_cluster_runtime(
     """Prepare Python workers and optional Flink Agents JARs."""
     ensure_python_symlink()
     ensure_pemja_parent_classpath()
-    remove_flink_agents_common_from_classpath()
+    # Never leave thin-only Agents JARs on the parent classpath (Jackson CNF).
+    remove_flink_agents_lib_jars()
     ensure_pemja_embed_runtime()
     ensure_pyflink_beam_runtime()
     if install_agents_jars:

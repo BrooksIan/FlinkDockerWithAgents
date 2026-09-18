@@ -326,6 +326,59 @@ def create_yggdrasil_event_pipeline(service: PipelineService) -> dict[str, Any]:
     )
 
 
+def nifi_monitor_pipeline_template() -> dict[str, Any]:
+    """Observe-only NiFi health poll → diagnostics on nifi.monitor.output."""
+    return {
+        "name": "NiFi Monitor",
+        "nodes": [
+            {
+                "id": "src1",
+                "kind": "source",
+                "config": {
+                    "source_type": "records",
+                    "records": [
+                        {
+                            "key": "poll-1",
+                            "value": {"process_group_id": "root", "phase": "monitor"},
+                        }
+                    ],
+                },
+            },
+            {
+                "id": "agent_nifi",
+                "kind": "agent",
+                "agent": "workflow_nifi_monitor",
+                "config": {"process_group_id": "root", "phase": "monitor"},
+            },
+            {
+                "id": "sink1",
+                "kind": "sink",
+                "config": {"sink_type": "kafka", "topic": "nifi.monitor.output"},
+            },
+        ],
+        "edges": [
+            {"id": "e1", "source": "src1", "target": "agent_nifi"},
+            {"id": "e2", "source": "agent_nifi", "target": "sink1"},
+        ],
+        "layout": {
+            "src1": {"x": 80, "y": 200},
+            "agent_nifi": {"x": 320, "y": 200},
+            "sink1": {"x": 560, "y": 200},
+        },
+    }
+
+
+def create_nifi_monitor_pipeline(service: PipelineService) -> dict[str, Any]:
+    """Create the Studio NiFi monitor pipeline template."""
+    template = nifi_monitor_pipeline_template()
+    return service.create(
+        name=str(template["name"]),
+        nodes=list(template["nodes"]),
+        edges=list(template["edges"]),
+        layout=dict(template["layout"]),
+    )
+
+
 def reset_pipeline_service_for_tests() -> None:
     global _default_service
     _default_service = None

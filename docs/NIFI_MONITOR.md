@@ -226,6 +226,10 @@ Local Docker NiFi has no Knox. For CDP Flow Management:
 
 ## Continuous and cluster
 
+**Studio template** (Agentic Studio → **NiFi monitor pipeline**):
+
+Records poll (`phase=monitor`) → `workflow_nifi_monitor` → Kafka sink `nifi.monitor.output`. Requires NiFi up (`ratatoskr up --profile nifi`) and Studio Kafka (`ratatoskr kafka up`) for the sink. Observe-only by default.
+
 **Host continuous mode** (managed):
 
 ```bash

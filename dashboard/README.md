@@ -134,7 +134,7 @@ Compose **linear multi-agent pipelines** (Source → Window? → Agent → … �
 - **Run locally** — in-process execution; links to `/runs/:id`
 - **Run on Flink cluster** — batch/streaming submit to minimal stack (`:8082`); Kafka sink default topic `workflow.test.output`
 
-Templates include **Counter → Echo**, **Yggdrasil Event Pipeline** (session window → detect → ReAct → Kafka), and blank pipelines.
+Templates include **Counter → Echo**, **Yggdrasil Event Pipeline** (session window → detect → ReAct → Kafka), **NiFi Monitor** (poll → `workflow_nifi_monitor` → `nifi.monitor.output`), and blank pipelines.
 
 Pipelines persist in `.ratatoskr/pipelines.db`. Cluster runs need Studio Kafka (`ratatoskr kafka up`) and a healthy minimal Flink stack — use `./scripts/restart-studio-cluster.sh` after code updates.
 

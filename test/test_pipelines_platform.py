@@ -69,6 +69,29 @@ def test_create_yggdrasil_event_pipeline() -> None:
         assert service.validate(created["id"])["valid"] is True
 
 
+def test_create_nifi_monitor_pipeline() -> None:
+    from ratatoskr.pipelines.service import (
+        PipelineService,
+        create_nifi_monitor_pipeline,
+        reset_pipeline_service_for_tests,
+    )
+    from ratatoskr.pipelines.store import PipelineStore
+
+    reset_pipeline_service_for_tests()
+    with tempfile.TemporaryDirectory() as tmp:
+        service = PipelineService(PipelineStore(Path(tmp) / "pipelines.db"))
+        created = create_nifi_monitor_pipeline(service)
+
+        assert created["name"] == "NiFi Monitor"
+        assert len(created["nodes"]) == 3
+        agents = [n for n in created["nodes"] if n.get("agent")]
+        assert agents[0]["agent"] == "workflow_nifi_monitor"
+        assert agents[0]["config"]["phase"] == "monitor"
+        sink = next(n for n in created["nodes"] if n["kind"] == "sink")
+        assert sink["config"]["topic"] == "nifi.monitor.output"
+        assert service.validate(created["id"])["valid"] is True
+
+
 def test_pipeline_validation_errors() -> None:
     from ratatoskr.pipelines.models import Pipeline, PipelineEdge, PipelineNode
     from ratatoskr.pipelines.validate import validate_pipeline
@@ -127,7 +150,6 @@ def test_yggdrasil_event_pipeline_template_validates() -> None:
             **yggdrasil_event_pipeline_template(),
         }
     )
-
     result = validate_pipeline(pipeline)
     assert result["valid"] is True
     assert [n.kind for n in pipeline.nodes] == ["source", "window", "agent", "agent", "sink"]
@@ -137,6 +159,24 @@ def test_yggdrasil_event_pipeline_template_validates() -> None:
     ]
     assert pipeline.edges[2].mapping == {"message": "$.severity"}
     assert pipeline.nodes[-1].config == {"sink_type": "kafka", "topic": "cowrie.react_alerts"}
+
+
+def test_nifi_monitor_pipeline_template_validates() -> None:
+    from ratatoskr.pipelines.models import pipeline_from_dict
+    from ratatoskr.pipelines.service import nifi_monitor_pipeline_template
+    from ratatoskr.pipelines.validate import validate_pipeline
+
+    pipeline = pipeline_from_dict(
+        {
+            "id": "pipe_nifi_monitor",
+            **nifi_monitor_pipeline_template(),
+        }
+    )
+    result = validate_pipeline(pipeline)
+    assert result["valid"] is True
+    assert [n.kind for n in pipeline.nodes] == ["source", "agent", "sink"]
+    assert [n.agent for n in pipeline.nodes if n.kind == "agent"] == ["workflow_nifi_monitor"]
+    assert pipeline.nodes[-1].config == {"sink_type": "kafka", "topic": "nifi.monitor.output"}
 
 
 def test_agent_graph_introspect() -> None:
@@ -446,6 +486,9 @@ def main() -> int:
     test_create_yggdrasil_event_pipeline()
     test_yggdrasil_event_pipeline_template_validates()
     print("OK  Yggdrasil event pipeline template")
+    test_create_nifi_monitor_pipeline()
+    test_nifi_monitor_pipeline_template_validates()
+    print("OK  NiFi monitor pipeline template")
     test_pipeline_validation_errors()
     print("OK  pipeline validation")
     test_agent_graph_introspect()

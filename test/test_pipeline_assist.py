@@ -48,6 +48,21 @@ def test_build_baseline_yggdrasil_intent() -> None:
     assert pipeline["edges"][2]["mapping"] == {"message": "$.severity"}
 
 
+def test_build_baseline_nifi_monitor_intent() -> None:
+    from ratatoskr.pipelines.assist import build_baseline_pipeline, normalize_intent
+
+    intent = normalize_intent(
+        {
+            "goal": "Monitor NiFi flow health and publish diagnostics",
+            "domain": "auto",
+        }
+    )
+    pipeline = build_baseline_pipeline(intent)
+    agents = [n["agent"] for n in pipeline["nodes"] if n.get("kind") == "agent"]
+    assert agents == ["workflow_nifi_monitor"]
+    sink = next(n for n in pipeline["nodes"] if n["kind"] == "sink")
+    assert sink["config"]["topic"] == "nifi.monitor.output"
+
 def test_build_baseline_counter_echo_intent() -> None:
     from ratatoskr.pipelines.assist import build_baseline_pipeline, normalize_intent
 

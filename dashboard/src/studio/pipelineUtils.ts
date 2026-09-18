@@ -594,3 +594,45 @@ export function defaultDemoPipeline(): Partial<PipelineSummary> {
     },
   };
 }
+
+/** Observe-only NiFi health poll → diagnostics on nifi.monitor.output. */
+export function defaultNifiMonitorPipeline(): Partial<PipelineSummary> {
+  return {
+    name: "NiFi Monitor",
+    nodes: [
+      {
+        id: "src1",
+        kind: "source",
+        config: {
+          source_type: "records",
+          records: [
+            {
+              key: "poll-1",
+              value: { process_group_id: "root", phase: "monitor" },
+            },
+          ],
+        },
+      },
+      {
+        id: "agent_nifi",
+        kind: "agent",
+        agent: "workflow_nifi_monitor",
+        config: { process_group_id: "root", phase: "monitor" },
+      },
+      {
+        id: "sink1",
+        kind: "sink",
+        config: { sink_type: "kafka", topic: "nifi.monitor.output" },
+      },
+    ],
+    edges: [
+      { id: "e1", source: "src1", target: "agent_nifi" },
+      { id: "e2", source: "agent_nifi", target: "sink1" },
+    ],
+    layout: {
+      src1: { x: 80, y: 200 },
+      agent_nifi: { x: 320, y: 200 },
+      sink1: { x: 560, y: 200 },
+    },
+  };
+}

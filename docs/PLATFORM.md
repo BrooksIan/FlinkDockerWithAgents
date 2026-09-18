@@ -349,7 +349,7 @@ Roadmap: [AGENT_DESIGNER_PLAN.md](AGENT_DESIGNER_PLAN.md).
 Compose **linear multi-agent pipelines** visually (Source → Window? → Agent → … → Sink):
 
 1. Open **Studio** in the dashboard sidebar.
-2. Create a pipeline from a template (Counter → Echo, **Yggdrasil Event Pipeline**, or blank).
+2. Create a pipeline from a template (Counter → Echo, **Yggdrasil Event Pipeline**, **NiFi Monitor**, or blank).
 3. Use the **Canvas** tab to connect nodes left-to-right, or **Build with assistant** to generate a draft from a guided form.
 4. Configure source records, Kafka topics, dynamic session windows, and edge field mapping in the inspector.
 5. **Validate**, then **Run locally** or **Run on Flink cluster** — creates a run with per-agent spans on `/runs/:id`.

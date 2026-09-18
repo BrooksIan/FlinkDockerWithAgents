@@ -9,7 +9,10 @@ from typing import Any
 
 from ratatoskr.agents.registry import list_agent_names
 from ratatoskr.pipelines.models import Pipeline, pipeline_from_dict
-from ratatoskr.pipelines.service import yggdrasil_event_pipeline_template
+from ratatoskr.pipelines.service import (
+    nifi_monitor_pipeline_template,
+    yggdrasil_event_pipeline_template,
+)
 from ratatoskr.pipelines.validate import validate_pipeline
 
 _AGENT_EDGE_MAPPINGS: dict[tuple[str, str], dict[str, str]] = {
@@ -58,6 +61,7 @@ def pipeline_assist_context(*, root: Any | None = None) -> dict[str, Any]:
             "yggdrasil_event_pipeline": yggdrasil_event_pipeline_template(),
             "session_window": _session_window_template(),
             "session_detect_cowrie": _session_detect_template(),
+            "nifi_monitor": nifi_monitor_pipeline_template(),
         },
         "edge_mappings": {
             f"{src}->{tgt}": mapping for (src, tgt), mapping in _AGENT_EDGE_MAPPINGS.items()
@@ -78,7 +82,7 @@ def normalize_intent(body: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("Goal is required")
 
     domain = str(body.get("domain") or "auto").strip().lower()
-    if domain not in ("auto", "cowrie_security", "numeric_transform", "generic"):
+    if domain not in ("auto", "cowrie_security", "numeric_transform", "nifi_ops", "generic"):
         domain = "auto"
 
     source_type = str(body.get("source_type") or "records").strip().lower()
@@ -302,12 +306,23 @@ def build_baseline_pipeline(intent: dict[str, Any], *, root: Any | None = None) 
     goal_lower = intent["goal"].lower()
 
     if domain == "auto":
-        if any(word in goal_lower for word in ("cowrie", "session", "security", "honeypot", "alert")):
+        if any(word in goal_lower for word in ("nifi", "cdf", "flow management")):
+            domain = "nifi_ops"
+        elif any(word in goal_lower for word in ("cowrie", "session", "security", "honeypot", "alert")):
             domain = "cowrie_security"
         elif any(word in goal_lower for word in ("double", "numeric", "counter", "transform", "echo")):
             domain = "numeric_transform"
 
-    if domain == "cowrie_security" or (
+    if domain == "nifi_ops":
+        template = templates["nifi_monitor"]
+        # Keep observe sink on nifi.monitor.output unless the caller overrode sink.
+        if intent["sink_type"] == "capture" and not intent["sink_topic"]:
+            intent = {
+                **intent,
+                "sink_type": "kafka",
+                "sink_topic": "nifi.monitor.output",
+            }
+    elif domain == "cowrie_security" or (
         intent["use_windowing"] and intent["window_key_field"] in ("src_ip", "session", "key")
     ):
         if intent["use_react_enrichment"]:

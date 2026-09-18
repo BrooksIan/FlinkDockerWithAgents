@@ -41,6 +41,7 @@ AGENT_OPTIONAL_SETTINGS: dict[str, tuple[str, ...]] = {
         "kafka_topic",
         "kafka_bootstrap",
     ),
+    "workflow_nifi_monitor": ("process_group_id", "phase"),
 }
 
 

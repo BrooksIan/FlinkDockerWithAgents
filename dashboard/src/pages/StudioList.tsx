@@ -2,7 +2,12 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import type { PipelineSummary } from "../api/types";
-import { defaultDemoPipeline, defaultYggdrasilEventPipeline, emptyPipeline } from "../studio/pipelineUtils";
+import {
+  defaultDemoPipeline,
+  defaultNifiMonitorPipeline,
+  defaultYggdrasilEventPipeline,
+  emptyPipeline,
+} from "../studio/pipelineUtils";
 import {
   SESSION_DETECT_PIPELINE_RECIPE,
   SESSION_WINDOW_PIPELINE_RECIPE,
@@ -93,6 +98,16 @@ export function StudioListPage() {
     }
   }
 
+  async function handleCreateNifiMonitor() {
+    setError(null);
+    try {
+      const created = await api.createPipeline(defaultNifiMonitorPipeline());
+      navigate(`/studio/${created.id}`);
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
   async function handleDuplicate(p: PipelineSummary) {
     try {
       const copy = await api.createPipeline({
@@ -126,6 +141,9 @@ export function StudioListPage() {
         </button>
         <button type="button" className="secondary" onClick={handleCreateYggdrasil}>
           Yggdrasil event pipeline
+        </button>
+        <button type="button" className="secondary" onClick={handleCreateNifiMonitor}>
+          NiFi monitor pipeline
         </button>
         <button type="button" className="secondary" onClick={load} disabled={loading}>
           Refresh
