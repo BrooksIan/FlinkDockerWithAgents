@@ -1835,27 +1835,28 @@ def render_react_agent_lab() -> None:
         st.markdown("---")
         _render_compare_section(cmp, ca_on=ca_on)
 
-    st.markdown("---")
-    st.subheader("🟣 Kafka Phase 3 sidecar")
-    st.caption(
-        "Publishes to `cowrie.normalized` and waits for `cowrie.react_alerts` "
-        "(requires `kafka-react-augmentor` running)."
-    )
-    if st.button("📡 Test Phase 3 Kafka pipeline", use_container_width=True):
-        with st.spinner("Publishing to Kafka and waiting for cowrie.react_alerts (up to 90s)..."):
-            k = rtl.run_kafka_phase3_test(attack_type=attack_type, timeout_sec=90)
-        st.session_state["react_lab_kafka"] = k
+    with st.expander("🟣 Kafka Phase 3 sidecar", expanded=False):
+        st.caption(
+            "Publishes to `cowrie.normalized` and waits for `cowrie.react_alerts` "
+            "(requires `kafka-react-augmentor` running). "
+            "This block is only on **ReAct Agent Lab**, not Settings."
+        )
+        if st.button("📡 Test Phase 3 Kafka pipeline", use_container_width=True):
+            with st.spinner(
+                "Publishing to Kafka and waiting for cowrie.react_alerts (up to 90s)..."
+            ):
+                k = rtl.run_kafka_phase3_test(attack_type=attack_type, timeout_sec=90)
+            st.session_state["react_lab_kafka"] = k
 
-    k = st.session_state.get("react_lab_kafka")
-    if k:
-        if k.get("ok"):
-            st.success(f"⭐ Phase 3 Kafka ReAct confirmed for `{k.get('src_ip')}`")
-        else:
-            st.error(f"Phase 3 Kafka test failed at stage `{k.get('stage')}`")
-        with st.expander("Kafka test details"):
-            st.json(k)
+        k = st.session_state.get("react_lab_kafka")
+        if k:
+            if k.get("ok"):
+                st.success(f"⭐ Phase 3 Kafka ReAct confirmed for `{k.get('src_ip')}`")
+            else:
+                st.error(f"Phase 3 Kafka test failed at stage `{k.get('stage')}`")
+            with st.expander("Kafka test details"):
+                st.json(k)
 
-    st.markdown("---")
     st.caption(
         "CLI equivalent: `python3 scripts/test_react_agents.py --compare` "
         "or `docker exec ... python3 scripts/test_react_agents.py --engine react`"
@@ -3725,7 +3726,8 @@ def render_settings_page() -> None:
     """Kafka + Cloudera settings with Kafka reachability status."""
     _init_settings_defaults()
     st.markdown(
-        '<div class="main-header">Settings</div>',
+        '<div class="main-header">Settings</div>'
+        '<p style="color:#5c5278;margin:-0.5rem 0 1rem;">Kafka + Cloudera only — lab tests live under ReAct Agent Lab</p>',
         unsafe_allow_html=True,
     )
 
@@ -4263,23 +4265,29 @@ def main():
         """,
         unsafe_allow_html=True,
     )
+    _PAGES = [
+        "Threat Detection",
+        "AI Agent Detection",
+        "ReAct Agent Lab",
+        "Counter-Attacks",
+        "Geographic Analysis",
+        "Timeline & Patterns",
+        "Threat Intelligence",
+        "Settings",
+    ]
+    # Explicit key so selection survives reruns and does not reset to index 0.
+    if st.session_state.get("honeypot_page") not in _PAGES:
+        st.session_state["honeypot_page"] = "Threat Detection"
     page = st.sidebar.radio(
         "Page",
-        [
-            "Threat Detection",
-            "AI Agent Detection",
-            "ReAct Agent Lab",
-            "Counter-Attacks",
-            "Geographic Analysis",
-            "Timeline & Patterns",
-            "Threat Intelligence",
-            "Settings",
-        ],
-        index=0,
+        _PAGES,
+        key="honeypot_page",
         label_visibility="collapsed",
     )
+    st.sidebar.caption(f"View · {page}")
 
     if page == "Settings":
+        # Early return: nothing from other pages (incl. ReAct Lab / Phase 3) is rendered.
         render_settings_page()
         return
 
